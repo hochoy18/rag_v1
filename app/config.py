@@ -10,6 +10,7 @@ from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from app.configs.app import AppSettings
+from app.configs.auth import AuthSettings
 from app.configs.base import BaseAppSettings
 from app.configs.db import DBSettings
 from app.configs.postgres import PostgresSettings
@@ -35,6 +36,8 @@ class Settings(BaseAppSettings):
     langfuse: LangfuseSettings = Field(default_factory=LangfuseSettings)
     minio: MinIOSettings = Field(default_factory=MinIOSettings)
     log: LoggingSettings = Field(default_factory=LoggingSettings)
+    # M2 Task 1: auth settings
+    auth: AuthSettings = Field(default_factory=AuthSettings)
 
 
 def build_settings(env_file: str | None = ".env"):
