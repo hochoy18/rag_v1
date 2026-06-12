@@ -4,6 +4,10 @@
 
 name: rag_v1
 
+# 引用 .env 文件（位于仓库根，与 Makefile 同级）
+# r2 实操修订: 加 env_file: ../.env 让 5 service 共享 dev env 变量
+# (避免每个 service 重复硬编码 LANGFUSE_DATABASE_URL / NEXTAUTH_SECRET 等)
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -95,8 +99,10 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - ../.env
     environment:
-      DATABASE_URL: postgresql://rag_app:rag_app_password@postgres:5432/rag
+      DATABASE_URL: postgresql://rag_app:***@postgres:5432/rag
       NEXTAUTH_SECRET: dev-only-please-change-in-production
       NEXTAUTH_URL: http://localhost:3000
       SALT: dev-only-please-change-in-production
