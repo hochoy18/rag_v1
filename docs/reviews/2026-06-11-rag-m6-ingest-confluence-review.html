@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M6 Plan Review · Ingest Confluence Source（子页 BFS + 附件抓取）</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M6 Plan Review · Ingest Confluence Source（子页 BFS + 附件抓取）</h1>
+  <div class="meta">
+    <span>863 行</span>
+<span>38 P0</span>
+<span>42 P1</span>
+<span>11 P2</span>
+    <span>2026-06-11-rag-m6-ingest-confluence-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-payload_hash-不含-user_id跨用户同-spacepageemail-被识别为幂等m5-rev">P0-1 · payload_hash 不含 user_id，跨用户同 space+page+email 被识别为幂等（M5 review P1-6 同类遗漏）</a></li>
+<li><a href="#p0-2-缺附件-content-type-文件类型过滤exezipbinary-能进索引但无法索引">P0-2 · 缺附件 Content-Type / 文件类型过滤，exe/zip/binary 能进索引但无法索引</a></li>
+<li><a href="#p0-3-附件下载超时未隔离bfs-并发可能被慢连接-hang-死">P0-3 · 附件下载超时未隔离，BFS 并发可能被慢连接 hang 死</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-缺-page-labels-tags-元数据抽取">P1-1 · 缺 page labels / tags 元数据抽取</a></li>
+<li><a href="#p1-2-缺-page-version-last-modifier-元数据">P1-2 · 缺 page version / last modifier 元数据</a></li>
+<li><a href="#p1-3-bfs-visited-set-未持久化中断后全量重跑">P1-3 · BFS visited set 未持久化，中断后全量重跑</a></li>
+<li><a href="#p1-4-bfs-asyncioqueue-算法在-green-段用-deque不一致">P1-4 · BFS asyncio.Queue 算法在 GREEN 段用 deque，不一致</a></li>
+<li><a href="#p1-5-depth0-行为未定义max_depth0-时走不召子页还是自身都不召">P1-5 · depth=0 行为未定义（max_depth=0 时走不召子页还是自身都不召）</a></li>
+<li><a href="#p1-6-process_confluence_page-修改-m4-pipeline-但未确认-m4-plan-兼容性">P1-6 · process_confluence_page 修改 M4 pipeline 但未确认 M4 plan 兼容性（跨 M 契约风险）</a></li>
+<li><a href="#p1-7-confluence-api-v2-分页-_linksnext-格式在不同-cloud-版本不一致">P1-7 · Confluence API v2 分页 _links.next 格式在不同 Cloud 版本不一致</a></li>
+<li><a href="#p1-8-附件下载缓存策略缺失同一-attachment-被多个-page-引用时重复下载">P1-8 · 附件下载缓存策略缺失——同一 attachment 被多个 page 引用时重复下载</a></li>
+<li><a href="#p1-9-ingest_confluence-函数签名未对齐-m8-契约auth-参数类型未定">P1-9 · ingest_confluence 函数签名未对齐 M8 契约（auth 参数类型未定）</a></li>
+<li><a href="#p1-10-缺-confluence-body-storage-format-中-acstructured-macro-">P1-10 · 缺 Confluence body storage format 中 &amp;lt;ac:structured-macro&amp;gt; 等复杂标签处理</a></li>
+<li><a href="#p1-11-单测-test_confluence_authpy-缺-permissiondeniederror-类型断言">P1-11 · 单测 test_confluence_auth.py 缺 PermissionDeniedError 类型断言</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-llama-index-readers-confluence-保留为依赖但-m6-主体自建-client版本锁">P2-1 · llama-index-readers-confluence 保留为依赖但 M6 主体自建 client——版本锁定应确认不存在内部 v2 REST 调用冲突</a></li>
+<li><a href="#p2-2-mock-confluence-server-fixture-目录名-mid-plan-从-mock_conf">P2-2 · Mock Confluence server fixture 目录名 mid-plan 从 mock_confluence 改 mock_confluence_fixtures——需确认 DoD 和 Files 表一致</a></li>
+<li><a href="#p2-3-19-个-task-全标-2-5-分钟但部分-task-实际超task-11-含-red4-green2-25">P2-3 · 19 个 Task 全标 2-5 分钟，但部分 Task 实际超（Task 11 含 RED×4 + GREEN×2 = 25-30 分钟；Task 14 含 2 个 RED + 完整 wiring = 30-40 分钟）</a></li>
+<li><a href="#p2-4-confluenceclient_request-未实现-retry-重定向follow_redirectsf">P2-4 · ConfluenceClient._request 未实现 retry 重定向（follow_redirects=False vs True）</a></li>
+<li><a href="#p2-5-ingestreport-缺-total_pages_discovered-和-chunks_count-字段">P2-5 · IngestReport 缺 total_pages_discovered 和 chunks_count 字段，M8 路由进度查询需要</a></li>
+<li><a href="#p2-6-testcontainers-依赖未在-pyproject-声明">P2-6 · testcontainers 依赖未在 pyproject 声明</a></li>
+<li><a href="#p2-7-integration-test-在-ci-中需要-docker但-ci-pipelinem14未配置">P2-7 · Integration test 在 CI 中需要 Docker——但 CI pipeline（M14）未配置</a></li>
+<li><a href="#p2-8-pyprojecttoml-依赖表只列-2-个新包但需-append-到-m4m5-已有列表缺完整-toml-">P2-8 · pyproject.toml 依赖表只列 2 个新包，但需 append 到 M4/M5 已有列表——缺完整 toml 片段</a></li>
+<li><a href="#p2-9-风险表缺-confluence-api-v2-get-pagesidattachments-可能的-40440">P2-9 · 风险表缺 Confluence API v2 GET /pages/{id}/attachments 可能的 404/403 响应（当 page 无 attachments 或权限不足）</a></li>
+<li><a href="#已有-review-p0p1-交叉验证">已有 review P0/P1 交叉验证</a></li>
+<li><a href="#新发现摘要">新发现摘要</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m6-plan-review-ingest-confluence-source子页-bfs-附件抓取">M6 Plan Review · Ingest Confluence Source（子页 BFS + 附件抓取）</h1>
+<blockquote>评审对象：<code>2026-06-11-rag-m6-ingest-confluence.md</code>（606 行，v0 初稿 2026-06-11）</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec（§0 决策 #4/#19 · §3.1 Ingest 数据流 confluence 段 · §5 错误矩阵 11 条 · §8.2 Embedding &amp; 文档解析栈 7 包）;</blockquote>
+<blockquote>已有 review 总报告 <code>2026-06-11-rag-plans-review.md</code> P0-1/P0-5/P1-5;</blockquote>
+<blockquote>M0/M1/M2/M3/M4/M5 独立 review 报告（reviews/ 目录 6 份）;</blockquote>
+<blockquote>M5 review P0-1 SSRF redirect bypass / P1-6 payload_hash 跨用户冲突;</blockquote>
+<blockquote>M4 review P0-1 元素分类 / P0-3 OpenSearch 写入层</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M6 plan 是 RAG V1 ingest Confluence source 的完整实现方案，<strong>11 段模板走齐</strong>（Goal / 不包含 / Architecture / Tech Stack / Files / Tasks RED-GREEN / 测试策略 / DoD / 依赖 / 风险 / 修订记录），<strong>主动吸收了</strong>跨 M review 的 2 项关键 P0/P1（P0-5 真 PG testcontainers / P1-5 payload_hash UNIQUE 约束），<strong>Confluence v2 REST 端点选择正确</strong>（4 端点：GET pages/{id} / children / attachments / download），<strong>错误矩阵覆盖完整</strong>（401/403/429/50MB/5xx），<strong>并发控制设计合理</strong>（semaphore(5) + 十acity 指数退避），<strong>附件流式写盘避免 OOM</strong>，<strong>BFS 深度限制 + visited set 防循环引用</strong>，<strong>payload_hash 幂等设计清晰</strong>。<strong>整体技术深度高于 M4/M5 同期水平，是当前 RAG V1 路线中结构与深度最均衡的一份 plan。</strong></p>
+<p>但作为 V1 中最大的 ingest 里程碑（估时 5 个工作日，占 M4-M6 总估时的 45%），<strong>仍有 14 个实施前必须解决的问题和 18 个重要优化</strong>：</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐⭐</td><td>11 段齐；Goal/不包含（含 M6 vs 其他 M 的契约边界表）/ Architecture（仓库布局 + 模块树）/ Tech Stack（版本精确到 &lt;1 级）/ Files / Tasks 19 个 + DoD 16 条 + 风险 8 行——是已审查 6 份 M plan 中<strong>最完整的一份</strong></td></tr>
+<tr><td>TDD 标注</td><td>⭐⭐⭐⭐⭐</td><td>19 个 Task 全 RED-GREEN；RED 测试名具体、GREEN 代码段完整（非伪代码）；Day 5 集成 Task 16 个 RED 覆盖全部错误矩阵</td></tr>
+<tr><td>技术深度</td><td>⭐⭐⭐⭐</td><td>Confluence v2 REST 端点、BFS + asyncio.Queue、stream 流式下载、token redact —— 深度足够；但<strong>缺 6 项工程细节</strong>（附件 Content-Type 过滤、下载超时隔离、visited set 持久化、label/version/author 元数据、分页 _links 字段差异处理）</td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐⭐</td><td>spec §5 错误矩阵 M6 范围 6 条全部覆盖（401/403/429/50MB/5xx/存储格式）；但<strong>缺 Content-Type 校验、下载超时、分页空响应处理</strong></td></tr>
+<tr><td>跨 M 契约</td><td>⭐⭐⭐⭐</td><td>M4 pipeline / M8 入口签名 / M7 OpenSearch upsert / V1.1 CQL 复用边界清晰；但 <code>process_confluence_page</code> 修改 M4 pipeline 未确认 M4 plan 兼容性</td></tr>
+<tr><td>一致性</td><td>⭐⭐⭐⭐</td><td>主动吸收了 2 项已有 P0/P1；版本与 spec §8.2 对齐；但 payload_hash 未含 user_id（M5 review P1-6 同类问题未同步修正）</td></tr>
+</table>
+<p><strong>一句话</strong>：M6 plan <strong>结构对、版本对、技术深度够</strong>，是当前 RAG V1 路线中<strong>最成熟的单 M plan</strong>；但 <strong>payload_hash 跨用户冲突（P0-1）是阻塞级设计缺陷</strong>，<strong>附件 Content-Type 过滤缺失（P0-2）会导致 binary 进索引</strong>，<strong>download 超时未隔离（P0-3）会在慢连接时挂死 BFS</strong>。修完 3 个 P0 + 11 个 P1 + 9 个 P2 后是可直接动手的合格 plan。</p>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-payload_hash-不含-user_id跨用户同-spacepageemail-被识别为幂等m5-rev">P0-1 · payload_hash 不含 user_id，跨用户同 space+page+email 被识别为幂等（M5 review P1-6 同类遗漏）</h3>
+<p><strong>位置</strong>：Task 12 GREEN 段 L438-439；Goal L23；风险表 L598</p>
+<p><strong>问题</strong>：</p>
+<pre><code class="language-">
+payload_hash = sha256(f&quot;{space_key}:{root_page_id}:{auth_email}&quot;)
+</code></pre>
+<p>M5 review P1-6（<code>2026-06-11-rag-m5-ingest-url-review.md</code> L306-321）已指出同类问题：<strong>跨用户幂等冲突</strong>：</p>
+<ol>
+<li>用户 A ingest <code>space_key=&quot;S&quot;</code> + <code>page_id=1</code> + <code>email=a@t.com</code> → job1, payload_hash = H</li>
+<li>用户 B ingest 同 space+page+email（可能有不同 API token） → payload_hash 相同 → 幂等返 job1 → <strong>用户 B 以为自己 ingest 了但实际是 A 的 job</strong></li>
+<li>用户 B 的 API token <strong>不会用于抓取</strong>（幂等返旧 job）</li>
+<li>即使 API token 不同（Cloud Basic auth 是 email+token 对），payload_hash 只含 email 不含 token → 不同 token 同 email 撞 hash</li>
+</ol>
+<p><strong>修改</strong>（Task 12 GREEN 段改 <code>compute_payload_hash</code>）：</p>
+<pre><code class="language-python">
+def compute_payload_hash(*, space_key: str, root_page_id: int, auth_email: str, user_id: int) -&gt; str:
+    &quot;&quot;&quot;payload_hash = sha256(space_key + root_page_id + auth_email + user_id)。
+
+    Why 含 user_id：同 space+page+email 但不同用户 → 不同 payload_hash（M5 review P1-6）。
+    &quot;&quot;&quot;
+    return hashlib.sha256(
+        f&quot;{space_key}:{root_page_id}:{auth_email}:{user_id}&quot;.encode()
+    ).hexdigest()
+</code></pre>
+<p>并在：</p>
+<ul>
+<li>Task 12 RED 测试 <code>test_payload_hash_is_deterministic</code> 加 <code>user_id</code> 参数</li>
+<li>Task 17 幂等验证断言跨用户不碰撞</li>
+<li>DoD 第 8 条补 <code>user_id</code> 字段</li>
+<li>Goal L23 补 <code>user_id</code></li>
+</ul>
+<p><strong>影响</strong>：Task 12 / Task 14 RED 测试签名全部需加 <code>user_id</code> 参数。<code>ingest_confluence</code> 签名原本已有 <code>user_id: int</code>，所以入口不改。</p>
+<p><strong>已有 review</strong>：M5 review P1-6 已明确，M6 未同步。<strong>严重遗漏</strong>。</p>
+<hr>
+<h3 id="p0-2-缺附件-content-type-文件类型过滤exezipbinary-能进索引但无法索引">P0-2 · 缺附件 Content-Type / 文件类型过滤，exe/zip/binary 能进索引但无法索引</h3>
+<p><strong>位置</strong>：Task 6-8 全篇；Task 11 元数据段；DoD 第 9 条</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M6 下载任何 attachment（Task 6 <code>list_attachments</code> 返回 <code>id</code> / <code>title</code> / <code>size</code> / <code>download_path</code>）——<strong>没有 Content-Type / MIME 检查</strong></li>
+<li>Confluence API v2 <code>GET /wiki/api/v2/pages/{id}/attachments</code> 返回 <code>metadata</code> 含 <code>mediaType</code> 字段（如 <code>application/pdf</code>, <code>image/png</code>, <code>application/x-msdownload</code>）</li>
+<li>不检查类型 → exe / zip / macOS .dmg / <code>.DS_Store</code> 等<strong>无法解析的 binary</strong> 也会被下载 + 标记 metadata + 写入 chunks 表（<code>attachment_filename</code> 有值但内容为 0）</li>
+<li>M4 splitter（预计 PDF/DOCX→text）遇到 exe/zip 抛解析异常 → ingest 任务标 failed</li>
+<li>50MB 检查只拦大小不拦类型——小 exe（如 100KB）通过</li>
+</ul>
+<p><strong>修改</strong>（Task 6 GREEN 段 <code>list_attachments</code> 加 filter，Task 8 加类型检查）：</p>
+<pre><code class="language-python">
+# Confluence 附件可索引 Content-Type 白名单（V1 范围）
+INDEXABLE_MIME_PREFIXES = (
+    &quot;text/&quot;,           # txt, csv, html, xml
+    &quot;application/pdf&quot;, # pdf
+    &quot;application/vnd.openxmlformats-officedocument.&quot;,  # docx/xlsx/pptx
+    &quot;application/msword&quot;,
+    &quot;application/vnd.ms-&quot;,
+    &quot;image/&quot;,          # png/jpg/gif/webp（M4 image extraction）
+    &quot;message/rfc822&quot;,  # .eml
+)
+
+async def list_attachments(self, page_id: int) -&gt; AsyncIterator[dict]:
+    async for att in super().list_attachments(page_id):
+        mime = (att.get(&quot;metadata&quot;) or {}).get(&quot;mediaType&quot;, &quot;&quot;)
+        if not any(mime.startswith(p) for p in INDEXABLE_MIME_PREFIXES):
+            logger.info(&quot;skipped non-indexable attachment&quot;, extra={
+                &quot;att_id&quot;: att[&quot;id&quot;], &quot;title&quot;: att.get(&quot;title&quot;), &quot;mime&quot;: mime
+            })
+            self._report.skipped_content_type += 1
+            continue
+        yield att
+</code></pre>
+<p>并在：</p>
+<ul>
+<li><code>IngestReport</code> 加 <code>skipped_content_type: int</code> 字段</li>
+<li>DoD 第 6 条（50MB 跳过）旁边加 <code>skipped_content_type</code> 条目</li>
+<li>风险表加：不可索引附件漏入导致 pipeline 解析异常</li>
+</ul>
+<p><strong>影响</strong>：Task 6 RED 测试 <code>test_list_attachments_returns_metadata</code> 需补 <code>test_list_attachments_filters_non_indexable</code>。DoD 加 1 条。</p>
+<p><strong>新发现</strong>（已有 review 未列）。</p>
+<hr>
+<h3 id="p0-3-附件下载超时未隔离bfs-并发可能被慢连接-hang-死">P0-3 · 附件下载超时未隔离，BFS 并发可能被慢连接 hang 死</h3>
+<p><strong>位置</strong>：Task 3 GREEN 段 L237；Task 7 GREEN 段 L330-331；Task 7 全篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>ConfluenceClient.__init__</code> 构造 <code>httpx.AsyncClient(timeout=30.0)</code>——<strong>全局 timeout 30s</strong></li>
+<li><code>download_attachment</code> 复用同一 client，但附件下载是 stream 操作：<code>async for chunk in r.aiter_bytes(chunk_size=65536)</code></li>
+<li>慢连接（如 50MB 附件在 1Mbps 网络 → ~400s）+ 30s timeout = <strong>中途超时断开</strong> → 文件不完整（partial write）+ <code>TimeoutException</code></li>
+<li>最大问题：<strong><code>download_attachment</code> 和 <code>get_page</code> 共享 semaphore(5)</strong>——plan 没有单独 <code>download_semaphore</code></li>
+<li>1 个慢附件下载占用 1 个 slot 长达 400s → 阻塞 4 个 page GET / children 请求 → BFS 几乎停下</li>
+<li>5 个同时下载（每个 30s 超时）= 30s 内 BFS 完全阻塞 → BFS 总耗时从预计 30s 膨胀到 400s+</li>
+</ul>
+<p><strong>修改</strong>（Task 3 GREEN 段 + Task 7 GREEN 段）：</p>
+<pre><code class="language-python">
+# ConfluenceClient.__init__ 加独立 timeout 和 semaphore
+class ConfluenceClient:
+    def __init__(self, base_url, auth, settings):
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=20.0,     # 建连
+                read=30.0,        # page GET / children / attachments
+                write=None,
+                pool=None,
+            ),
+            auth=auth.to_httpx(),
+        )
+        self._page_semaphore = asyncio.Semaphore(settings.concurrency)  # page GET 用
+        self._download_semaphore = asyncio.Semaphore(2)                 # 下载专用，最多 2 并发
+        self._download_timeout = httpx.Timeout(
+            connect=30.0,
+            read=120.0,          # 附件 stream 独立超时（大文件慢连接）
+            write=None,
+            pool=None,
+        )
+
+    async def download_attachment(self, *, att_id: str, dest_path: Path) -&gt; int | None:
+        async with self._download_semaphore:  # 独立 semaphore，不阻塞 BFS
+            async with self._client.stream(
+                &quot;GET&quot;,
+                f&quot;/wiki/api/v2/attachments/{att_id}/download&quot;,
+                timeout=self._download_timeout,
+            ) as r:
+                ...
+</code></pre>
+<p>并在：</p>
+<ul>
+<li><code>ConfluenceSettings</code> 加 <code>download_concurrency: int = 2</code> / <code>download_timeout_seconds: int = 120</code></li>
+<li>单测 <code>test_download_semaphore_does_not_block_page_fetch</code>（mock 慢下载 → 断言 BFS 仍能 GET）</li>
+<li>风险表加一行：下载超时 + semaphore 饥饿</li>
+</ul>
+<p><strong>影响</strong>：<code>ConfluenceSettings</code> 多 2 个字段；Task 3 RED 测试补签名；Task 7 补隔离验证。</p>
+<p><strong>新发现</strong>（已有 review 未列）。</p>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-缺-page-labels-tags-元数据抽取">P1-1 · 缺 page labels / tags 元数据抽取</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L405-416 元数据 dict</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence v2 REST <code>GET /wiki/api/v2/pages/{id}</code> 在 Cloud 版返回 <code>labels</code> 数组（<code>[{&quot;id&quot;: &quot;...&quot;, &quot;name&quot;: &quot;label-name&quot;, &quot;prefix&quot;: &quot;global&quot;}]</code>）</li>
+<li>labels 是 Confluence 核心分类机制（类似 tag），对 RAG 检索过滤极有价值</li>
+<li>当前 metadata 只含 <code>source / page_id / space_key / parent_id / depth / title</code>——没 labels</li>
+<li>例：用户标 <code>label: &quot;meeting-notes&quot;</code> → RAG 检索可 filter <code>metadata.labels contains &quot;meeting-notes&quot;</code>——M7 retrieval 需 metadata 支持</li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段元数据补）：</p>
+<pre><code class="language-python">
+meta = {
+    &quot;source&quot;: &quot;confluence&quot;,
+    &quot;page_id&quot;: page[&quot;id&quot;],
+    &quot;space_key&quot;: space_key,
+    &quot;parent_id&quot;: page.get(&quot;parent_id&quot;),
+    &quot;depth&quot;: page[&quot;depth&quot;],
+    &quot;title&quot;: page[&quot;title&quot;],
+    &quot;labels&quot;: [label[&quot;name&quot;] for label in page.get(&quot;labels&quot;, [])],  # P1-1
+}
+</code></pre>
+<p>并在：</p>
+<ul>
+<li>DoD 第 9 条补 <code>labels</code> 断言</li>
+<li>单测 <code>test_metadata_includes_labels</code></li>
+<li>风险表注：Confluence Cloud 返回 labels 字段格式可能变，<code>page.get(&quot;labels&quot;, [])</code> 防御式读取</li>
+</ul>
+<p><strong>影响</strong>：微。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-2-缺-page-version-last-modifier-元数据">P1-2 · 缺 page version / last modifier 元数据</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L405-416</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence v2 REST page 响应含 <code>version</code> 对象（<code>{number: 3, by: {displayName: &quot;...&quot;, email: &quot;...&quot;}, when: &quot;...&quot;}</code>）</li>
+<li>版本号对审计、增量同步（V1.1）、chunk 去重（同 page 更新后 chunk 变更检测）极有价值</li>
+<li>当前 metadata 完全不获取 <code>version</code> / <code>last_modifier</code> / <code>last_modified_at</code></li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段补）：</p>
+<pre><code class="language-python">
+meta = {
+    ...
+    &quot;version&quot;: page.get(&quot;version&quot;, {}).get(&quot;number&quot;),           # P1-2
+    &quot;last_modified_by&quot;: page.get(&quot;version&quot;, {}).get(&quot;by&quot;, {}).get(&quot;displayName&quot;),
+    &quot;last_modified_at&quot;: page.get(&quot;version&quot;, {}).get(&quot;when&quot;),
+}
+</code></pre>
+<p>并在 DoD 第 9 条补 <code>version</code> 和 <code>last_modified_by</code> 断言。</p>
+<p><strong>影响</strong>：微。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-3-bfs-visited-set-未持久化中断后全量重跑">P1-3 · BFS visited set 未持久化，中断后全量重跑</h3>
+<p><strong>位置</strong>：Task 5 GREEN 段 BFS 算法 L282-289</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>visited: set[int]</code> 只在内存——如果 BFS 处理到第 50 页（共 200 页）时进程中断/超时，<strong>下次全量重跑</strong></li>
+<li>对于大子树（200+ 子页），每次重跑都是重复工作，浪费 API 限速容量（Confluence Cloud 5000 req/h/user）</li>
+<li>M6 风险表已自警\&quot;巨型子树\&quot;——但没给缓解</li>
+<li>V1.1 整 space CQL 抓取（可能上万页）这个问题会严重 100 倍</li>
+</ul>
+<p><strong>修改</strong>（Task 5 GREEN 段 + Config 层）：</p>
+<p>方案 A（轻量，推荐 M6 用）：在 <code>bfs_subtree</code> 内部 <code>try/finally</code> 把 <code>visited</code> 写临时文件：</p>
+<pre><code class="language-python">
+# M6 范围：简单 JSON 文件持久化
+_VISITED_FILE = Path(&quot;data/confluence_bfs_visited.json&quot;)
+
+async def bfs_subtree(self, root_page_id, *, max_depth=3) -&gt; list[PageNode]:
+    visited = set()
+    # 恢复已访问 page（中断恢复）
+    if _VISITED_FILE.exists():
+        visited = set(json.loads(_VISITED_FILE.read_text()))
+    try:
+        # ... BFS 逻辑（现有）...
+    finally:
+        _VISITED_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _VISITED_FILE.write_text(json.dumps(list(visited)))
+</code></pre>
+<p>方案 B（M12 hardening 做）：用 Postgres 存 BFS 进度表——M6 不做。</p>
+<p><strong>影响</strong>：Config 加 <code>bfs_visited_file: str = &quot;data/confluence_bfs_visited.json&quot;</code>。Task 5 补 RED 测试 <code>test_bfs_resumes_from_visited_file</code>。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-4-bfs-asyncioqueue-算法在-green-段用-deque不一致">P1-4 · BFS asyncio.Queue 算法在 GREEN 段用 deque，不一致</h3>
+<p><strong>位置</strong>：Task 5 GREEN 段 L277-289</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>代码伪代码用 <code>deque([(root_page_id, 0)])</code> 和 <code>queue.popleft()</code>——是同步 deque BFS</li>
+<li>注释写 \&quot;用 <code>asyncio.Queue</code> 实现真正的并发 BFS（不用 deque）\&quot;</li>
+<li>两者不一致：<code>asyncio.Queue</code> 是 async producer-consumer，不推荐做 BFS 遍历（需要用 <code>task_done</code> / <code>join</code> 模式）</li>
+<li>实际 BFS 用 deque + semaphore 控制并发（sem 在 <code>get_page</code> 处）是正确选择——<code>asyncio.Queue</code> 会增加复杂性</li>
+</ul>
+<p><strong>修改</strong>：删注释\&quot;用 asyncio.Queue 实现真正的并发 BFS\&quot;，改为：</p>
+<pre><code class="language-python">
+# BFS 用 deque + asyncio.Semaphore 控制并发。
+# 不用 asyncio.Queue——BFS 是单 producer 遍历，deque 更高效。
+# 并发由 get_page 内的 self._page_semaphore 控制。
+</code></pre>
+<p><strong>影响</strong>：零（注释修正）。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-5-depth0-行为未定义max_depth0-时走不召子页还是自身都不召">P1-5 · depth=0 行为未定义（max_depth=0 时走不召子页还是自身都不召）</h3>
+<p><strong>位置</strong>：Task 5 GREEN 段 L280-290 BFS 算法</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>max_depth: int = 3</code>（默认 3）</li>
+<li>BFS 算法：<code>queue = deque([(root_page_id, 0)])</code> → yield root → <code>if depth &gt;= max_depth: continue</code> → <code>if 0 &gt;= 0: continue</code> → <strong>root 被 yield 了但 children 全跳过</strong></li>
+<li>max_depth=0 时：只出 root 自己，不出任何子页——合理</li>
+<li>但 <strong>max_depth=None 或 -1</strong>（\&quot;不限深度\&quot;）呢？plan 入口签名 <code>max_depth: int | None = None</code>——但 BFS 代码里 <code>if depth &gt;= max_depth</code> 在 max_depth=None 时 <code>TypeError: &#x27;&gt;=&#x27; not supported between instances of &#x27;int&#x27; and &#x27;NoneType&#x27;</code></li>
+</ul>
+<p><strong>修改</strong>（Task 5 GREEN 段补边界处理）：</p>
+<pre><code class="language-python">
+async def bfs_subtree(self, root_page_id, *, max_depth=3) -&gt; list[PageNode]:
+    if max_depth is None:
+        max_depth = float(&#x27;inf&#x27;)  # 不限深度
+    if max_depth &lt; 0:
+        raise ValueError(f&quot;max_depth must be &gt;= 0 or None, got {max_depth}&quot;)
+    ...
+</code></pre>
+<p>并在 Task 5 RED 段补 <code>test_bfs_with_max_depth_none</code> 和 <code>test_bfs_with_max_depth_0</code>。</p>
+<p><strong>影响</strong>：Task 5 RED 补 2 个测试。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-6-process_confluence_page-修改-m4-pipeline-但未确认-m4-plan-兼容性">P1-6 · process_confluence_page 修改 M4 pipeline 但未确认 M4 plan 兼容性（跨 M 契约风险）</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L424-430；Files 修改表 L188</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M6 plan 说在 <code>app/ingest/pipeline.py</code> 加 <code>process_confluence_page(page_body_html, meta) -&gt; list[Element]</code></li>
+<li>但 <strong>M4 plan 的元素分类实现（P0-1 元素分类）本身是 P0 待修状态</strong>——M4 review 指出 M4 完全缺元素分类</li>
+<li>M4 plan 如果采用不同的元素分类策略（如走 LlamaIndex <code>BaseElementNodeParser</code>），M6 的 <code>process_confluence_page</code> 可能不兼容</li>
+<li>M6 用 BeautifulSoup 解析 Confluence storage HTML → 产三类元素（NarrativeText / Table / Image）→ 喂 M4 <code>process_elements</code></li>
+<li>M4 review 建议走 <code>SimpleNodeParser</code>（LlamaIndex 原生）而非 <code>BeautifulSoup</code>——两者输出不一致</li>
+</ul>
+<p><strong>修改</strong>（在 Architecture 契约边界表 + Files 修改表补）：</p>
+<pre><code class="language-">
+契约边界补充（M6 → M4）：
+- M6 产 Element 列表格式：list[dict] | list[BaseNode] —— 需与 M4 review P0-1 对齐
+- M6 依赖 M4 pipeline 提供 `process_confluence_page_stub(page_body, meta) -&gt; list[Element]`
+- 若 M4 plan 未实现元素分类 → M6 需自己实现 fallback 元素分类器
+</code></pre>
+<p>并在风险表加一行：</p>
+<table>
+<tr><th>M4 元素分类未实现，M6 的 <code>process_confluence_page</code> 无兼容上游</th><th>M6 自带 fallback 元素分类器（BeautifulSoup + <code>&lt;p&gt;/&lt;table&gt;/&lt;ac:image&gt;</code> 规则），不与 M4 耦合</th><th>\&quot;阻塞等 M4 完成\&quot; — 拖累 M6 工期</th></tr>
+</table>
+<p><strong>影响</strong>：低——补充契约注释，不影响代码。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-7-confluence-api-v2-分页-_linksnext-格式在不同-cloud-版本不一致">P1-7 · Confluence API v2 分页 <code>_links.next</code> 格式在不同 Cloud 版本不一致</h3>
+<p><strong>位置</strong>：Task 4 GREEN 段 L259-260 分页 cursor</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence API v2 分页 <code>_links.next</code> 的值在不同 Cloud 版本有差异：</li>
+<li><strong>新版本</strong>（2024+）：<code>&quot;/wiki/api/v2/pages/{id}/children?cursor=abc&quot;</code></li>
+<li><strong>旧版本</strong>（2023）：<code>&quot;/wiki/rest/api/content/{id}/child?start=10&amp;limit=25&quot;</code>（v1 REST 风格）</li>
+<li><strong>Data Center 版</strong>：<code>&quot;/rest/api/v2/pages/...&quot;</code>（路径不含 <code>/wiki</code>）</li>
+<li>plan 的 <code>list_children</code> 假设 <code>_links.next</code> 是相对路径（以 <code>/</code> 开头），用 <code>params={&quot;cursor&quot;: cursor}</code> 传——这在新 Cloud 版本正确</li>
+<li>但如果 <code>_links.next</code> 是完整 URL（旧版本）或含 <code>start/limit</code> 参数，cursor 方式不工作</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段补防御）：</p>
+<pre><code class="language-python">
+async def list_children(self, page_id: int) -&gt; AsyncIterator[dict]:
+    url = f&quot;/wiki/api/v2/pages/{page_id}/children&quot;
+    while url:
+        resp = await self._request(&quot;GET&quot;, url)
+        data = resp.json()
+        for result in data.get(&quot;results&quot;, []):
+            yield result
+        # 防御式处理 _links.next 格式变化
+        next_link = data.get(&quot;_links&quot;, {}).get(&quot;next&quot;)
+        if not next_link:
+            break
+        if next_link.startswith(&quot;http&quot;):
+            # 完整 URL → 只取 path
+            from urllib.parse import urlparse
+            next_link = urlparse(next_link).path + (&quot;?&quot; + urlparse(next_link).query if urlparse(next_link).query else &quot;&quot;)
+        if &quot;?&quot; in next_link:
+            # start/limit 格式 → 转成 cursor
+            url = f&quot;/wiki/api/v2/pages/{page_id}/children&quot;  # 重置 base
+        else:
+            url = next_link  # cursor 格式
+</code></pre>
+<p>并在 DoD 补：<code>list_children</code> 分页在 mock 环境下覆盖 URL 格式差异。</p>
+<p><strong>影响</strong>：Task 4 RED 测试补 <code>test_list_children_paginates_via_url</code> / <code>test_list_children_paginates_via_full_url</code>。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-8-附件下载缓存策略缺失同一-attachment-被多个-page-引用时重复下载">P1-8 · 附件下载缓存策略缺失——同一 attachment 被多个 page 引用时重复下载</h3>
+<p><strong>位置</strong>：Task 7 全篇；Task 11 metadata</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence page body 里 <code>&lt;ac:image&gt;&lt;ri:attachment ri:filename=&quot;logo.png&quot;/&gt;&lt;/ac:image&gt;</code> 引用 attachment</li>
+<li>同一 attachment 可能被多个 page 引用（如公司 logo 在 10 个页面出现）</li>
+<li><code>fetch_with_attachments</code> 对每个 page 独立调 <code>list_attachments</code> + <code>download_attachment</code>——<strong>同一 attachment 下载 10 次</strong></li>
+<li><code>payload_hash</code> 幂等是 job 级别，不解决<strong>单次 ingest 内</strong>的附件去重</li>
+</ul>
+<p><strong>修改</strong>（Task 7 GREEN 段 + fetch_with_attachments）：</p>
+<pre><code class="language-python">
+class ConfluenceClient:
+    def __init__(self, ...):
+        ...
+        self._downloaded_set: set[str] = set()  # 记录已下载 att_id
+
+    async def download_attachment(self, *, att_id: str, dest_path: Path) -&gt; int | None:
+        if att_id in self._downloaded_set:
+            logger.debug(&quot;attachment already downloaded in this ingest&quot;, extra={&quot;att_id&quot;: att_id})
+            return 0  # 返回 0 表示已存在，不计入下载计数
+        # ... 实际下载 ...
+        self._downloaded_set.add(att_id)
+</code></pre>
+<p>并在 <code>IngestReport</code> 加 <code>attachments_deduplicated: int</code> 字段统计去重数。</p>
+<p><strong>影响</strong>：Task 7 RED 补 <code>test_download_same_attachment_once</code>。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-9-ingest_confluence-函数签名未对齐-m8-契约auth-参数类型未定">P1-9 · ingest_confluence 函数签名未对齐 M8 契约（<code>auth</code> 参数类型未定）</h3>
+<p><strong>位置</strong>：Task 18 GREEN 段 L527-530；Goal L24</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan 定义 <code>ingest_confluence(space_key, page_id, auth, user_id, *, max_depth=3) -&gt; IngestReport</code></li>
+<li>其中 <code>auth</code> 是 <code>ConfluenceAuth</code> 类型（含 <code>email</code> + <code>api_token</code>）</li>
+<li>M8 路由 POST <code>/api/ingest</code> 的 payload 是 JSON <code>{ source: &quot;confluence&quot;, payload: { space_key, page_id, auth: { email, api_token } } }</code></li>
+<li>M8 需要反序列化 JSON → M6 的 <code>ConfluenceAuth</code>——但 M6 plan <strong>没定义 <code>ConfluenceAuth</code> 的 Pydantic schema 版本</strong></li>
+<li><code>ConfluenceAuth</code> 被定义为 Python class，不是 Pydantic <code>BaseModel</code>——M8 路由无法 <code>ConfluenceAuth(**payload[&quot;auth&quot;])</code></li>
+<li>如果 M8 路由用 <code>from app.ingest.sources.confluence import ConfluenceAuth</code>——但这不是 Pydantic，没 <code>.model_dump()</code> 和 <code>.model_validate()</code></li>
+</ul>
+<p><strong>修改</strong>（Task 2 GREEN 段 <code>ConfluenceAuth</code> 改 Pydantic）：</p>
+<pre><code class="language-python">
+from pydantic import BaseModel, SecretStr
+
+class ConfluenceAuth(BaseModel):
+    &quot;&quot;&quot;Confluence Cloud Basic auth（email + API token）。
+    
+    这是 Pydantic BaseModel——M8 路由直接 `ConfluenceAuth(**payload[&quot;auth&quot;])` 反序列化。
+    &quot;&quot;&quot;
+    email: str
+    api_token: SecretStr
+
+    def to_httpx(self) -&gt; httpx.BasicAuth:
+        return httpx.BasicAuth(self.email, self.api_token.get_secret_value())
+
+    def __repr__(self) -&gt; str:
+        return f&quot;ConfluenceAuth(email=&#x27;{self.email}&#x27;, api_token=&#x27;***&#x27;)&quot;
+</code></pre>
+<p>并在 Task 2 RED 段补 <code>test_auth_is_pydantic_model</code>。</p>
+<p><strong>影响</strong>：Task 2 RED 测试可能需调（Pydantic 默认用 <code>model_dump()</code> 而非 <code>__dict__</code>）。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-10-缺-confluence-body-storage-format-中-acstructured-macro-">P1-10 · 缺 Confluence body storage format 中 <code>&lt;ac:structured-macro&gt;</code> 等复杂标签处理</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L424-430</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence Storage Format 不只有 <code>&lt;p&gt;</code> / <code>&lt;table&gt;</code> / <code>&lt;ac:image&gt;</code>——还含：</li>
+<li><code>&lt;ac:structured-macro&gt;</code>（如代码块、JIRA 引用、图表宏、任务列表）</li>
+<li><code>&lt;ac:task-list&gt;</code> / <code>&lt;ac:task&gt;</code>（Confluence 任务）</li>
+<li><code>&lt;ac:plain-text-body&gt;</code> 内嵌宏内容</li>
+<li><code>&lt;ri:page ri:content-title=&quot;...&quot;/&gt;</code>（page 引用）</li>
+<li><code>process_confluence_page</code> 用 BeautifulSoup 解析时：</li>
+<li><code>&lt;ac:structured-macro&gt;</code> 内容在 <code>&lt;ac:plain-text-body&gt;&lt;ac:parameter ac:name=&quot;body&quot;&gt;</code> 内——不是自然文本，全部丢失</li>
+<li>代码块 <code>&lt;ac:structured-macro ac:name=&quot;code&quot;&gt;</code> 内的 <code>&lt;ac:plain-text-body&gt;&lt;![CDATA[...]]&gt;</code> —— 也是代码内容，应保留</li>
+<li>JIRA 表格引用 <code>&lt;ac:structured-macro ac:name=&quot;jira&quot;&gt;</code> → HTML 页面显示为 embed——内容完全不可索引</li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段 + 风险表）：</p>
+<pre><code class="language-python">
+# process_confluence_page 增强
+def _extract_macro_content(soup: BeautifulSoup) -&gt; list[str]:
+    &quot;&quot;&quot;提取 Confluence macro 内的可索引文本。&quot;&quot;&quot;
+    texts = []
+    for macro in soup.find_all(&quot;ac:structured-macro&quot;):
+        name = macro.get(&quot;ac:name&quot;, &quot;&quot;)
+        # 代码块：取 ac:plain-text-body 内文本
+        if name == &quot;code&quot;:
+            body = macro.find(&quot;ac:plain-text-body&quot;)
+            if body:
+                texts.append(body.get_text(strip=True))
+        # TODO: 其他 macro 类型（jira / chart / expand）—— V1.1 实现
+    return texts
+</code></pre>
+<p>并在风险表补：</p>
+<table>
+<tr><th>Confluence <code>storage</code> 格式含 <code>&lt;ac:structured-macro&gt;</code> 内容</th><th>V1 只处理 <code>&lt;p&gt;/&lt;table&gt;/&lt;ac:image&gt;</code>，macro 内容丢失；风险接受，注释标注 V1.1 增强</th><th>全量解析 — 影响 M6 工期</th></tr>
+</table>
+<p><strong>影响</strong>：Task 11 RED 补测试 <code>&lt;ac:structured-macro ac:name=&quot;code&quot;&gt;</code> 内容被保留。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-11-单测-test_confluence_authpy-缺-permissiondeniederror-类型断言">P1-11 · 单测 <code>test_confluence_auth.py</code> 缺 <code>PermissionDeniedError</code> 类型断言</h3>
+<p><strong>位置</strong>：Task 9 RED 段 L368-380</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 9 RED 测试 <code>test_permission_denied_skips_page_and_continues</code> 断言 <code>report.permission_denied_count == 1</code></li>
+<li>但 <strong>不断言</strong> 异常具体是 <code>PermissionDeniedError</code> 还是 <code>ConfluenceAPIError</code>（status_code=401）</li>
+<li>如果 Task 3 的 <code>_request</code> 抛的是通用 <code>ConfluenceAPIError(401)</code> 而不是 <code>PermissionDeniedError</code>，Task 9 的 skip 逻辑 <code>except PermissionDeniedError</code> <strong>不会触发</strong>——跳不过</li>
+<li>缺少类型安全——断言的捕获依赖于异常类型精确匹配</li>
+</ul>
+<p><strong>修改</strong>（Task 3 GREEN 段 + Task 9 RED 段）：</p>
+<p>Task 3 明确异常类型：</p>
+<pre><code class="language-python">
+class ConfluenceError(Exception): ...
+class PermissionDeniedError(ConfluenceError): ...  # 401/403
+class PageNotFoundError(ConfluenceError): ...      # 404
+class ConfluenceAPIError(ConfluenceError): ...     # 其他 4xx
+class ConfluenceServerError(ConfluenceError): ...  # 5xx
+</code></pre>
+<p>Task 9 RED 补：</p>
+<pre><code class="language-python">
+def test_permission_denied_raises_typed_error():
+    &quot;&quot;&quot;验证 401 抛 PermissionDeniedError（不是通用 ConfluenceAPIError）。&quot;&quot;&quot;
+    respx_mock.get(&quot;...&quot;).mock(return_value=httpx.Response(401))
+    with pytest.raises(PermissionDeniedError):
+        await client.get_page(1)
+</code></pre>
+<p><strong>影响</strong>：Task 3 RED 补 1 个测试。Task 9 已有测试不变。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-llama-index-readers-confluence-保留为依赖但-m6-主体自建-client版本锁">P2-1 · llama-index-readers-confluence 保留为依赖但 M6 主体自建 client——版本锁定应确认不存在内部 v2 REST 调用冲突</h3>
+<p><strong>位置</strong>：Tech Stack L136-137；关键导入路径 L148-150</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>llama-index-readers-confluence==0.4.4</code> 作为依赖保留（仅类型/兼容性参考）</li>
+<li>但 M6 自建 client 与 <code>ConfluenceReader</code> 内部实现可能冲突——当两个模块同时 import 会创建 2 个 <code>httpx.AsyncClient</code>、2 套 auth 逻辑</li>
+<li>同一进程同时存在两套 Confluence client，可能相互干扰（环境变量、logger、事件循环）</li>
+<li>建议把 <code>ConfluenceReader</code> 移出 <code>app/ingest/sources/confluence.py</code> 的 import 层，只在测试中 import</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+# app/ingest/sources/confluence.py 不 import ConfluenceReader
+# from llama_index.readers.confluence import ConfluenceReader  ← 删掉
+
+# 只在类型注释中引用（TypeGuard 用）
+# if TYPE_CHECKING:
+#     from llama_index.readers.confluence import ConfluenceReader
+</code></pre>
+<p><strong>影响</strong>：零。</p>
+<hr>
+<h3 id="p2-2-mock-confluence-server-fixture-目录名-mid-plan-从-mock_conf">P2-2 · Mock Confluence server fixture 目录名 mid-plan 从 <code>mock_confluence</code> 改 <code>mock_confluence_fixtures</code>——需确认 DoD 和 Files 表一致</h3>
+<p><strong>位置</strong>：Files 新增表 L173 <code>infra/mock_confluence/</code>；Task 13 L460-461 注释说改名 <code>mock_confluence_fixtures/</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Files 表写 <code>infra/mock_confluence/</code></li>
+<li>Task 13 注释说\&quot;<code>infra/mock_confluence/</code> 改名为 <code>infra/mock_confluence_fixtures/</code>（仅静态文件）\&quot;</li>
+<li><strong>不一致</strong>——命名不统一，新人会创建错目录</li>
+</ul>
+<p><strong>修改</strong>：统一为 <code>infra/mock_confluence_fixtures/</code>（Files 表 L173 改名），Task 13 目录名保持一致。</p>
+<p><strong>影响</strong>：低。</p>
+<hr>
+<h3 id="p2-3-19-个-task-全标-2-5-分钟但部分-task-实际超task-11-含-red4-green2-25">P2-3 · 19 个 Task 全标 2-5 分钟，但部分 Task 实际超（Task 11 含 RED×4 + GREEN×2 = 25-30 分钟；Task 14 含 2 个 RED + 完整 wiring = 30-40 分钟）</h3>
+<p><strong>位置</strong>：Tasks 段 L193 标题\&quot;（2-5 分钟/step 粒度）\&quot;</p>
+<p><strong>修改</strong>：拆/标注：</p>
+<table>
+<tr><th>Task</th><th>估时</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>Task 11（元数据 + 元素分类）</td><td>25-30min</td><td>4 个 RED + GREEN <code>process_confluence_page</code> + BeautifulSoup 解析</td></tr>
+<tr><td>Task 14（集成测试 wiring）</td><td>30-40min</td><td>串 BFS + attachments + pipeline + chunks 写入</td></tr>
+<tr><td>Task 5（BFS + 深度 + 循环 + 并发）</td><td>20-25min</td><td>4 个 RED + asyncio 并发控制</td></tr>
+<tr><td>Task 7（下载 + 流式 + 大小检查）</td><td>20-25min</td><td>3 个 RED + green 流式实现</td></tr>
+</table>
+<hr>
+<h3 id="p2-4-confluenceclient_request-未实现-retry-重定向follow_redirectsf">P2-4 · <code>ConfluenceClient._request</code> 未实现 retry 重定向（<code>follow_redirects=False</code> vs True）</h3>
+<p><strong>位置</strong>：Task 3 GREEN 段 L236-238</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>httpx.AsyncClient(timeout=30.0, auth=auth.to_httpx())</code>——缺 <code>follow_redirects</code> 参数</li>
+<li>Confluence Cloud API <strong>不应当返回 redirect</strong>（v2 REST 端点设计），但如果配置了反向代理可能会</li>
+<li>默认 <code>follow_redirects=False</code> → 302 时返回 302 body 而非目标内容——M6 不处理会抛意外错误</li>
+<li>应显式设 <code>follow_redirects=True</code> + <code>max_redirects=3</code> 防御</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+self._client = httpx.AsyncClient(
+    timeout=30.0,
+    auth=auth.to_httpx(),
+    follow_redirects=True,
+    max_redirects=3,
+)
+</code></pre>
+<p><strong>影响</strong>：微。</p>
+<hr>
+<h3 id="p2-5-ingestreport-缺-total_pages_discovered-和-chunks_count-字段">P2-5 · <code>IngestReport</code> 缺 <code>total_pages_discovered</code> 和 <code>chunks_count</code> 字段，M8 路由进度查询需要</h3>
+<p><strong>位置</strong>：Task 9 GREEN 段 L372-373</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M4 review P0-5 指出 <code>GET /api/ingest/{job_id}</code> 进度查询需要完整字段集</li>
+<li><code>IngestReport</code> 当前字段：<code>pages_processed / attachments_downloaded / permission_denied_pages / oversized_skipped / errors / payload_hash</code></li>
+<li>缺 <code>total_pages_discovered</code>（BFS 总发现页数，含被跳过/无权限的）——前端进度条分母</li>
+<li>缺 <code>chunks_count</code>（实际写入 chunks 表数）——与 M4 <code>IngestJob.chunks_count</code> 一致</li>
+<li>缺 <code>duration_seconds</code>——前端预计剩余时间</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+IngestReport = TypedDict(&quot;IngestReport&quot;, {
+    &quot;pages_processed&quot;: int,
+    &quot;pages_discovered&quot;: int,           # BFS 总发现
+    &quot;attachments_downloaded&quot;: int,
+    &quot;attachments_deduplicated&quot;: int,   # P1-8
+    &quot;permission_denied_pages&quot;: list[int],
+    &quot;oversized_skipped&quot;: int,
+    &quot;skipped_content_type&quot;: int,       # P0-2
+    &quot;chunks_count&quot;: int,               # 写入 chunks 表数
+    &quot;errors&quot;: list[str],
+    &quot;payload_hash&quot;: str,
+    &quot;duration_seconds&quot;: float,         # 任务运行秒数
+})
+</code></pre>
+<p><strong>影响</strong>：Task 9 签名和测试断言需更新。</p>
+<hr>
+<h3 id="p2-6-testcontainers-依赖未在-pyproject-声明">P2-6 · <code>testcontainers</code> 依赖未在 pyproject 声明</h3>
+<p><strong>位置</strong>：Tech Stack L141-143（只列 <code>pytest-httpserver</code> / <code>aiohttp</code> / <code>respx</code>）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>集成测试 <code>test_m6_ingest_confluence.py</code> 用 testcontainers 起真 PG 容器（P0-5 强制要求）</li>
+<li><code>pyproject.toml</code> 依赖表只写了 <code>respx&gt;=0.21</code>，<strong>没写 <code>testcontainers[postgresql]</code></strong></li>
+<li>新人跑集成测试 <code>pytest tests/integration/</code> → <code>ModuleNotFoundError: No module named &#x27;testcontainers&#x27;</code></li>
+</ul>
+<p><strong>修改</strong>（Files 修改表 L187 补）：</p>
+<pre><code class="language-toml">
+[project.optional-dependencies]
+dev = [
+  # ...
+  &quot;testcontainers[postgresql]&gt;=4.0,&lt;5&quot;,
+  &quot;respx&gt;=0.21&quot;,
+  &quot;pytest-httpserver&gt;=1.1,&lt;2&quot;,
+]
+</code></pre>
+<hr>
+<h3 id="p2-7-integration-test-在-ci-中需要-docker但-ci-pipelinem14未配置">P2-7 · Integration test 在 CI 中需要 Docker——但 CI pipeline（M14）未配置</h3>
+<p><strong>位置</strong>：测试策略 L542</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>集成测试标记 <code>--require-docker</code> 是自定义 marker——plan 没写如何实现</li>
+<li>CI GitHub Actions runner 默认没有 Docker socket，需显式配置 <code>services: docker</code> 或 <code>run-pytest-in-docker</code></li>
+<li>plan 只写了\&quot;需 docker compose up postgres\&quot;，没给 CI 配置样例</li>
+</ul>
+<p><strong>修改</strong>：在测试策略段补：</p>
+<pre><code class="language-yaml">
+# .github/workflows/ci.yml（M14 范围，M6 仅记录契约）
+# 集成测试步骤：
+# - name: Start Docker services
+#   run: docker compose -f infra/docker-compose.yml up -d postgres
+# - name: Run integration tests
+#   run: cd apps/rag_v1 &amp;&amp; pytest tests/integration/ --require-docker -m integration
+</code></pre>
+<p>并在 <code>conftest.py</code> 加 <code>pytest_configure</code> 注册 <code>require-docker</code> marker，加 <code>pytest_collection_modifyitems</code> 检查 Docker 可用性。</p>
+<p><strong>影响</strong>：低——仅注释。</p>
+<hr>
+<h3 id="p2-8-pyprojecttoml-依赖表只列-2-个新包但需-append-到-m4m5-已有列表缺完整-toml-">P2-8 · pyproject.toml 依赖表只列 2 个新包，但需 append 到 M4/M5 已有列表——缺完整 toml 片段</h3>
+<p><strong>位置</strong>：Files 修改段 L184-188</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>与 M5 review P2-4 同类问题——只写\&quot;追加 <code>llama-index-readers-confluence==0.4.4</code> / <code>respx&gt;=0.21</code>\&quot;，没给完整 dependencies toml 片段</li>
+<li>新人不知道是加到 <code>[dependencies]</code> 还是 <code>[optional-dependencies].dev</code> 还是加到哪个位置</li>
+</ul>
+<p><strong>修改</strong>：给完整片段：</p>
+<pre><code class="language-toml">
+# pyproject.toml（M6 追加）
+dependencies = [
+  # ... M0-M5 已有 ...
+  &quot;llama-index-readers-confluence==0.4.4&quot;,
+]
+[project.optional-dependencies]
+dev = [
+  # ... M0-M5 已有 ...
+  &quot;respx&gt;=0.21&quot;,
+  &quot;pytest-httpserver&gt;=1.1,&lt;2&quot;,
+  &quot;testcontainers[postgresql]&gt;=4.0,&lt;5&quot;,
+]
+</code></pre>
+<hr>
+<h3 id="p2-9-风险表缺-confluence-api-v2-get-pagesidattachments-可能的-40440">P2-9 · 风险表缺 Confluence API v2 <code>GET /pages/{id}/attachments</code> 可能的 404/403 响应（当 page 无 attachments 或权限不足）</h3>
+<p><strong>位置</strong>：风险表 L589-598</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前风险表 8 行，覆盖：限速、字段差异、内存压力、循环引用、token 泄露、并发顺序、M8 路由未实现、存储格式、payload_hash</li>
+<li><strong>缺</strong>：<code>list_attachments</code> 对无附件 page 返回 404 的可能性——Confluence Cloud 在 page 无附件时可能返 404 而非空列表</li>
+<li>缺：<code>list_attachments</code> 在 page 有 attachment 但用户有 page 读权限无附件下载权限时返 403</li>
+<li>缺：BFS 过程中 <code>get_page(pid)</code> 返回 404（页面被删除但 children 列表仍引用）——当前只处理 401/403，404 未捕获</li>
+</ul>
+<p><strong>修改</strong>（风险表补 3 行 + Task 5 BFS 补 404 处理）：</p>
+<pre><code class="language-python">
+# bfs_subtree 内
+try:
+    page = await self.get_page(pid)
+except PermissionDeniedError:
+    report.permission_denied_pages.append(pid)
+    continue
+except PageNotFoundError:          # ← 新增
+    report.errors.append(f&quot;page {pid} not found (可能被删除)&quot;)
+    continue
+</code></pre>
+<hr>
+<h2 id="已有-review-p0p1-交叉验证">已有 review P0/P1 交叉验证</h2>
+<table>
+<tr><th>已有 review 项</th><th>M6 状态</th><th>判定</th></tr>
+<tr><td>----------------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P0-1 端口 18080</strong>（总 review）</td><td>M6 不涉及端口配置</td><td>✅ 不适用</td></tr>
+<tr><td><strong>P0-5 真 PG 集成测试</strong>（总 review）</td><td>M6 测试策略 L542 强制 testcontainers 真 PG；DoD L566 注明</td><td>✅ <strong>已修</strong></td></tr>
+<tr><td><strong>P1-5 payload_hash UNIQUE</strong>（总 review）</td><td>M6 Task 17 L521 显式依赖 <code>ingest_jobs.payload_hash UNIQUE</code> 约束</td><td>✅ <strong>已修</strong></td></tr>
+<tr><td><strong>M5 P0-1 SSRF redirect bypass</strong></td><td>M6 Confluence base_url 是配置化的（非用户输入），不涉及 SSRF redirect</td><td>✅ 不适用</td></tr>
+<tr><td><strong>M5 P1-6 payload_hash 跨用户冲突</strong></td><td>M6 payload_hash 同样不含 <code>user_id</code>——<strong>未同步修正</strong></td><td>❌ <strong>P0-1</strong></td></tr>
+<tr><td><strong>M4 P0-1 元素分类</strong></td><td>M6 <code>process_confluence_page</code> 依赖 M4 元素分类——M4 review 指 M4 本空缺</td><td>⚠️ <strong>P1-6</strong></td></tr>
+<tr><td><strong>M4 P0-3 OpenSearch 写入层</strong></td><td>M6 不直接写 OpenSearch（写 chunks 表，M7 upsert）</td><td>✅ 不适用</td></tr>
+<tr><td><strong>M3 P0-3 TEI dim 断言</strong></td><td>M6 不直接调 TEI（走 M4 pipeline）</td><td>✅ 不适用</td></tr>
+<tr><td><strong>M2 P0-1 依赖版本漂移</strong></td><td>M6 依赖版本与 spec §8.2 对齐（llama-index-readers-confluence==0.4.4）</td><td>✅ 无问题</td></tr>
+<tr><td><strong>X-1 config 拆分</strong></td><td>M6 <code>ConfluenceSettings</code> 放 <code>app/config.py</code>，未走 X-1 建议的 <code>app/configs/confluence.py</code></td><td>⚠️ 与已有 review 不一致，但 M6 独立</td></tr>
+</table>
+<p><strong>总结</strong>：P0-5/P1-5 已修；P0-1/P0-3/P0-4/P0-6/P0-7/P1-6（总 review）不适用或由其他 M 负责；<strong>M5 P1-6 是唯一跨 M 已审但 M6 未同步的 P1</strong>（升级为 P0-1）。</p>
+<hr>
+<h2 id="新发现摘要">新发现摘要</h2>
+<p>上述 review 共发现 <strong>3 个 P0 + 11 个 P1 + 9 个 P2</strong>，其中关键项：</p>
+<table>
+<tr><th>#</th><th>等级</th><th>概要</th><th>位置</th></tr>
+<tr><td>---</td><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>1</td><td><strong>P0-1</strong></td><td>payload_hash 不含 user_id → 跨用户冲突（M5 P1-6 未同步）</td><td>Task 12</td></tr>
+<tr><td>2</td><td><strong>P0-2</strong></td><td>缺附件 Content-Type 过滤 → exe/zip 进索引不可解析</td><td>Task 6-8</td></tr>
+<tr><td>3</td><td><strong>P0-3</strong></td><td>附件下载超时未隔离 → 慢连接挂死 BFS + semaphore 饥饿</td><td>Task 3/7</td></tr>
+<tr><td>4</td><td>P1-1</td><td>缺 labels/tags 元数据</td><td>Task 11</td></tr>
+<tr><td>5</td><td>P1-2</td><td>缺 page version / last modifier 元数据</td><td>Task 11</td></tr>
+<tr><td>6</td><td>P1-3</td><td>BFS visited set 未持久化 → 中断全量重跑</td><td>Task 5</td></tr>
+<tr><td>7</td><td>P1-4</td><td>BFS asyncio.Queue vs deque 算法不一致</td><td>Task 5</td></tr>
+<tr><td>8</td><td>P1-5</td><td>max_depth=None → TypeError 未处理</td><td>Task 5</td></tr>
+<tr><td>9</td><td>P1-6</td><td>process_confluence_page 修改 M4 pipeline 未确认兼容性</td><td>Task 11</td></tr>
+<tr><td>10</td><td>P1-7</td><td>API v2 分页 _links.next 格式在不同 Cloud 版本不一致</td><td>Task 4</td></tr>
+<tr><td>11</td><td>P1-8</td><td>附件下载去重缺失（同一附件多 page 引用重复下载）</td><td>Task 7</td></tr>
+<tr><td>12</td><td>P1-9</td><td>ConfluenceAuth 非 Pydantic → M8 路由无法反序列化</td><td>Task 2</td></tr>
+<tr><td>13</td><td>P1-10</td><td><code>&lt;ac:structured-macro&gt;</code> 等复杂标签内容丢失</td><td>Task 11</td></tr>
+<tr><td>14</td><td>P1-11</td><td>PermissionDeniedError 缺类型断言安全</td><td>Task 3/9</td></tr>
+</table>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<ol>
+<li><strong>优先级</strong>：先修 P0-1（payload_hash 加 user_id）→ P0-2（Content-Type 过滤）→ P0-3（下载超时隔离），三者互不阻塞，可并行</li>
+<li><strong>同步确认 M4 pipeline 状态</strong>：在 <code>process_confluence_page</code> 实现前确认 M4 的元素分类方案，避免两边各自实现两套</li>
+<li><strong>M6 估时调整</strong>：当前 5 个工作日（19 个 Task），修完上述 3 P0 + 11 P1 后约 7-8 个工作日（增加 Task 1-2 天 + 测试补全 1-2 天）</li>
+<li><strong>V1.1 预留</strong>：p1-3（visited 持久化）在 M12 hardening 强化；P2-7（CI Docker）在 M14 实现；P1-1/P1-2（labels/version）标记 V1.1 增量检出</li>
+</ol>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>M6-review-r0</td><td>2026-06-11</td><td>初稿（独立 review，3 P0 + 11 P1 + 9 P2 + 交叉验证）</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

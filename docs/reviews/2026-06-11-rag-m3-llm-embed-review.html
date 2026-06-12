@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M3 Plan Review · LLM 工厂 + TEI Embedding 客户端 + Langfuse 范本</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M3 Plan Review · LLM 工厂 + TEI Embedding 客户端 + Langfuse 范本</h1>
+  <div class="meta">
+    <span>776 行</span>
+<span>40 P0</span>
+<span>45 P1</span>
+<span>27 P2</span>
+    <span>2026-06-11-rag-m3-llm-embed-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-4-节点-prompt-yaml-在-plan-中完全没草稿已有-review-p1-13-新发现">P0-1 · 4 节点 prompt YAML 在 plan 中完全没草稿（已有 review P1-13 + 新发现）</a></li>
+<li><a href="#p0-2-make_llm-注入-callback-方式与-langchain-10-弃用-api-冲突已有-revie">P0-2 · make_llm 注入 callback 方式与 langchain 1.0+ 弃用 API 冲突（已有 review P1-14）</a></li>
+<li><a href="#p0-3-teiembedder-缺-dim-硬约束断言-batch_size-协调-normalizetruncate">P0-3 · TEIEmbedder 缺 dim 硬约束断言 + batch_size 协调 + normalize/truncate 明确语义</a></li>
+<li><a href="#p0-4-缺-llm-超时-重试-限速-采样率-flush-配置llm-工程化-5-件套">P0-4 · 缺 LLM 超时 + 重试 + 限速 + 采样率 + flush 配置（LLM 工程化 5 件套）</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-4-节点-llm-没显式-deterministic-控已有-review-没列">P1-1 · 4 节点 LLM 没显式 deterministic 控（已有 review 没列）</a></li>
+<li><a href="#p1-2-langfuselangchaincallbackhandler-import-路径无-fallback已有-">P1-2 · langfuse.langchain.CallbackHandler import 路径无 fallback（已有 review P1-12）</a></li>
+<li><a href="#p1-3-pytest-httpx-缺-pyproject-声明已有-review-p1-18">P1-3 · pytest-httpx 缺 pyproject 声明（已有 review P1-18）</a></li>
+<li><a href="#p1-4-m3-plan-内部不一致api_key-配置-vs-yaml-model-字段">P1-4 · M3 plan 内部不一致：api_key 配置 vs yaml model 字段</a></li>
+<li><a href="#p1-5-m3-缺下游契约make_llmjudge-是-m11-强依赖">P1-5 · M3 缺下游契约：make_llm(&amp;quot;judge&amp;quot;) 是 M11 强依赖</a></li>
+<li><a href="#p1-6-task-4-写5-分钟实际含-3-个-red-测试10-15-分钟">P1-6 · Task 4 写&amp;quot;5 分钟&amp;quot;实际含 3 个 RED 测试（10-15 分钟）</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-4-yaml-加载方式缺热加载设计load_prompt-每次读文件-vs-缓存">P2-1 · 4 yaml 加载方式缺热加载设计（load_prompt 每次读文件 vs 缓存）</a></li>
+<li><a href="#p2-2-dod-第-7-条-4-yaml-50-token-标准在-plan-内无验证机制">P2-2 · DoD 第 7 条 &amp;quot;4 yaml ≥ 50 token&amp;quot; 标准在 plan 内无验证机制</a></li>
+<li><a href="#p2-3-4-yaml-加载库-pyyaml-缺-pyproject-声明">P2-3 · 4 yaml 加载库 PyYAML 缺 pyproject 声明</a></li>
+<li><a href="#p2-4-tasks-估时汇总-vs-实际">P2-4 · Tasks 估时汇总 vs 实际</a></li>
+<li><a href="#p2-5-teiembedder-缺连接复用策略__aenter__-context-manager">P2-5 · TEIEmbedder 缺连接复用策略（__aenter__ / context manager）</a></li>
+<li><a href="#p2-6-集成测试-smoke-缺4-节点都跑过覆盖">P2-6 · 集成测试 smoke 缺&amp;quot;4 节点都跑过&amp;quot;覆盖</a></li>
+<li><a href="#范本影响评估">范本影响评估</a></li>
+<li><a href="#优点m3-范本值得借鉴的-5-点">优点（M3 范本值得借鉴的 5 点）</a></li>
+<li><a href="#不足m3-范本若不修补会被复制的-4-个缺陷">不足（M3 范本若不修补会被复制的 4 个缺陷）</a></li>
+<li><a href="#范本对其他-9-份-plan-的实际影响采样-m7-m10-m11-验证">范本对其他 9 份 plan 的实际影响（采样 M7 / M10 / M11 验证）</a></li>
+<li><a href="#与已有-review-交叉验证">与已有 review 交叉验证</a></li>
+<li><a href="#你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#第一波本轮必改4-项-p0">第一波（本轮必改，4 项 P0）</a></li>
+<li><a href="#第二波重要6-项-p1">第二波（重要，6 项 P1）</a></li>
+<li><a href="#第三波优化6-项-p2">第三波（优化，6 项 P2）</a></li>
+<li><a href="#跨-m-协调m3-改完后通知">跨 M 协调（M3 改完后通知）</a></li>
+<li><a href="#范本修正m3-改完后建议作为-m4-m12-起草标准">范本修正（M3 改完后建议作为 M4-M12 起草标准）</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m3-plan-review-llm-工厂-tei-embedding-客户端-langfuse-范本">M3 Plan Review · LLM 工厂 + TEI Embedding 客户端 + Langfuse 范本</h1>
+<blockquote>评审对象：M3 <code>2026-06-10-rag-m3-llm-embed.md</code>（318 行）</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec §0 决策 #8/#9/#10 / §2 模块树 llm+embedding+observability 段 / §6 测试策略 / §8.1 核心 LLM 编排栈 / §8.2 Embedding &amp; 文档解析栈 / §8.6 观测依赖；M0/M1/M2 review；总 review <code>2026-06-11-rag-plans-review.md</code> P1-12~P1-18；M7 / M10 / M11 plan 契约引用</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M3 plan 是 RAG V1 路线<strong>唯一被显式标注为&quot;范本&quot;</strong>的里程碑（自警 L8：&quot;给 M0/M1/M2/M4–M12 提供&#x27;单里程碑&#x27;计划的结构样板&quot;）。它把 11 段模板走齐（Goal / 不包含 / Architecture / Tech Stack / Files / Tasks / 测试 / DoD / 依赖 / 风险 / 修订记录），技术版本与 spec §8.1 / §8.2 / §8.6 <strong>完全对齐</strong>（与 M2 review 指出 M2 版本 2 处与 spec §8.3 漂移形成对照——M3 没踩这个坑），4 节点 prompt YAML 文件名与 M7 graph 节点一一对应、契约边界表覆盖 M4–M7/M10/M11 全部下游。</p>
+<p>但作为&quot;范本&quot;，它<strong>多处就绪度不足</strong>：4 节点 prompt YAML 仅列文件名无内容（DoD 却要求&quot;≥ 50 token 含 1-shot&quot;）、<code>make_llm</code> 注入 callback 写 <code>model.callbacks</code> 与 langchain 1.0+ 弃用 API 冲突、TEIEmbedder 缺 dim/batch_size/timeout/normalize/truncate 实际行为定义、缺采样率/flush 策略/超时配置等 LLM 工程化关键决策、缺&quot;judge/summarize/chitchat&quot;等下游节点预留。<strong>整体框架对、内容薄、范本可借鉴但不能照搬</strong>——其他 M 起草时若 100% 复制 M3 结构，会复制这些缺陷。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐</td><td>11 段齐，&quot;范本目的&quot;段明确（是 5 份 M0–M3 plan 中<strong>唯一</strong>带&quot;范本目的&quot;的——M0 review P2-2 反复呼吁补这一段）</td></tr>
+<tr><td>范本示范性</td><td>⭐⭐⭐</td><td>11 段是骨架好示范；但 4 yaml 无内容、callback 注入写法有误、TEI 缺关键工程项 → 后续 M 复制结构时会复制缺陷</td></tr>
+<tr><td>一致性</td><td>⭐⭐⭐⭐⭐</td><td>5 个直接依赖版本（langchain 1.0.8 / langchain-core / langchain-anthropic / langfuse 2.50+ / httpx / tenacity）逐一对齐 spec §8.1/§8.2/§8.6；4 节点名与 spec §3.3 + M7 graph 节点名 1:1 对齐</td></tr>
+<tr><td>实施就绪度</td><td>⭐⭐</td><td>4 yaml 没草稿、callback 注入写法过时（已 review P1-14 标）、Tasks 4 写 5 分钟实际含 3 个 RED 测试、DoD 第 7 条 &quot;≥ 50 token&quot; 标准在 plan 内<strong>无对应内容</strong></td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐</td><td>TEI 5xx/4xx 重试有方案；LLM 错误/超时/限速处理<strong>完全缺</strong>；Langfuse env 缺 key 优雅降级 OK；minimax-cn 不稳定风险只说&quot;retry 3 次&quot;无具体参数</td></tr>
+<tr><td>跨 M 契约</td><td>⭐⭐⭐</td><td>契约边界表清晰（5 个下游 M），但漏 <code>make_llm(&quot;judge&quot;)</code>（M11 强依赖）和 <code>make_llm(&quot;answer_chitchat&quot;)</code>（M7 闲聊分支用）；X-1 config 拆分/X-3 全局单例未在本 plan 落实</td></tr>
+</table>
+<p><strong>一句话</strong>：M3 plan <strong>结构对、版本对、契约清</strong>，是 4 份 plan 中最值得作为&quot;骨架样板&quot;的一份；<strong>但作为范本的内容示范是失败的</strong>——下游 M 复制时若不补 P0/P1，会复制其&quot;4 yaml 空壳 + callback 过时写法 + 缺超时/采样/限速&quot;三大缺陷。<strong>修完 4 个 P0 + 6 个 P1 后是合格的&quot;骨架范本&quot;，可成为 M4–M12 的样板。</strong></p>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-4-节点-prompt-yaml-在-plan-中完全没草稿已有-review-p1-13-新发现">P0-1 · 4 节点 prompt YAML 在 plan 中完全没草稿（已有 review P1-13 + 新发现）</h3>
+<p><strong>位置</strong>：M3 Files 表 L155-158 + DoD L283 + Task 4 RED <code>test_factory_binds_system_prompt</code> L249</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>DoD L283 明文：&quot;4 个 prompt yaml 文件（classify/rewrite/rerank/answer）各 ≥ 50 token，含 1-shot 示例&quot;</li>
+<li>但 plan <strong>全篇没有任何 yaml 草稿</strong>（既不在 Files 表后给内容样例，也不在 Task 4 GREEN 段给 system_prompt 字符串）</li>
+<li>Task 4 RED 测试 <code>test_factory_binds_system_prompt</code> 需要&quot;mock yaml → 断言 llm.invoke([HumanMessage(&quot;test&quot;)]) 时 system message 已绑定&quot;——<strong>没有 yaml 草稿，RED 测试断言的 system_message 是空字符串</strong>，通过即假绿</li>
+<li>M3 是范本 → M4–M12 plan 起草人复制 Files 表结构时，会复制&quot;列文件名无内容&quot;的反模式，导致所有 prompt 实际工作要回 plan review 才能定</li>
+</ul>
+<p><strong>修改</strong>（Files 表后补一个 §4 草稿段，给 4 个 yaml 各 5-10 行伪代码）：</p>
+<pre><code class="language-yaml">
+# app/prompts/classify.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.0           # classify 要 deterministic
+max_tokens: 64
+system_prompt: |
+  你是 query 意图分类器。把用户 query 分到两类之一：
+    - &quot;retrieve&quot;：需要查知识库（事实 / 流程 / 代码 / 配置）
+    - &quot;chitchat&quot;：闲聊 / 寒暄 / 不需要事实回答
+  严格只输出 JSON：`{&quot;intent&quot;: &quot;retrieve&quot; | &quot;chitchat&quot;, &quot;reason&quot;: &quot;&lt;1 句中文理由&gt;&quot;}`
+  ---
+  1-shot:
+    Q: &quot;你好&quot;
+    A: {&quot;intent&quot;: &quot;chitchat&quot;, &quot;reason&quot;: &quot;问候语无信息需求&quot;}
+  Q: &quot;V1 决策 #8 选型理由？&quot;
+    A: {&quot;intent&quot;: &quot;retrieve&quot;, &quot;reason&quot;: &quot;需查决策表&quot;}
+</code></pre>
+<pre><code class="language-yaml">
+# app/prompts/rewrite.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.2
+max_tokens: 256
+system_prompt: |
+  你是 query 改写器。基于对话历史把当前 query 改写成 1-3 句、自包含的检索 query。
+  - 消解代词（&quot;它&quot; → &quot;V1 决策 #8 选型&quot;）
+  - 补全主语/对象
+  - 保留原 query 的意图
+  严格只输出改写后 query，不要解释。
+</code></pre>
+<pre><code class="language-yaml">
+# app/prompts/rerank.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.0
+max_tokens: 1024
+system_prompt: |
+  你是相关性评分员。给每个 chunk 打 0-10 分（10=直接回答 query 核心问题）。
+  输入格式：
+    QUERY: &lt;query&gt;
+    CHUNKS:
+      [1] &lt;chunk1&gt;
+      [2] &lt;chunk2&gt;
+      ...
+  严格只输出 JSON：`{&quot;scores&quot;: [[1, 8], [2, 3], ...]}`，顺序与输入 chunks 对齐。
+</code></pre>
+<pre><code class="language-yaml">
+# app/prompts/answer.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.3
+max_tokens: 1024
+system_prompt: |
+  你是 RAG 回答助手。基于 &lt;context&gt; 块回答 &lt;query&gt;。
+  - 必须用 [1][2][3] 引用编号标注信息来自哪个 chunk
+  - context 不足时直说&quot;未找到足够信息&quot;，不要编造
+  - 中文回答
+  严格按格式：`ANSWER: &lt;markdown 回答&gt;\nSOURCES: [1, 2, 3]`
+</code></pre>
+<p>并 Task 4 RED 段补：&quot;<code>assert &quot;你是 query 意图分类器&quot; in bound_messages[0].content</code>&quot;——锚定 yaml 实际字符串，避免假绿。</p>
+<p><strong>注</strong>：P1-13 已指&quot;yaml 无内容&quot;，本 review <strong>新发现</strong>应同时给完整草稿 + 范本契约——M3 是范本，缺草稿会被下游 M 复制。</p>
+<hr>
+<h3 id="p0-2-make_llm-注入-callback-方式与-langchain-10-弃用-api-冲突已有-revie">P0-2 · <code>make_llm</code> 注入 callback 方式与 langchain 1.0+ 弃用 API 冲突（已有 review P1-14）</h3>
+<p><strong>位置</strong>：M3 Task 4 GREEN 段 L246</p>
+<pre><code class="language-">
+- 如果 get_callback_handler() is not None → 注入到 model.callbacks（不破坏 langchain 1.0 内部 handler chain）
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>langchain 1.0+ 弃用 <code>model.callbacks</code>（基础 BaseChatModel 字段保留但写入后<strong>不会</strong>走 callback manager 路由）</li>
+<li>实际生效写法（langchain 1.0.8 官方）：<code>model.with_config({&quot;callbacks&quot;: [handler]})</code> 或 invoke 时 <code>model.invoke(messages, config={&quot;callbacks&quot;: [handler]})</code></li>
+<li>M3 写法 → 注入后 Langfuse 看板<strong>完全收不到</strong> LLM trace → Task 5 集成测试 <code>LANGFUSE_HOST/api/traces</code> GET poll 失败，DoD 第 4 条&quot;Langfuse callback 在 env 完整时注入 LLM invoke 并能在看板看到 trace&quot;为假绿</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段改写）：</p>
+<pre><code class="language-python">
+# app/llm/factory.py
+from functools import lru_cache
+from langchain_anthropic import ChatAnthropic
+from app.config import settings
+from app.observability.langfuse import get_callback_handler
+from app.llm.prompts import load_prompt_cfg
+
+@lru_cache(maxsize=8)  # 4 节点复用同一 LLM 实例
+def make_llm(node: str) -&gt; ChatAnthropic:
+    cfg = load_prompt_cfg(node)
+    model = ChatAnthropic(
+        model=cfg.model,
+        temperature=cfg.temperature,
+        max_tokens=cfg.max_tokens,
+        api_key=settings.llm.api_key.get_secret_value(),
+        timeout=settings.llm.timeout,           # ← 新增 P1-2
+        max_retries=settings.llm.max_retries,   # ← 新增 P1-2
+    )
+    # bind system_prompt（langchain 1.0 bind 协议）
+    bound = model.bind(system_message=cfg.system_prompt)
+    # callback 在 invoke 时注入（不写进 model.callbacks）
+    handler = get_callback_handler()
+    if handler is not None:
+        # 返回 Runnable binding，节点 invoke 时传 config
+        return bound.with_config({&quot;callbacks&quot;: [handler]})
+    return bound
+</code></pre>
+<p>并在 Task 4 RED 段补断言：</p>
+<pre><code class="language-python">
+# 验证 callback 注入路径正确（不写进 model.callbacks 字段）
+def test_callback_uses_with_config_not_callbacks_field(monkeypatch):
+    from app.llm import factory
+    monkeypatch.setattr(factory, &quot;get_callback_handler&quot;, lambda: FakeHandler())
+    llm = factory.make_llm(&quot;answer&quot;)
+    assert not hasattr(llm, &quot;callbacks&quot;) or llm.callbacks == []
+    # callback 应在 config 里
+    assert llm.steps[0].kwargs.get(&quot;config&quot;, {}).get(&quot;callbacks&quot;) or \
+           any(&quot;callback&quot; in str(s) for s in llm.steps)
+</code></pre>
+<p><strong>注</strong>：已有 review P1-14 已点名，本 review 强化——给出完整重写 + 实际 API 路径 + 假绿防护。</p>
+<hr>
+<h3 id="p0-3-teiembedder-缺-dim-硬约束断言-batch_size-协调-normalizetruncate">P0-3 · TEIEmbedder 缺 dim 硬约束断言 + batch_size 协调 + normalize/truncate 明确语义</h3>
+<p><strong>位置</strong>：M3 Task 2 GREEN 段 L207-209</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>async def embed(self, texts)</code> → <code>list[list[float]]</code> 返回值<strong>没有 dim 断言</strong>：TEI 偶发返 dim=768（模型加载到一半 / 配置错）→ DB 存 dim=1024 / dim=768 混 → OpenSearch kNN 索引报错</li>
+<li><code>EmbeddingSettings.dim: int</code> 字段定义了但<strong>没人用</strong>——既不传给 TEI（TEI 由模型决定 dim），也不在返回时断言</li>
+<li><code>batch_size=32</code> 是 client 端切分，TEI 服务端 <code>max_client_batch_size</code> 默认 32 协调但 plan 没写（TEI 1.5 默认是 32，但如果配置改了不一致会 413/400）</li>
+<li>&quot;normalize=true, truncate=true&quot; 是请求体参数，但<strong>语义没说</strong>——是 L2 normalize 吗？truncate 多长（bge-m3 上限 8192 token）？</li>
+</ul>
+<p><strong>修改</strong>（Task 2 GREEN 段补）：</p>
+<pre><code class="language-python">
+# app/embedding/client.py
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import httpx
+from app.config import settings
+
+class EmbeddingError(Exception): ...
+class EmbeddingDimMismatch(EmbeddingError): ...
+
+class TEIEmbedder:
+    def __init__(self, cfg: EmbeddingSettings | None = None):
+        self.cfg = cfg or settings.embedding
+        self._client = httpx.AsyncClient(
+            base_url=self.cfg.base_url,
+            timeout=httpx.Timeout(self.cfg.timeout_seconds),  # 默认 60
+        )
+
+    async def aclose(self):
+        await self._client.aclose()
+
+    @retry(
+        retry=retry_if_exception_type(EmbeddingError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=8),  # 1/2/4s
+        reraise=True,
+    )
+    async def embed(self, texts: list[str]) -&gt; list[list[float]]:
+        results: list[list[float]] = []
+        for batch in _chunked(texts, self.cfg.batch_size):
+            try:
+                resp = await self._client.post(
+                    &quot;/embed&quot;,
+                    json={&quot;inputs&quot;: batch, &quot;normalize&quot;: True, &quot;truncate&quot;: True},
+                )
+            except httpx.TimeoutException as e:
+                raise EmbeddingError(f&quot;TEI timeout: {e}&quot;) from e
+            if 500 &lt;= resp.status_code &lt; 600:
+                raise EmbeddingError(f&quot;TEI {resp.status_code}: {resp.text}&quot;)  # 触发 retry
+            if 400 &lt;= resp.status_code &lt; 500:
+                raise EmbeddingError(f&quot;TEI 4xx no-retry: {resp.status_code} {resp.text}&quot;)
+            resp.raise_for_status()
+            vecs = resp.json()[&quot;embeddings&quot;]
+            # 硬约束 dim 断言
+            for v in vecs:
+                if len(v) != self.cfg.dim:
+                    raise EmbeddingDimMismatch(
+                        f&quot;TEI returned dim={len(v)}, expected {self.cfg.dim}&quot;
+                    )
+            results.extend(vecs)
+        return results
+
+def _chunked(texts: list[str], n: int):
+    for i in range(0, len(texts), n):
+        yield texts[i:i + n]
+</code></pre>
+<p>并 Task 2 RED 段补：</p>
+<pre><code class="language-python">
+async def test_embed_raises_on_dim_mismatch(httpx_mock):
+    httpx_mock.add_response(json={&quot;embeddings&quot;: [[0.1] * 768]})  # 错的 dim
+    embedder = TEIEmbedder()
+    with pytest.raises(EmbeddingDimMismatch):
+        await embedder.embed([&quot;hello&quot;])
+</code></pre>
+<hr>
+<h3 id="p0-4-缺-llm-超时-重试-限速-采样率-flush-配置llm-工程化-5-件套">P0-4 · 缺 LLM 超时 + 重试 + 限速 + 采样率 + flush 配置（LLM 工程化 5 件套）</h3>
+<p><strong>位置</strong>：M3 Task 1 GREEN 段（<code>LLMSettings</code> 字段定义）+ Task 4 GREEN（<code>make_llm</code> 构造）+ 风险表 L307</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>LLMSettings</code> 字段只有 <code>model / temperature / max_tokens / api_key</code>——<strong>缺 timeout / max_retries</strong>（M3 风险表说&quot;minimax-cn 不稳定，retry 3 次&quot;但代码里没实现）</li>
+<li><code>LangfuseSettings</code> 只有 <code>public_key / secret_key / host</code>——<strong>缺 sample_rate / flush_at / flush_interval / blocked_keys</strong></li>
+<li>prod 1.0 sample rate = 100% trace → 成本爆炸（minimax-cn 不一定收费但 Langfuse OSS 仍写库 + 网络 IO）</li>
+<li>异步 trace 不显式 flush → 进程退出时丢 trace</li>
+<li>没设 LLM <code>request_timeout</code> → <code>make_llm(&quot;answer&quot;).invoke(...)</code> 在网络 hang 时<strong>拖垮</strong>整个 ASGI 请求（FastAPI 默认 60s，minimax-cn 60s 不够）</li>
+</ul>
+<p><strong>修改</strong>（Task 1 GREEN 段 LLMSettings + LangfuseSettings 补）：</p>
+<pre><code class="language-python">
+class LLMSettings(BaseSettings):
+    model: str = &quot;minimax-cn/MiniMax-M3&quot;
+    temperature: float = 0.3
+    max_tokens: int = 1024
+    api_key: SecretStr
+    timeout: int = 60                # 单次 invoke 超时（秒）
+    max_retries: int = 3             # 内部 retry（ChatAnthropic built-in）
+    rate_limit_rpm: int = 60        # 每分钟限速，触发走 token bucket
+
+class LangfuseSettings(BaseSettings):
+    public_key: SecretStr | None = None
+    secret_key: SecretStr | None = None
+    host: HttpUrl = HttpUrl(&quot;http://localhost:3000&quot;)
+    sample_rate: float = 1.0         # prod 改 0.1
+    flush_at: int = 2                # 攒 N 条 flush
+    flush_interval: float = 5.0      # 每 N 秒 flush
+    blocked_keys: list[str] = []     # PII：password / token / secret 不入 trace
+</code></pre>
+<p>并在 <code>make_llm</code> GREEN 段补：</p>
+<pre><code class="language-python">
+# rate limit + retry
+model = ChatAnthropic(
+    ...,
+    timeout=settings.llm.timeout,
+    max_retries=settings.llm.max_retries,
+)
+</code></pre>
+<p>并在 <code>observability/langfuse.py</code> GREEN 段补：</p>
+<pre><code class="language-python">
+def get_callback_handler() -&gt; CallbackHandler | None:
+    if not (settings.langfuse.public_key and settings.langfuse.secret_key):
+        return None
+    return CallbackHandler(
+        public_key=settings.langfuse.public_key.get_secret_value(),
+        secret_key=settings.langfuse.secret_key.get_secret_value(),
+        host=str(settings.langfuse.host),
+        sample_rate=settings.langfuse.sample_rate,
+        blocked_keys=settings.langfuse.blocked_keys,
+    )
+</code></pre>
+<p>并在 process 退出 hook（M3 可不管实现，但 plan 应记录&quot;M12 加 atexit flush&quot;）：</p>
+<pre><code class="language-">
+# 风险表 + 修订记录补：M12 atexit 调 langfuse.flush()，M3 范围内 langfuse 自身 background flush 够用
+</code></pre>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-4-节点-llm-没显式-deterministic-控已有-review-没列">P1-1 · 4 节点 LLM 没显式 deterministic 控（已有 review 没列）</h3>
+<p><strong>位置</strong>：M3 Task 4 GREEN 段 L242-246</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>classify</code> / <code>rerank</code> 必须是 deterministic（temperature=0.0）——否则同一 query 反复跑结果不一样，answer 引用编号也跟着变</li>
+<li><code>rewrite</code> 应低温度（0.2）</li>
+<li><code>answer</code> 可稍高（0.3）</li>
+<li>plan 只在 P0-1 yaml 草稿里建议过 temperature，<strong>没在工厂层强制</strong>——节点调用方写 <code>make_llm(&quot;classify&quot;)</code> 后改 temperature 就破</li>
+</ul>
+<p><strong>修改</strong>（<code>make_llm</code> 内强制 temperature，yaml 里只是声明）：</p>
+<pre><code class="language-python">
+# factory.py 强制不覆盖
+if node in (&quot;classify&quot;, &quot;rerank&quot;):
+    # 忽略 yaml temperature，强制 0.0
+    model = ChatAnthropic(model=cfg.model, temperature=0.0, ...)
+</code></pre>
+<p>并在 Task 4 RED 段补：</p>
+<pre><code class="language-python">
+def test_classify_and_rerank_are_deterministic():
+    llm = make_llm(&quot;classify&quot;)
+    assert llm.temperature == 0.0
+    llm = make_llm(&quot;rerank&quot;)
+    assert llm.temperature == 0.0
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>——LLM 工程质量红线。</p>
+<hr>
+<h3 id="p1-2-langfuselangchaincallbackhandler-import-路径无-fallback已有-">P1-2 · <code>langfuse.langchain.CallbackHandler</code> import 路径无 fallback（已有 review P1-12）</h3>
+<p><strong>位置</strong>：M3 Tech Stack L133</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>langfuse v2 重构后路径有变更风险（v2.x → v3.x 可能会再改）</li>
+<li>plan 写 <code>from langfuse.langchain import CallbackHandler</code> 单路径</li>
+<li>集成测试启动后若 import 抛 ImportError，DoD 第 4 条直接挂</li>
+</ul>
+<p><strong>修改</strong>（Task 3 GREEN 段加 fallback）：</p>
+<pre><code class="language-python">
+# app/observability/langfuse.py
+try:
+    from langfuse.langchain import CallbackHandler  # langfuse 2.50+ 主路径
+except ImportError:
+    try:
+        from langfuse.callback.langchain import CallbackHandler  # 旧版兼容
+    except ImportError:
+        CallbackHandler = None
+</code></pre>
+<p>并在 Task 3 RED 段补：</p>
+<pre><code class="language-python">
+def test_callback_handler_import_paths_resolve():
+    &quot;&quot;&quot;至少一条路径能 import 到 CallbackHandler。&quot;&quot;&quot;
+    from app.observability.langfuse import CallbackHandler
+    assert CallbackHandler is not None
+</code></pre>
+<hr>
+<h3 id="p1-3-pytest-httpx-缺-pyproject-声明已有-review-p1-18">P1-3 · <code>pytest-httpx</code> 缺 pyproject 声明（已有 review P1-18）</h3>
+<p><strong>位置</strong>：M3 Tech Stack L123 + Files 表 L168</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>tests/unit/test_tei_embedder.py</code> 大量 mock httpx 调用，依赖 <code>pytest-httpx</code></li>
+<li>plan 在 Tech Stack 文字里提了&quot;pytest-httpx&quot;，<strong>pyproject 依赖表里没写</strong>——新人 <code>pip install</code> 后跑测试 <code>fixture &#x27;httpx_mock&#x27; not found</code></li>
+</ul>
+<p><strong>修改</strong>（M3 Files 表 / pyproject 段补）：</p>
+<pre><code class="language-toml">
+[project.optional-dependencies]
+dev = [
+  &quot;pytest&gt;=8.3,&lt;9&quot;,
+  &quot;pytest-asyncio&gt;=0.24,&lt;1&quot;,
+  &quot;pytest-httpx&gt;=0.30,&lt;1&quot;,      # M3 新增
+  &quot;pytest-cov&gt;=5.0,&lt;7&quot;,          # M0/M1 通用
+]
+</code></pre>
+<p><strong>注</strong>：已有 review P1-18 已列，本 review 强化给出 pyproject 完整 dev 段。</p>
+<hr>
+<h3 id="p1-4-m3-plan-内部不一致api_key-配置-vs-yaml-model-字段">P1-4 · M3 plan 内部不一致：<code>api_key</code> 配置 vs yaml model 字段</h3>
+<p><strong>位置</strong>：M3 Task 1 L192 (<code>LLMSettings.model: str</code>) + Task 4 L242 (<code>load_prompt_cfg</code> 返回 <code>cfg.model</code>)</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>LLMSettings.model</code> 是 <strong>全局</strong> LLM 模型（所有节点共用）</li>
+<li>yaml 里又声明 <code>model: minimax-cn/MiniMax-M3</code>（<strong>每个</strong> yaml 一份）</li>
+<li>两份 model 字段谁优先？plan 没写</li>
+<li>若 yaml 里写 <code>model: minimax-cn/MiniMax-M3-pro</code>（4 节点用不同模型）→ <code>load_prompt_cfg</code> 怎么校验不允许？</li>
+<li>实际工程上 <code>LLMSettings.model</code> 应<strong>废弃</strong>（yaml 才是 source of truth），或反之</li>
+</ul>
+<p><strong>修改</strong>（二选一）：</p>
+<ul>
+<li><strong>方案 A</strong>（推荐）：<code>LLMSettings</code> 不含 <code>model</code> 字段，yaml 是唯一来源</li>
+<pre><code class="language-python">
+  class LLMSettings(BaseSettings):
+      temperature_default: float = 0.3  # 兜底
+      max_tokens_default: int = 1024
+      api_key: SecretStr
+      timeout: int = 60
+      max_retries: int = 3
+</code></pre>
+<li><strong>方案 B</strong>：<code>LLMSettings.model</code> 是兜底，yaml 缺省继承</li>
+<pre><code class="language-python">
+  def load_prompt_cfg(node: str) -&gt; PromptCfg:
+      yaml_cfg = _read_yaml(f&quot;app/prompts/{node}.yaml&quot;)
+      return PromptCfg(
+          model=yaml_cfg.get(&quot;model&quot;, settings.llm.model),  # yaml &gt; global
+          temperature=yaml_cfg.get(&quot;temperature&quot;, settings.llm.temperature_default),
+          ...
+      )
+</code></pre>
+</ul>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>——plan 内部字段冲突。</p>
+<hr>
+<h3 id="p1-5-m3-缺下游契约make_llmjudge-是-m11-强依赖">P1-5 · M3 缺下游契约：<code>make_llm(&quot;judge&quot;)</code> 是 M11 强依赖</h3>
+<p><strong>位置</strong>：M3 plan 全篇（无）+ M11 plan L18, L43, L73（&quot;RAGAS judge LLM <strong>显式注入</strong>... 复用 M3 <code>make_llm(&quot;judge&quot;)</code>&quot;）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M11 plan L18 明确写：&quot;复用 M3 <code>make_llm(&quot;judge&quot;)</code>&quot;——M3 必须提供</li>
+<li>M11 plan L44 仓库布局：<code>app/llm/prompts/judge.yaml</code> 标注&quot;M11 新增&quot;——意味着 M11 plan 默认 M3 工厂<strong>已支持</strong> node 名动态注册</li>
+<li>M3 plan 4 节点 hard-code：<code>make_llm(node)</code> 的 <code>node</code> ∈ {&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;}</li>
+<li>没 <code>make_llm(&quot;judge&quot;)</code> → M11 评估 CI 起不来</li>
+<li>M7 plan L19 7 节点 workflow 还可能加 <code>answer_chitchat</code>（classify 判 chitchat 后走闲聊分支），也是 M3 工厂没预留的节点</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段改写工厂为<strong>注册表</strong> + 显式列出 5 节点起步）：</p>
+<pre><code class="language-python">
+# app/llm/factory.py
+KNOWN_NODES = (&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;, &quot;judge&quot;, &quot;summarize&quot;, &quot;answer_chitchat&quot;)
+
+def make_llm(node: str) -&gt; ChatAnthropic:
+    if node not in KNOWN_NODES:
+        raise ValueError(f&quot;unknown llm node: {node}. known: {KNOWN_NODES}&quot;)
+    cfg = load_prompt_cfg(node)
+    ...
+</code></pre>
+<p>并在 Files 表 L155-158 旁补 <code>app/prompts/judge.yaml</code> 占位（&quot;M11 阶段实写&quot;）：</p>
+<pre><code class="language-">
+# app/prompts/judge.yaml  (M11 阶段实写，M3 阶段创建空文件占位)
+model: minimax-cn/MiniMax-M3
+temperature: 0.0
+max_tokens: 512
+system_prompt: &quot;&quot;  # TODO M11
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>——M3 plan 缺&quot;下游契约预留&quot;段。M11 plan 已把 <code>judge</code> 节点当事实契约引用，M3 必须回应。</p>
+<hr>
+<h3 id="p1-6-task-4-写5-分钟实际含-3-个-red-测试10-15-分钟">P1-6 · Task 4 写&quot;5 分钟&quot;实际含 3 个 RED 测试（10-15 分钟）</h3>
+<p><strong>位置</strong>：M3 Task 4 L237-252</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 4 RED 段含 2 个测试：<code>test_factory_creates_chat_anthropic</code> + <code>test_factory_binds_system_prompt</code></li>
+<li>GREEN 段还要做 <code>load_prompt_cfg</code> + 工厂实现 + callback 注入（受 P0-2 影响还得重写）</li>
+<li>Task 4 标 2-5 分钟，实际 10-15 分钟（参考 M0 review P2-6 &quot;Task 1 标 5 分钟实 25 分钟&quot;的同类问题）</li>
+</ul>
+<p><strong>修改</strong>（拆 Task 4 → 4a/4b）：</p>
+<ul>
+<li>Task 4a：load_prompt_cfg 实现（5 分钟）</li>
+<li>Task 4b：make_llm 工厂 + 4 节点注册（10 分钟）</li>
+<li>Task 4c：callback 注入（5 分钟，受 P0-2 修正）</li>
+</ul>
+<p>或在 DoD / 风险表坦白写：&quot;Task 4 是 4-4c 合并体，约 20 分钟&quot;。</p>
+<p><strong>注</strong>：M0 review P2-6 已点同类问题，本 review <strong>新发现</strong> M3 同一坑。</p>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-4-yaml-加载方式缺热加载设计load_prompt-每次读文件-vs-缓存">P2-1 · 4 yaml 加载方式缺热加载设计（<code>load_prompt</code> 每次读文件 vs 缓存）</h3>
+<p><strong>位置</strong>：M3 Task 4 L242 <code>load_prompt(node: str) -&gt; PromptCfg</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>每次 <code>make_llm(node)</code> 调 <code>load_prompt</code> 都读 yaml 文件 → 1000 QPS 跑 4 节点 graph = 4000 次/秒文件 IO</li>
+<li>即使加 <code>@lru_cache</code> 也行，但 plan 没明说</li>
+<li>yaml 热加载（改 prompt 不重启）也是 V1 后期常见需求，plan 没规划</li>
+</ul>
+<p><strong>修改</strong>（<code>load_prompt</code> 加缓存 + mtime 失效）：</p>
+<pre><code class="language-python">
+import functools
+import os
+from pathlib import Path
+
+_PROMPT_DIR = Path(__file__).parent.parent / &quot;prompts&quot;
+
+@functools.lru_cache(maxsize=16)
+def _load_prompt_cached(path: str, mtime: float) -&gt; dict:
+    import yaml
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+def load_prompt_cfg(node: str) -&gt; PromptCfg:
+    path = _PROMPT_DIR / f&quot;{node}.yaml&quot;
+    mtime = os.path.getmtime(path)
+    raw = _load_prompt_cached(str(path), mtime)
+    return PromptCfg(**raw)
+</code></pre>
+<p><code>mtime</code> 作 cache key → 改 yaml 自动失效，无需重启。</p>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-2-dod-第-7-条-4-yaml-50-token-标准在-plan-内无验证机制">P2-2 · DoD 第 7 条 &quot;4 yaml ≥ 50 token&quot; 标准在 plan 内无验证机制</h3>
+<p><strong>位置</strong>：M3 DoD L283</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>&quot;≥ 50 token 含 1-shot&quot; 是 DoD 但<strong>没有测试</strong>保证（plan 写 Task 4 测的是 system_prompt 已 bind，<strong>不测</strong> yaml 文件本身 token 数 / 是否含 1-shot）</li>
+<li>实际工程 yaml 改 1 个字可能 1-shot 没了，CI 不卡</li>
+</ul>
+<p><strong>修改</strong>（新增 Task 6：yaml 守门测试）：</p>
+<pre><code class="language-python">
+# tests/unit/test_prompt_yaml_guard.py
+import yaml
+from pathlib import Path
+
+def test_all_prompt_yamls_meet_minimum():
+    for name in (&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;):
+        with open(f&quot;app/prompts/{name}.yaml&quot;) as f:
+            data = yaml.safe_load(f)
+        prompt = data.get(&quot;system_prompt&quot;, &quot;&quot;)
+        token_count = len(prompt.split())  # 简化：词数 ≈ token
+        assert token_count &gt;= 50, f&quot;{name} yaml prompt {token_count} &lt; 50 tokens&quot;
+        # 1-shot 关键词检查
+        assert &quot;1-shot&quot; in prompt or &quot;示例&quot; in prompt or &quot;Q:&quot; in prompt, \
+            f&quot;{name} yaml missing 1-shot example&quot;
+</code></pre>
+<p>并在 DoD 第 7 条旁标&quot;由 <code>test_prompt_yaml_guard.py</code> 强制&quot;。</p>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-3-4-yaml-加载库-pyyaml-缺-pyproject-声明">P2-3 · 4 yaml 加载库 <code>PyYAML</code> 缺 pyproject 声明</h3>
+<p><strong>位置</strong>：M3 Task 4 GREEN 段</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>load_prompt_cfg</code> 用 yaml.safe_load 隐式 import <code>yaml</code>（PyYAML）</li>
+<li>M3 pyproject 依赖表里<strong>没</strong> PyYAML</li>
+<li>跑测试 <code>ModuleNotFoundError: No module named &#x27;yaml&#x27;</code></li>
+</ul>
+<p><strong>修改</strong>（pyproject 直接依赖加 <code>pyyaml&gt;=6.0,&lt;7</code>）。</p>
+<hr>
+<h3 id="p2-4-tasks-估时汇总-vs-实际">P2-4 · Tasks 估时汇总 vs 实际</h3>
+<p><strong>位置</strong>：M3 plan 头部 &quot;估时：2 个工作日&quot;</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 1 配置块：10 分钟</li>
+<li>Task 2 TEIEmbedder：含 3 RED 测试 + 重试 + dim 断言 + batch = 30 分钟</li>
+<li>Task 3 Langfuse callback：10 分钟</li>
+<li>Task 4 LLM 工厂：含 3 RED + 注册表 + callback 注入（受 P0-2 重写影响）= 30 分钟</li>
+<li>Task 5 smoke：docker compose up + 端到端 + 等 Langfuse trace = 20 分钟</li>
+<li>Tasks 累计 ~100 分钟 = 1.7 小时</li>
+<li>但受 P0-1（写 4 yaml 草稿）/ P0-3（补 dim 断言）/ P1-5（注册表化）/ P1-6（拆任务）等修补，实际 4-6 小时</li>
+<li>2 个工作日（16h）充足但<strong>估时颗粒度对下游 plan 误导</strong>（M11 plan 估时 3d 是基于 M3 工厂 1-2h 估出来的 → 实际 M3 要 4-6h → M11 估时要相应 +1d）</li>
+</ul>
+<p><strong>修改</strong>：在 M3 plan 头部估时改为 &quot;2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）&quot;。</p>
+<p><strong>注</strong>：M0 review P2-6 同类问题。</p>
+<hr>
+<h3 id="p2-5-teiembedder-缺连接复用策略__aenter__-context-manager">P2-5 · TEIEmbedder 缺连接复用策略（<code>__aenter__</code> / context manager）</h3>
+<p><strong>位置</strong>：M3 Task 2 GREEN 段 <code>class TEIEmbedder</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前实现 <code>__init__</code> 里建 <code>httpx.AsyncClient</code>，无 <code>__aenter__</code> / <code>aclose</code></li>
+<li>调用方写法：<code>embedder = TEIEmbedder(); await embedder.embed(...)</code>——谁负责关连接？长跑进程会 leak</li>
+<li>标准做法：实现 <code>__aenter__</code> / <code>__aexit__</code> / <code>aclose</code>，调用方 <code>async with TEIEmbedder() as e: ...</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+class TEIEmbedder:
+    async def __aenter__(self): return self
+    async def __aexit__(self, *args): await self.aclose()
+</code></pre>
+<p>并在 Files 表注释里写&quot;使用方式 <code>async with TEIEmbedder() as e: ...</code>&quot;。</p>
+<hr>
+<h3 id="p2-6-集成测试-smoke-缺4-节点都跑过覆盖">P2-6 · 集成测试 smoke 缺&quot;4 节点都跑过&quot;覆盖</h3>
+<p><strong>位置</strong>：M3 Task 5 RED 段 L256-261</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>test_embed_then_llm_pipeline</code> 只测 <code>make_llm(&quot;answer&quot;)</code> —— DoD 第 1 条&quot;4 节点都创建实例&quot;在集成层<strong>不验证</strong></li>
+<li>万一 classify/rewrite/rerank 工厂在 prompt 解析时崩（缺 yaml），集成测试发现不了</li>
+</ul>
+<p><strong>修改</strong>（Task 5 补 4 节点 parametrize）：</p>
+<pre><code class="language-python">
+import pytest
+from app.llm.factory import make_llm
+
+@pytest.mark.parametrize(&quot;node&quot;, [&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;])
+def test_make_llm_smoke_for_all_nodes(node):
+    llm = make_llm(node)
+    assert llm is not None
+    # 真实 invoke 一次（用真 env）
+    resp = llm.invoke([HumanMessage(&quot;ping&quot;)])
+    assert resp.content
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h2 id="范本影响评估">范本影响评估</h2>
+<p>M3 计划是 RAG V1 路线<strong>唯一被显式标注为&quot;范本&quot;</strong>的里程碑（自警 L8），其他 M4–M12 起草时都参考它的 11 段结构。</p>
+<h3 id="优点m3-范本值得借鉴的-5-点">优点（M3 范本值得借鉴的 5 点）</h3>
+<ol>
+<li><strong>11 段骨架清晰</strong>（Goal / 不包含 / Architecture / Tech Stack / Files / Tasks / 测试 / DoD / 依赖 / 风险 / 修订记录）——M0/M1/M2 起草时都参考了。M0 review P2-2 还呼吁 M0 补&quot;范本目的&quot;段——M3 是 5 份中<strong>唯一</strong>带&quot;范本目的&quot;的，示范性完整。</li>
+<li><strong>仓库布局图清晰</strong>（<code>apps/rag_v1/{infra,app,tests}/</code> 3 段）——M4/M5/M6/M7/M10/M11 Files 表都引用 M3 布局。</li>
+<li><strong>跨 M 契约边界表</strong>（M3 L101-106）——4 个下游 M 4-6/7/10/11 用什么接口、batch 多少、是否复用 callback 都列清楚。<strong>M3 范本最大贡献</strong>。</li>
+<li><strong>版本精确 pin</strong>（langchain==1.0.8 / langchain-anthropic&gt;=0.3,&lt;1.0 / langfuse&gt;=2.50,&lt;3）——与 spec §8.1/§8.2/§8.6 <strong>逐字对齐</strong>，无 M2 那样的&quot;argon2-cffi&lt;25 vs spec&lt;24&quot;漂移。</li>
+<li><strong>RED-GREEN-REFACTOR 标注完整</strong>——M3 Tasks 5 个里 4 个含 RED 测试描述。</li>
+</ol>
+<h3 id="不足m3-范本若不修补会被复制的-4-个缺陷">不足（M3 范本若不修补会被复制的 4 个缺陷）</h3>
+<ol>
+<li><strong>&quot;Files 列文件名无内容&quot;反模式</strong>——M3 4 yaml 列在 Files 表但<strong>无草稿</strong>，DoD 却要求&quot;≥ 50 token&quot; → M4–M12 plan 起草人复制 Files 表结构时，会复制&quot;列文件名无内容&quot;的反模式，导致 prompt 实际内容要 plan review 阶段定。<strong>P0-1 必须修，否则范本污染 9 个下游 M</strong>。</li>
+<li><strong><code>model.callbacks</code> 注入 callback 的过时写法</strong>——P0-2 修了；如果不修 → M7/M10 节点代码会复制这个错误写法 → Langfuse 看板全空。</li>
+<li><strong>缺 LLM 工程化 5 件套</strong>（timeout / max_retries / sample_rate / flush / blocked_keys）——P0-4 修了；如果不修 → M7/M8/M10 各自再实现一遍，重复且不一致。</li>
+<li><strong>缺下游契约预留</strong>（judge / summarize / answer_chitchat 节点）——P1-5 修了；如果不修 → M11 / M7 plan 各自 hack M3 工厂（monkey patch / 重新注册），破坏 M3 范本权威性。</li>
+</ol>
+<h3 id="范本对其他-9-份-plan-的实际影响采样-m7-m10-m11-验证">范本对其他 9 份 plan 的实际影响（采样 M7 / M10 / M11 验证）</h3>
+<table>
+<tr><th>后续 M</th><th>是否引用 M3 11 段结构</th><th>是否引用 M3 契约表</th><th>是否有 M3 缺陷的复制</th><th>严重度</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M4 ingest-file</td><td>✅ Files 表同构</td><td>✅ 用 <code>TEIEmbedder.embed</code></td><td>⚠️ 估计也&quot;列 yaml 无内容&quot;</td><td>中</td></tr>
+<tr><td>M5 ingest-url</td><td>✅</td><td>✅</td><td>⚠️</td><td>中</td></tr>
+<tr><td>M6 ingest-confluence</td><td>✅</td><td>✅</td><td>⚠️</td><td>中</td></tr>
+<tr><td>M7 graph</td><td>✅</td><td>✅ 引用 <code>make_llm(4 节点)</code></td><td>❌ <strong>漏 <code>answer_chitchat</code> 节点</strong>——M7 plan L19 提&quot;intent ∈ {retrieve, chitchat}&quot; 但 make_llm 没注册 chitchat</td><td><strong>高</strong></td></tr>
+<tr><td>M8 api-chat</td><td>✅</td><td>✅ 调 graph</td><td>⚠️</td><td>中</td></tr>
+<tr><td>M9 ui-gradio</td><td>✅</td><td>✅ 调 M8</td><td>无</td><td>低</td></tr>
+<tr><td>M10 obs-langfuse</td><td>✅</td><td>✅ 基于 <code>get_callback_handler</code></td><td>❌ <strong>M10 自己重写 CallbackHandler 注入</strong>——M3 工厂 callback 注入错，M10 必须在节点层补救</td><td><strong>高</strong></td></tr>
+<tr><td>M11 eval-ragas</td><td>✅</td><td>✅ 用 <code>make_llm(&quot;judge&quot;)</code></td><td>❌ <strong><code>judge</code> 节点 M3 plan 完全没提</strong></td><td><strong>高</strong></td></tr>
+<tr><td>M12 hardening</td><td>✅</td><td>✅ 调 M0/M3 全套</td><td>无</td><td>低</td></tr>
+</table>
+<p><strong>结论</strong>：M3 作为范本<strong>结构性影响成功</strong>（9 份 plan 全部按 11 段起草），<strong>契约性影响部分失败</strong>（3 份 plan 引用了 M3 工厂契约但 M3 工厂本身有缺陷，导致 M7/M10/M11 不得不&quot;绕过&quot;或&quot;补强&quot; M3）。<strong>M3 plan 必须修 P0-1/P0-2/P0-4/P1-5 后才是合格的&quot;范本&quot;</strong>。</p>
+<hr>
+<h2 id="与已有-review-交叉验证">与已有 review 交叉验证</h2>
+<table>
+<tr><th>ID</th><th>已有 review 项</th><th>M3 现状</th><th>本报告</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>P0-12</td><td>langfuse import 路径风险</td><td>⚠️ 单路径，无 fallback</td><td>P1-2</td></tr>
+<tr><td>P0-13</td><td>4 节点 prompt yaml 实际内容未写</td><td>❌ <strong>未改</strong></td><td><strong>P0-1</strong>（升级到 P0 + 给完整草稿）</td></tr>
+<tr><td>P0-14</td><td>make_llm 注入 callback 方式过时</td><td>❌ <strong>未改</strong></td><td><strong>P0-2</strong>（升级到 P0 + 完整重写）</td></tr>
+<tr><td>P0-18</td><td>pytest-httpx 缺声明</td><td>❌ <strong>未改</strong></td><td>P1-3</td></tr>
+<tr><td>P1-13</td><td>4 yaml ≥ 50 token 无验证</td><td>❌</td><td>P2-2（补守门测试）</td></tr>
+<tr><td>P1-14</td><td>make_llm callback 注入</td><td>同 P0-14</td><td>P0-2</td></tr>
+<tr><td>P1-12</td><td>langfuse import 路径</td><td>同 P0-12</td><td>P1-2</td></tr>
+<tr><td>X-1</td><td><code>app/config.py</code> 拆分（configs/ 子目录）</td><td>❌ 未在本 plan 落实</td><td>P1 跨 M 协调（备注：M0 review P2-3 已要求 M0 拆，但 M3 Task 1 仍用单文件 <code>app/config.py</code> 聚合，X-1 决议未落地）</td></tr>
+<tr><td>X-3</td><td><code>from app.config import settings</code> 全局单例</td><td>⚠️ Task 1 GREEN 段写 <code>Settings()</code> 聚合但<strong>未在文件末尾 <code>settings = Settings()</code></strong></td><td>跨 M 协调（与 M0 review P1-9 同问题）</td></tr>
+<tr><td>X-4</td><td>prod 分离</td><td>N/A（M12）</td><td>—</td></tr>
+<tr><td>跨 M 依赖版本漂移</td><td>M2 review P0-1 指 M2 argon2-cffi/cryptography 与 spec §8.3 不一致</td><td>✅ M3 5 个直接依赖（langchain / langchain-core / langchain-anthropic / langfuse / httpx / tenacity）<strong>全部与 spec §8.1/§8.2/§8.6 对齐</strong></td><td><strong>M3 没踩这个坑</strong>——可作为 M2 修复参考</td></tr>
+</table>
+<p><strong>验证结论</strong>：</p>
+<ul>
+<li>已有 review 列出的 M3 范围 5 项：<strong>全部 ❌ 未改</strong></li>
+<li>升级到 P0 的 2 项：P1-13→P0-1 / P1-14→P0-2</li>
+<li>跨 M 一致性 2 项（X-1 / X-3）：M3 没比 M0/M2 做得更好（X-3 仍未落实全局单例）</li>
+</ul>
+<hr>
+<h2 id="你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</h2>
+<p class="warn">合计 <strong>10 个新问题</strong>：</p>
+<ol>
+<li><strong>P0-1</strong> · 4 节点 prompt yaml 在 plan 中完全没草稿（升级自 P1-13 + 给完整草稿 + 范本污染警告）</li>
+<li><strong>P0-3</strong> · TEIEmbedder 缺 dim 硬约束断言 + batch_size 协调 + normalize/truncate 明确语义</li>
+<li><strong>P0-4</strong> · 缺 LLM 工程化 5 件套：timeout / max_retries / sample_rate / flush / blocked_keys</li>
+<li><strong>P1-1</strong> · 4 节点 LLM 没显式 deterministic 控（classify/rerank 强制 temperature=0.0）</li>
+<li><strong>P1-4</strong> · M3 plan 内部字段冲突：<code>LLMSettings.model</code> 全局 vs yaml <code>model</code> 节点级，谁优先没定</li>
+<li><strong>P1-5</strong> · M3 缺下游契约：<code>make_llm(&quot;judge&quot;)</code> 是 M11 强依赖 / <code>answer_chitchat</code> 是 M7 强依赖，工厂应注册表化</li>
+<li><strong>P1-6</strong> · Task 4 估时 5 分钟实际 10-15 分钟（M0 review P2-6 同类问题）</li>
+<li><strong>P2-1</strong> · 4 yaml 加载缺热加载设计（mtime cache key）</li>
+<li><strong>P2-2</strong> · DoD 第 7 条 yaml ≥ 50 token 缺测试守门</li>
+<li><strong>P2-3</strong> · PyYAML 缺 pyproject 声明</li>
+<li><strong>P2-5</strong> · TEIEmbedder 缺 context manager 协议</li>
+<li><strong>P2-6</strong> · 集成测试 smoke 缺 4 节点 parametrize 覆盖</li>
+</ol>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<p>按 P0 → P1 → P2 优先级：</p>
+<h3 id="第一波本轮必改4-项-p0">第一波（本轮必改，4 项 P0）</h3>
+<ol>
+<li><strong>P0-1</strong> 在 Files 表后补 <code>§4 草稿段</code>，给 4 yaml 各 5-10 行伪代码（classify/rewrite/rerank/answer），并 Task 4 RED 段补&quot;锚定 yaml 实际字符串&quot;断言</li>
+<li><strong>P0-2</strong> Task 4 GREEN 段改 <code>make_llm</code> 写法：用 <code>model.with_config({&quot;callbacks&quot;: [handler]})</code> 替代 <code>model.callbacks</code>，并 Task 4 RED 段补&quot;不写进 model.callbacks 字段&quot;断言</li>
+<li><strong>P0-3</strong> Task 2 GREEN 段补 <code>EmbeddingDimMismatch</code> 异常 + dim 硬断言 + 4xx/5xx 分类 + <code>httpx.Timeout(60.0)</code></li>
+<li><strong>P0-4</strong> Task 1 GREEN 段 LLMSettings 补 <code>timeout/max_retries</code>、LangfuseSettings 补 <code>sample_rate/flush_at/flush_interval/blocked_keys</code>，<code>make_llm</code> 构造传 <code>timeout/max_retries</code></li>
+</ol>
+<h3 id="第二波重要6-项-p1">第二波（重要，6 项 P1）</h3>
+<ol>
+<li><strong>P1-1</strong> <code>make_llm</code> 内强制 <code>classify/rerank</code> temperature=0.0</li>
+<li><strong>P1-2</strong> langfuse import 加双备路径 + 测试</li>
+<li><strong>P1-3</strong> pyproject dev 依赖补 <code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>pyyaml&gt;=6.0,&lt;7</code></li>
+<li><strong>P1-4</strong> <code>LLMSettings.model</code> 字段二选一（推荐删除，yaml 唯一来源）</li>
+<li><strong>P1-5</strong> 工厂改注册表：<code>KNOWN_NODES = (&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;, &quot;judge&quot;, &quot;summarize&quot;, &quot;answer_chitchat&quot;)</code>，并 Files 表加 <code>app/prompts/judge.yaml</code> 占位</li>
+<li><strong>P1-6</strong> Task 4 拆 4a/4b/4c，或 DoD 标&quot;Task 4 约 20 分钟&quot;</li>
+</ol>
+<h3 id="第三波优化6-项-p2">第三波（优化，6 项 P2）</h3>
+<ol>
+<li><strong>P2-1</strong> <code>load_prompt_cfg</code> 加 mtime cache key</li>
+<li><strong>P2-2</strong> 新增 <code>test_prompt_yaml_guard.py</code> 守门测试</li>
+<li><strong>P2-3</strong> pyproject 加 <code>pyyaml</code></li>
+<li><strong>P2-4</strong> M3 估时改&quot;2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）&quot;</li>
+<li><strong>P2-5</strong> <code>TEIEmbedder</code> 加 <code>__aenter__/__aexit__</code></li>
+<li><strong>P2-6</strong> 集成测试 <code>test_make_llm_smoke_for_all_nodes</code> parametrize 4 节点</li>
+</ol>
+<h3 id="跨-m-协调m3-改完后通知">跨 M 协调（M3 改完后通知）</h3>
+<ul>
+<li>通知 <strong>M7 graph</strong>：<code>make_llm</code> 工厂已注册 <code>answer_chitchat</code> 节点（classify intent=chitchat 分支用）</li>
+<li>通知 <strong>M10 obs-langfuse</strong>：M3 工厂 callback 注入已用 <code>with_config</code> 正确写法，M10 节点层 trace 不必再补 callback</li>
+<li>通知 <strong>M11 eval-ragas</strong>：<code>make_llm(&quot;judge&quot;)</code> 已注册，<code>app/prompts/judge.yaml</code> 占位文件已建</li>
+<li>通知 <strong>M2/M0</strong>：M3 已用 <code>app/config.py</code> 聚合配置；X-3 全局单例仍待跨 M 决议</li>
+</ul>
+<h3 id="范本修正m3-改完后建议作为-m4-m12-起草标准">范本修正（M3 改完后建议作为 M4-M12 起草标准）</h3>
+<p>M3 范本<strong>结构</strong>（11 段）保持不变，<strong>内容</strong> 强化以下 3 条（写入 <code>apps/rag_v1/AGENTS.md</code> 给后续 plan 起草参考）：</p>
+<ul>
+<li>所有&quot;列文件名无内容&quot;的 Files 必须给至少 1 段伪代码草稿</li>
+<li>callback 注入统一用 <code>.with_config({&quot;callbacks&quot;: [handler]})</code> 协议</li>
+<li>LLM 工厂必须用注册表 + 显式列 KNOWN_NODES（让下游 M 引用时能确认节点存在）</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>不可动手</strong>：P0-1 ~ P0-4 共 4 项必改</li>
+<li><strong>建议本轮改</strong>：P1-1 ~ P1-6 共 6 项</li>
+<li><strong>可下轮改</strong>：P2-1 ~ P2-6 共 6 项</li>
+<li><strong>新问题合计</strong>：12 个（已有 review 未列），其中 3 个升级到 P0</li>
+<li><strong>已有 review 验证</strong>：M3 范围 5 项 P1 + 跨 M 2 项，<strong>全部 ❌ 未改</strong></li>
+<li><strong>范本定位</strong>：M3 是 5 份 plan 中<strong>唯一</strong>值得作为&quot;骨架样板&quot;的，11 段 + 仓库布局 + 契约边界表 + 版本 pin 都对；但 P0-1/P0-2/P0-4/P1-5 这 4 项不修，会把缺陷传染给 M4-M12 全部 9 份下游 plan</li>
+</ul>
+<p>M3 plan <strong>结构对、版本对、契约清</strong>；<strong>作为范本的内容示范是失败的</strong>——4 yaml 空壳 + callback 过时写法 + 缺 LLM 工程化 + 漏下游契约 = 范本会污染下游 9 份 plan。<strong>修完 4 个 P0 后可作为&quot;骨架范本&quot;；P0+P1 修完后可作为&quot;完整范本&quot;给 M4–M12 复制。</strong></p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

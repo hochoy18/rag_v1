@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M9 Plan Review · Gradio Web UI（4 tab：login / sessions / chat / ingest）</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M9 Plan Review · Gradio Web UI（4 tab：login / sessions / chat / ingest）</h1>
+  <div class="meta">
+    <span>837 行</span>
+<span>42 P0</span>
+<span>51 P1</span>
+<span>26 P2</span>
+    <span>2026-06-11-rag-m9-ui-gradio-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#已有-review-验证2026-06-11-rag-plans-reviewmd">已有 review 验证（2026-06-11-rag-plans-review.md）</a></li>
+<li><a href="#m8-review-交叉验证cors-超时-api-契约">M8 review 交叉验证（CORS · 超时 · API 契约）</a></li>
+<li><a href="#8-1-m8-review-p2-3-cors-middleware-顺序-m9-应加-cors-验证测试p0-1">8-1 · M8 review P2-3 CORS middleware 顺序 → M9 应加 CORS 验证测试（P0-1）</a></li>
+<li><a href="#8-2-m8-review-p0-1-chat-端点超时保护-m9-chat-tab-依赖-m8-修复">8-2 · M8 review P0-1 chat 端点超时保护 → M9 chat tab 依赖 M8 修复</a></li>
+<li><a href="#8-3-m7-review-p0-6-answer_chitchat_node-缺实现-m9-chat-tab-依赖-m">8-3 · M7 review P0-6 answer_chitchat_node 缺实现 → M9 chat tab 依赖 M7 修复</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-cors-跨域验证缺集成测试m8m9-致命依赖断裂">P0-1 · CORS 跨域验证缺集成测试（M8→M9 致命依赖断裂）</a></li>
+<li><a href="#p0-2-docker-compose-gradio-service-缺-healthchecke2e-测试-race-">P0-2 · docker-compose gradio service 缺 healthcheck，E2E 测试 race condition</a></li>
+<li><a href="#p0-3-image-缩略图加载失败缺-fallbackm8-file-端点可能不存在">P0-3 · image 缩略图加载失败缺 fallback，M8 /file 端点可能不存在</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-chat-响应等待时缺-loading-状态">P1-1 · Chat 响应等待时缺 loading 状态</a></li>
+<li><a href="#p1-2-错误提示用-grmarkdown-而非-gradio-50-grerror-toast">P1-2 · 错误提示用 gr.Markdown 而非 Gradio 5.0+ gr.Error() toast</a></li>
+<li><a href="#p1-3-新消息后缺-auto-scroll">P1-3 · 新消息后缺 auto-scroll</a></li>
+<li><a href="#p1-4-缺-enter-发送-shiftenter-换行-keyboard-shortcut">P1-4 · 缺 Enter 发送 / Shift+Enter 换行 keyboard shortcut</a></li>
+<li><a href="#p1-5-ingest-file-upload-缺前端文件大小检查">P1-5 · Ingest file upload 缺前端文件大小检查</a></li>
+<li><a href="#p1-6-url-ingest-前端验证缺">P1-6 · URL ingest 前端验证缺</a></li>
+<li><a href="#p1-7-logout-后不跳转-login-tab">P1-7 · Logout 后不跳转 login tab</a></li>
+<li><a href="#p1-8-多次-401-后-session-过期提示">P1-8 · 多次 401 后 session 过期提示</a></li>
+<li><a href="#p1-9-session-删除缺确认弹窗">P1-9 · Session 删除缺确认弹窗</a></li>
+<li><a href="#p1-10-中文-source-卡中文溢出-css-被-50-css-覆盖">P1-10 · 中文 source 卡中文溢出 CSS 被 5.0+ CSS 覆盖</a></li>
+<li><a href="#p1-11-config-中-cors_origin-默认值耦合-7860">P1-11 · Config 中 cors_origin 默认值耦合 7860</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-grchatbottypemessages-50-兼容性未验证">P2-1 · gr.Chatbot(type=&amp;quot;messages&amp;quot;) 5.0+ 兼容性未验证</a></li>
+<li><a href="#p2-2-ingest-进度-404-提示缺指导">P2-2 · Ingest 进度 404 提示缺指导</a></li>
+<li><a href="#p2-3-mobile-responsive-缺">P2-3 · Mobile responsive 缺</a></li>
+<li><a href="#p2-4-plan-部分引用编号偏移">P2-4 · Plan 部分引用编号偏移</a></li>
+<li><a href="#p2-5-缺-test_poll_uses_gr_progress_tqdm-的测试如何-mock-grprogress">P2-5 · 缺 test_poll_uses_gr_progress_tqdm 的测试如何 mock gr.Progress 的具体实现</a></li>
+<li><a href="#p2-6-test_tabs_do_not_share_state_across_switches-的-mock-实现不">P2-6 · test_tabs_do_not_share_state_across_switches 的 mock 实现不完整</a></li>
+<li><a href="#p2-7-缺-gradio-启动后浏览器自动打开抑制">P2-7 · 缺 Gradio 启动后浏览器自动打开抑制</a></li>
+<li><a href="#p2-8-_handle_chat-返回-5-个值但调用方配置只有-5-个-output维护成本高">P2-8 · _handle_chat 返回 5 个值但调用方配置只有 5 个 output——维护成本高</a></li>
+<li><a href="#交叉验证总结">交叉验证总结</a></li>
+<li><a href="#m7m9-依赖链">M7→M9 依赖链</a></li>
+<li><a href="#m8m9-依赖链">M8→M9 依赖链</a></li>
+<li><a href="#m3m9-依赖链">M3→M9 依赖链</a></li>
+<li><a href="#新发现问题汇总">新发现问题汇总</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#实施顺序">实施顺序</a></li>
+<li><a href="#风险提醒">风险提醒</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m9-plan-review-gradio-web-ui4-tablogin-sessions-chat-ingest">M9 Plan Review · Gradio Web UI（4 tab：login / sessions / chat / ingest）</h1>
+<blockquote>评审对象：<code>plans/2026-06-11-rag-m9-ui-gradio.md</code>（776 行）</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec（§0 决策 #7/#16 · §1 架构 UI 段 · §2 模块树 ui 段 · §4 API &amp; UI 表 · §5 错误矩阵）</blockquote>
+<blockquote>参考 review：总报告 <code>2026-06-11-rag-plans-review.md</code>（P0-1/P0-5/P1-4/P1-6/P1-11/X-3）· M8 review <code>2026-06-11-rag-m8-api-chat-review.md</code> · M7 review <code>2026-06-11-rag-m7-graph-review.md</code> · M0-M6 独立 review 报告</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M9 plan 覆盖 11 段模板（Goal / 不包含 / Architecture / Tech Stack / Files / 16 Tasks RED-GREEN / 测试策略 / DoD / 依赖 / 风险 / 修订记录），自带范本目的段（L10）和完整的数据流图（L99-109）。4 tab 拆独立模块、TDD 红绿 16 Tasks/5 天、theme/api_client/auth_state/errors 4 个基础设施 + login/sessions/chat/ingest 4 tab + 5 个组件 + 9 个测试文件——<strong>结构是 RAG V1 路线中最完整的 plan 之一</strong>（与 M8 并列第一）。</p>
+<p><strong>主动吸收了跨 M review 的关键 P0/P1</strong>：P0-1 端口 7860 不冲突（L8）、P0-5 真 PG（L697）、P1-4 ORM updated_at（L402）、P1-6 复合索引（L402）、P1-11 auth 透传（L260）、X-3 全局 settings（L194-204）——6 项在 plan 中显式标注或实现。<strong>这是目前所有 M plan 中吸收已有 review 最彻底的</strong>，值得点赞。</p>
+<p><strong>但前端工程化与 UX 有显著缺口</strong>——Gradio 5.0+ 的 <code>gr.Error()</code> toast 没使用、loading spinner 缺、auto-scroll 缺、Enter/Shift+Enter keyboard shortcut 缺、移动端响应式缺、image fallback 缺、CORS 跨域验证缺测试——<strong>10 项是前端可用性 P1 级问题</strong>，集中在 Day 3/4/5 chat+ingest tab。修完 P0 2 项 + P1 15 项 + P2 8 项后是可直接动手的合格 plan。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐⭐</td><td>11 段齐 + 范本目的段 + 数据流图 + 契约边界表 + M9 特有 P0/P1 避雷段——结构在 M0-M9 中与 M8 并列最完整</td></tr>
+<tr><td>TDD 标注</td><td>⭐⭐⭐⭐⭐</td><td>16 Tasks 全部 RED-GREEN-REFACTOR；RED 测试名具体、GREEN 代码段完整（非伪代码）、REFACTOR 提法恰当</td></tr>
+<tr><td>技术深度</td><td>⭐⭐⭐⭐</td><td>Gradio 5.0 Blocks 4 tab 分离、httpx AsyncClient 封装、gr.BrowserState 持久化、[1][2][3] regex 解析、ingest asyncio 轮询——设计完整；但缺 loading/auto-scroll/toast/keyboard/响应式等前端工程化细节</td></tr>
+<tr><td>已有 review 就绪度</td><td>⭐⭐⭐⭐⭐</td><td>6 项已有 P0/P1 全部避雷标注 + 实现方案（P0-1/P0-5/P1-4/P1-6/P1-11/X-3）——M9 是当前路线中吸收已有 review 最彻底的 plan</td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐⭐</td><td>401/404/422/502/NetworkError 全分类 + 代码段完整；但缺 error toast（gr.Error）、多次 401 过期提示、image fallback</td></tr>
+<tr><td>跨 M 契约</td><td>⭐⭐⭐⭐</td><td>依赖表清晰（M0/M1/M2/M7/M8）；风险表标注 CORS/checkpointer/image_ref 等跨 M 风险；但缺 M8 CORS 验证测试</td></tr>
+<tr><td>UX 就绪度</td><td>⭐⭐⭐</td><td>功能完整但体验粗糙——loading/error toast/auto-scroll/keyboard shortcut/响应式/确认弹窗 6 项 UX 细节全缺</td></tr>
+</table>
+<p class="crit"><strong>一句话</strong>：M9 plan <strong>结构最完整、TDD 节奏最佳、已有 review 吸收最彻底</strong>，是 M0-M9 中与 M8 并列最成熟的 plan；但<strong>前端 UX 工程化严重不足</strong>（10 项 P1 UX 缺陷 + 2 项 P0 阻塞），修完后是可直接动手的合格 plan。</p>
+<hr>
+<h2 id="已有-review-验证2026-06-11-rag-plans-reviewmd">已有 review 验证（2026-06-11-rag-plans-review.md）</h2>
+<table>
+<tr><th>ID</th><th>已有 review 项</th><th>Plan 现状</th><th>本报告</th></tr>
+<tr><td>----</td><td>---------------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><strong>P0-1</strong></td><td>端口冲突（TEI 8080 vs http.server）</td><td>✅ 已避雷——L8 <code>P0-1 端口 7860 不冲突</code>；L203 <code>gradio_server_port: int = 7860</code></td><td>通过。Gradio 7860 与 M8 FastAPI 8000/TEI 18080/OS 9200/Langfuse 3000 无冲突</td></tr>
+<tr><td><strong>P0-5</strong></td><td>真 PG 集成测试（不跑 sqlite）</td><td>✅ 已避雷——L697 <code>conftest.py 的 pg_session fixture（修 P0-5，真 PG）</code>；Task 16 GREEN 段完整给出</td><td>通过。<code>--require-docker</code> + pg_dsn fixture</td></tr>
+<tr><td><strong>P1-4</strong></td><td>updated_at 走 ORM 而非原生 SQL</td><td>✅ 已避雷——L402 <code>s[&quot;updated_at&quot;]</code> 来自 API response（走 M8 ORM），M9 不直接写 updated_at</td><td>通过。M9 全走 M8 API，不直接操作 DB</td></tr>
+<tr><td><strong>P1-6</strong></td><td>chat_sessions 复合索引</td><td>✅ 已避雷——L402 注释 <code># 依赖 P1-6 复合索引</code></td><td>通过。list_sessions 依赖 M1 索引加速查询</td></tr>
+<tr><td><strong>P1-11</strong></td><td>protected endpoint 鉴权完整</td><td>✅ 已避雷——L260 <code>Authorization: Bearer {self._token}</code>；L368 <code>AuthExpired: return &quot;请重新登录&quot;</code></td><td>通过。APIClient 在所有端点上注入 Bearer token</td></tr>
+<tr><td><strong>X-3</strong></td><td>全局 settings 单例</td><td>✅ 已避雷——L253 <code>settings.ui.api_base_url</code>（from config import settings）；Task 1 UISettings 继承 BaseSettings</td><td>通过。M9 全局使用 <code>from app.config import settings</code></td></tr>
+<tr><td><strong>P0-8</strong></td><td>pyproject.toml 过度装包</td><td>✅ 已避雷——L171 <code>pyproject.toml：追加 gradio&gt;=5.0,&lt;6 直接依赖</code>（仅加 gradio，不装多余包）</td><td>通过</td></tr>
+<tr><td><strong>P2-6</strong></td><td>app/api/__init__.py 聚合</td><td>N/A——M9 不动 <code>app/api/</code></td><td>通过</td></tr>
+<tr><td><strong>P2-7</strong></td><td>app/db/__init__.py 统一导入</td><td>N/A——M9 不直接调 DB</td><td>通过</td></tr>
+<tr><td><strong>P1-18</strong></td><td>pytest-httpx 缺声明</td><td>✅ 测试矩阵 L707 说 <code>pytest tests/unit/test_ui_*.py —— mock 为主</code>——假设 M3 已修 P1-18</td><td>通过（依赖 M3）</td></tr>
+</table>
+<p><strong>验证结论</strong>：已有 review 中影响 M9 的 6 项——<strong>全部 ✅ 已避雷</strong>。M9 是当前 RAG V1 路线中吸收已有 review 最彻底的 plan，P0/X 标注齐全。</p>
+<hr>
+<h2 id="m8-review-交叉验证cors-超时-api-契约">M8 review 交叉验证（CORS · 超时 · API 契约）</h2>
+<h3 id="8-1-m8-review-p2-3-cors-middleware-顺序-m9-应加-cors-验证测试p0-1">8-1 · M8 review P2-3 CORS middleware 顺序 → M9 应加 CORS 验证测试（<strong>P0-1</strong>）</h3>
+<p><strong>位置</strong>：M8 review P2-3 · M9 plan 风险表 L749 · M9 DoD 表（无 CORS 项）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 review P2-3 指出 CORS 中间件顺序（CORSMiddleware 应在 RequestIdMiddleware 之前）——这是一个潜在的实现 bug</li>
+<li>M9 plan 风险表 L749 只说&quot;M8 CORSMiddleware 配 <code>allow_origins=[settings.ui.cors_origin]</code>&quot;——<strong>假设 M8 已正确配置并修复了 P2-3</strong></li>
+<li>但 M9 DoD 表（L713-726）<strong>没有任何 CORS 验证测试项</strong>——没有集成测试验证 Gradio 7860 → M8 8000 跨域请求能通过</li>
+<li>如果 M8 的 CORS 配置错了（如 allow_origins 漏了 localhost:7860，或 middleware 顺序导致 preflight 失败），M9 的 login/chat/ingest 全部请求会跨域失败——<strong>这是 M8→M9 的致命依赖断裂</strong></li>
+</ul>
+<p><strong>修改</strong>（DoD 补一项 + Task 16 E2E 补 CORS 验证）：</p>
+<pre><code class="language-python">
+# tests/integration/test_m9_gradio_e2e.py —— 补 CORS 冒烟测试
+async def test_cors_headers_present():
+    &quot;&quot;&quot;验证 M8 返回 CORS header，M9 跨域请求不报错。&quot;&quot;&quot;
+    async with httpx.AsyncClient() as client:
+        # OPTIONS preflight 模拟 Gradio JS fetch 行为
+        resp = await client.options(
+            &quot;http://localhost:8000/api/health&quot;,
+            headers={
+                &quot;Origin&quot;: &quot;http://localhost:7860&quot;,
+                &quot;Access-Control-Request-Method&quot;: &quot;POST&quot;,
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.headers.get(&quot;access-control-allow-origin&quot;) == &quot;http://localhost:7860&quot;
+</code></pre>
+<p>DoD 补一行：<code>[ ] M8 CORS header </code>Access-Control-Allow-Origin: http://localhost:7860<code> 由 M9 集成测试验证</code></p>
+<hr>
+<h3 id="8-2-m8-review-p0-1-chat-端点超时保护-m9-chat-tab-依赖-m8-修复">8-2 · M8 review P0-1 chat 端点超时保护 → M9 chat tab 依赖 M8 修复</h3>
+<p><strong>位置</strong>：M8 review P0-1 · M9 plan Task 11 GREEN 段 L523</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 review P0-1（P0 级）指出 <code>POST /api/chat</code> 端点缺 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code></li>
+<li>如果 M8 没修 P0-1，<code>graph.ainvoke</code> 可能 hang 60s+ → Gradio <code>APIClient</code> 默认 timeout=30.0s（L254）会触发 <code>httpx.TimeoutException</code> → <code>NetworkError</code> 分类</li>
+<li>M9 的 <code>_handle_chat</code> handler <strong>没有捕获 <code>NetworkError</code></strong>（L524 只 try/except <code>AuthExpired</code>）</li>
+<li>如果 M8 超时返回 502（修 P0-1 后的行为），M9 的 <code>classify_response</code> 会抛 <code>UpstreamError</code>——同样没在 chat handler 里被捕获</li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段补异常处理）：</p>
+<pre><code class="language-python">
+async def _handle_chat(query, session_id, auth_state_value):
+    if not query.strip(): return gr.update(), gr.update(), gr.update(), gr.update(), &quot;&quot;
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    try:
+        response = await client.post_chat(query, session_id)
+    except AuthExpired:
+        return gr.update(), gr.update(), gr.update(), &quot;请重新登录&quot;, &quot;&quot;
+    except (UpstreamError, NetworkError) as e:
+        return gr.update(), gr.update(), gr.update(), f&quot;❌ 服务异常: {e}&quot;, &quot;&quot;
+    ...
+</code></pre>
+<p>风险表补一行：<code>chat 端点 M8 超时保护未修</code> | <code>asyncio.wait_for</code> 缺，Gradio 客户端 30s timeout 后 <code>NetworkError</code> | 补 <code>UpstreamError</code>/<code>NetworkError</code> try/except；M9 DoD 标记依赖 M8 P0-1 修复</p>
+<hr>
+<h3 id="8-3-m7-review-p0-6-answer_chitchat_node-缺实现-m9-chat-tab-依赖-m">8-3 · M7 review P0-6 answer_chitchat_node 缺实现 → M9 chat tab 依赖 M7 修复</h3>
+<p><strong>位置</strong>：M7 review P0-6 · M9 plan 依赖表 L731-737</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M7 review P0-6 指出 <code>answer_chitchat_node</code> <strong>完全没有实现</strong>——M7 注册了但没写函数体</li>
+<li>如果 classify 返回 <code>intent=chitchat</code>，graph invoke 崩溃 → M8 路由层返回 500 → M9 chat handler 收到 <code>UpstreamError</code></li>
+<li>M9 依赖表只列了&quot;M7 graph&quot;——没有说 M8/M9 依赖 M7 的 chitchat 分支完整实现</li>
+<li>M9 的 <code>test_chat_handler_handles_401_by_returning_login_prompt</code> 只测 401 路径，没测 graph 内部崩溃时的显示</li>
+</ul>
+<p><strong>修改</strong>（依赖表补一行）：</p>
+<pre><code class="language-">
+| M7 graph chitchat 分支（answer_chitchat_node 实现 / M7 P0-6） | 若 M7 未实现，graph invoke 崩溃返回 500，M9 显示&quot;服务异常&quot; | M9 DoD 不阻塞但 chat 端点的 chitchat 功能不可用 |
+</code></pre>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-cors-跨域验证缺集成测试m8m9-致命依赖断裂">P0-1 · CORS 跨域验证缺集成测试（M8→M9 致命依赖断裂）</h3>
+<p><strong>位置</strong>：M9 plan DoD L713-726 · 风险表 L749 · 测试矩阵 L706-708</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 review P2-3 指出 CORS middleware 顺序问题（CORSMiddleware 应在 RequestIdMiddleware 之前）。M9 假设 M8 已正确配置 <code>allow_origins=[&quot;http://localhost:7860&quot;]</code>——<strong>但没有任何测试验证这个假设</strong></li>
+<li>M9 的浏览器端 Gradio 页面（7860）发 fetch 到 FastAPI（8000），如果 CORS header 缺失，<code>gr.BrowserState</code> 存 token 的 JS <code>localStorage</code>、<code>APIClient</code> 的 httpx 请求全部失败</li>
+<li>M9 DoD 表 11 条中<strong>没有任何 CORS 相关项</strong>——这是 M8→M9 接口契约没有测试覆盖的盲区</li>
+<li>问题不是 CORS 配置难——问题是谁也发现不了它坏了，直到用户打开浏览器</li>
+</ul>
+<p><strong>修改</strong>（三处同步改）：</p>
+<p><strong>1. DoD 表补一项</strong>：</p>
+<pre><code class="language-">
+[ ] CORS 跨域验证：集成测试 `test_cors_headers_present` 通过（见 §8-1 代码段）
+</code></pre>
+<p><strong>2. Task 16（E2E 测试）补 CORS 冒烟测试</strong>：</p>
+<pre><code class="language-python">
+# tests/integration/test_m9_gradio_e2e.py — 追加
+async def test_cors_headers_present():
+    async with httpx.AsyncClient() as client:
+        resp = await client.options(
+            &quot;http://localhost:8000/api/health&quot;,
+            headers={&quot;Origin&quot;: &quot;http://localhost:7860&quot;, &quot;Access-Control-Request-Method&quot;: &quot;POST&quot;},
+        )
+        assert resp.status_code == 200
+        assert resp.headers.get(&quot;access-control-allow-origin&quot;) == &quot;http://localhost:7860&quot;
+</code></pre>
+<p><strong>3. 风险表 L749 补一行</strong>：</p>
+<pre><code class="language-">
+| CORS 配置未验证 | M8 CORSMiddleware 配置错误或 middleware 顺序问题，M9 所有跨域请求失败 | 集成测试 `test_cors_headers_present` 每次 PR 必过 |
+</code></pre>
+<hr>
+<h3 id="p0-2-docker-compose-gradio-service-缺-healthchecke2e-测试-race-">P0-2 · docker-compose gradio service 缺 healthcheck，E2E 测试 race condition</h3>
+<p><strong>位置</strong>：Task 15 GREEN 段 L663-677</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 15 在 docker-compose.yml 加 <code>gradio</code> service，<code>depends_on: { api: { condition: service_healthy } }</code>——但 gradio 本身<strong>没有 healthcheck 块</strong></li>
+<li><code>gradio</code> container 启动后，Gradio 的 uvicorn 服务器需要 3-10s 完成 <code>demo.launch()</code>（加载 theme、编译 JS 前端、初始化 state）</li>
+<li>E2E 测试（Task 16）在 <code>docker compose up -d gradio</code> 后<strong>立即开始</strong>——如果 Gradio 还没 ready，<code>GradioTestClient</code> 或 httpx 向 7860 发请求会 <code>Connection Refused</code> → 测试假失败</li>
+<li>M8 review P0-3（health check 5 service 探测实现模糊）也是同类问题——M9 应从中吸取教训自己配好</li>
+</ul>
+<p><strong>修改</strong>（Task 15 GREEN 段补 healthcheck）：</p>
+<pre><code class="language-yaml">
+services:
+  gradio:
+    build: .
+    command: [&quot;python&quot;, &quot;-m&quot;, &quot;app.ui.gradio_app&quot;]
+    ports: [&quot;7860:7860&quot;]
+    environment:
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: [&quot;CMD-SHELL&quot;, &quot;curl -fs http://localhost:7860/ || exit 1&quot;]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s   # Gradio 首次编译前端较慢
+</code></pre>
+<hr>
+<h3 id="p0-3-image-缩略图加载失败缺-fallbackm8-file-端点可能不存在">P0-3 · image 缩略图加载失败缺 fallback，M8 /file 端点可能不存在</h3>
+<p><strong>位置</strong>：Task 10 GREEN 段 L486-494 · L491注释 <code>M9 假设 M8 已有 /file 端点 stub</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L491 明确写&quot;M9 <strong>假设</strong> M8 已有 /file 端点 stub&quot;——这是一个尚未验证的假设</li>
+<li>M8 plan 的 Files 表（M8 plan L252-253）没有 <code>/file</code> 路由——M8 端点列表只有 auth/sessions/chat/ingest/health 5 个</li>
+<li>如果 M8 没有 <code>/file</code> 端点，<code>image_ref_to_url(&quot;http://api:8000/file=/data/imgs/p1.png&quot;)</code> 返回的 URL 404 → <code>gr.Gallery</code> 显示 broken image</li>
+<li><code>image_ref_to_url</code> 函数完全没做错误处理——即使 M8 有 <code>/file</code> 端点，路径不存在时 gallery 也是 broken</li>
+<li>spec 决策 #16 说 V1 多模态仅元数据+UI 缩略图——broken thumbnail = broken feature，没有 fallback 语义</li>
+</ul>
+<p><strong>修改</strong>（Task 10 GREEN 段补 fallback + Task 15 补 M8 file 端点依赖标注）：</p>
+<pre><code class="language-python">
+def image_ref_to_url(ref: str) -&gt; str:
+    &quot;&quot;&quot;M7 retrieve 返回的 image_ref → Gradio 可访问的 /file= URL。
+    data: 前缀直接返回（base64），路径优先尝试 M8 /file 端点。
+    注：M8 必须有 GET /file/{path} 路由（由 M8 或 M12 实现）。
+    &quot;&quot;&quot;
+    if ref and ref.startswith(&quot;data:&quot;):
+        return ref  # data URL 直接传递，不依赖 M8
+    if not ref:
+        return &quot;&quot;  # 空 → gallery 不显示
+    base = settings.ui.api_base_url.rstrip(&quot;/&quot;)
+    return f&quot;{base}/file={ref}&quot;
+</code></pre>
+<p>并在 gallery 渲染处加 <code>gr.Gallery(columns=2, height=&quot;auto&quot;, show_label=False)</code>——Gradio 5.0+ Gallery 缺省隐藏空/损坏项。</p>
+<p>依赖表 M8 行补：<code>M8 需实现 GET /file/{path} 端点（stub） | M9 依赖此端点展示 image thumbnail</code>。</p>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-chat-响应等待时缺-loading-状态">P1-1 · Chat 响应等待时缺 loading 状态</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L508-534</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>用户在 chat tab 点&quot;发送&quot;后，<code>_handle_chat</code> async handler 执行 <code>client.post_chat()</code>（httpx 请求 + graph.ainvoke 可能 5-30s）</li>
+<li>等待期间 <code>gr.Chatbot</code> 不显示任何 loading 指示——用户不知道系统在工作还是卡了</li>
+<li>Gradio 5.0+ 的 <code>gr.Chatbot</code> 支持 <code>.loading()</code> 或 gr.Progress，但 plan 里 chat tab 没有使用</li>
+</ul>
+<p><strong>修改</strong>（<code>_handle_chat</code> 包装 + 在等待时显示临时 user message + loading dots）：</p>
+<pre><code class="language-python">
+# 方案 A：先追加一条 user message + 一条临时 assistant message（含 loading dots）
+# app/ui/tabs/chat.py
+async def _handle_chat(query, session_id, auth_state_value):
+    if not query.strip():
+        return gr.update(), gr.update(), gr.update(), gr.update(), &quot;&quot;
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    # 先渲染 user message + loading 占位
+    yield [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: query}, {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;▌&quot;}], \
+          gr.update(), gr.update(), gr.update(), &quot;&quot;
+    try:
+        response = await client.post_chat(query, session_id)
+    except AuthExpired:
+        yield [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: query, &quot;loading&quot;: True}], gr.update(), gr.update(), &quot;请重新登录&quot;, &quot;&quot;
+        return
+    except (UpstreamError, NetworkError) as e:
+        yield ..., f&quot;❌ {e}&quot;, ...
+        return
+    parsed = parse_citations(response[&quot;answer&quot;])
+    yield ..., ..., ..., ..., &quot;&quot;
+</code></pre>
+<p>如果使用 generator handler（<code>yield</code>），需加 <code>fn=...</code> 的 <code>outputs</code> 参数配置（Gradio 5.0+ 支持 generator outputs）。</p>
+<hr>
+<h3 id="p1-2-错误提示用-grmarkdown-而非-gradio-50-grerror-toast">P1-2 · 错误提示用 gr.Markdown 而非 Gradio 5.0+ gr.Error() toast</h3>
+<p><strong>位置</strong>：Task 6 G L370 · Task 11 L524 · Task 13 L612</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前所有错误提示用 <code>gr.Markdown</code> 或 <code>gr.update(value=&quot;❌ ...&quot;)</code> 渲染在页面正文中——侵入式、占用空间、不消失</li>
+<li>Gradio 5.0+ 支持 <code>gr.Error()</code> / <code>gr.Warning()</code> / <code>gr.Info()</code> 浮动 toast 通知——非侵入、自动淡出</li>
+<li>401 用 toast + 跳 login tab 比三段式 markdown 好得多</li>
+</ul>
+<p><strong>修改</strong>（handler 内异常分支改 toast）：Gradio 的 <code>gr.Error</code> 是一个 class，在 handler 内直接 <code>raise gr.Error(&quot;未登录&quot;)</code> 或在返回中 <code>gr.Error(&quot;...&quot;)</code>。</p>
+<pre><code class="language-python">
+# 当前（Task 11 L524）：
+except AuthExpired:
+    return gr.update(), gr.update(), gr.update(), &quot;请重新登录&quot;, &quot;&quot;
+
+# 改为（Gradio 5.0+ toast）：
+except AuthExpired:
+    raise gr.Error(&quot;身份已过期，请重新登录&quot;)
+</code></pre>
+<p>需确认 Gradio 5.0+ Python handler 内 <code>raise gr.Error()</code> 不会被框架拦截（Gradio 5.0 文档：在 event handler 中 <code>raise gr.Error(&quot;msg&quot;)</code> 会显示 toast 并中断 handler 执行）。</p>
+<hr>
+<h3 id="p1-3-新消息后缺-auto-scroll">P1-3 · 新消息后缺 auto-scroll</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 · chat.py 整体</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>chat response 渲染到 <code>gr.Chatbot</code> 后，用户必须手动滚动到底部看新消息</li>
+<li>多轮对话后，每次响应都在屏幕外，用户手动滚 → 低劣 UX</li>
+<li>Gradio 5.0+ <code>gr.Chatbot</code> 支持 <code>autoscroll=True</code> 参数（v5.0+ 新增）</li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段 <code>gr.Chatbot</code> 加参数）：</p>
+<pre><code class="language-python">
+chatbot = gr.Chatbot(
+    type=&quot;messages&quot;,
+    label=&quot;对话&quot;,
+    autoscroll=True,        # 5.0+ 自动滚到底
+    show_copy_button=True,  # 5.0+ 复制消息
+)
+</code></pre>
+<p>如果 Gradio 5.0.0 没有 <code>autoscroll</code>，用 JS 回调（<code>_js</code>）触发 <code>scrollIntoView</code>。</p>
+<hr>
+<h3 id="p1-4-缺-enter-发送-shiftenter-换行-keyboard-shortcut">P1-4 · 缺 Enter 发送 / Shift+Enter 换行 keyboard shortcut</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L512</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前 <code>query = gr.Textbox(placeholder=&quot;问点什么...&quot;)</code>——用户不能按 Enter 触发发送</li>
+<li>所有主流聊天 UI（ChatGPT/Claude/Perplexity）都是 Enter 发送、Shift+Enter 换行</li>
+<li>Gradio 5.0+ <code>gr.Textbox</code> 支持 <code>submit_on_enter=True</code></li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段加 <code>submit_on_enter</code>）：</p>
+<pre><code class="language-python">
+query = gr.Textbox(
+    placeholder=&quot;问点什么...（Enter 发送，Shift+Enter 换行）&quot;,
+    label=&quot;问题&quot;,
+    submit_on_enter=True,    # 5.0+ 按 Enter 触发 .click() 或 .submit()
+)
+chatbot = gr.Chatbot(...)
+query.submit(
+    _handle_chat, [query, current_session, auth_state],
+    [chatbot, source_column, image_gallery, trace_link, query],
+)
+</code></pre>
+<p>同时删掉 <code>gr.Button(&quot;发送&quot;)</code> 或保持作为辅助入口。</p>
+<hr>
+<h3 id="p1-5-ingest-file-upload-缺前端文件大小检查">P1-5 · Ingest file upload 缺前端文件大小检查</h3>
+<p><strong>位置</strong>：Task 13 GREEN 段 L589-591</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>gr.File(file_count=&quot;multiple&quot;, file_types=[&quot;.pdf&quot;, &quot;.docx&quot;, &quot;.md&quot;, &quot;.txt&quot;])</code>——没有 <code>file_size</code> 参数</li>
+<li>用户可能选 200MB PDF → 上传到 M8 → M8 转发到 M4 pipeline → spec §5 说&quot;附件超大 (&gt;50MB) 跳过&quot;</li>
+<li>50MB 上传到服务端才被拒，浪费带宽+时间</li>
+<li>Gradio 5.0+ <code>gr.File</code> 不支持原生文件大小过滤，需前端 JS 或 handler 内检查</li>
+</ul>
+<p><strong>修改</strong>（Task 13 GREEN 段 <code>_handle_file</code> 加前端检查）：</p>
+<pre><code class="language-python">
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
+async def _handle_file(files, auth_state_value):
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    if files:
+        # 前端检查
+        for f in files:
+            if f.size and f.size &gt; MAX_FILE_SIZE:
+                return f&quot;❌ 文件 {f.name} 超过 50MB，跳过提交&quot;
+        paths = [f.name for f in files]
+        result = await client.post_ingest(source=&quot;file&quot;, payload={&quot;paths&quot;: paths})
+        return f&quot;✅ 已提交 {len(paths)} 个文件，job_id: {result[&#x27;job_id&#x27;]}&quot;
+    return &quot;⚠️ 未选择文件&quot;
+</code></pre>
+<hr>
+<h3 id="p1-6-url-ingest-前端验证缺">P1-6 · URL ingest 前端验证缺</h3>
+<p><strong>位置</strong>：Task 13 GREEN 段 L594-599</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>URL Textbox 无验证：用户可能输入 <code>javascript:alert(1)</code>、<code>ftp://</code>、空格、空字符串</li>
+<li>空 URL + click &quot;提交入库&quot; → handler 调 <code>client.post_ingest(source=&quot;url&quot;, ...)</code> → M5 服务端 422 ValidationError</li>
+<li>前端验证好于后端返回 422</li>
+</ul>
+<p><strong>修改</strong>（Task 13 <code>_handle_url</code> 补验证）：</p>
+<pre><code class="language-python">
+import re
+
+URL_PATTERN = re.compile(r&quot;^https?://[^\s/$.?#].[^\s]*$&quot;, re.IGNORECASE)
+
+async def _handle_url(url_str, auth_type, creds, auth_state_value):
+    if not url_str or not url_str.strip():
+        return &quot;⚠️ 请输入 URL&quot;
+    if not URL_PATTERN.match(url_str.strip()):
+        return &quot;❌ URL 格式不正确（需以 http:// 或 https:// 开头）&quot;
+    if len(url_str) &gt; 2048:
+        return &quot;❌ URL 长度超过 2048 字符&quot;
+    # ... 后续逻辑
+</code></pre>
+<hr>
+<h3 id="p1-7-logout-后不跳转-login-tab">P1-7 · Logout 后不跳转 login tab</h3>
+<p><strong>位置</strong>：Task 6 GREEN 段 · login.py 登出逻辑</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>登出逻辑在 <code>_handle_logout</code> 中只会清 auth_state，不会切换到 login tab</li>
+<li>用户点&quot;登出&quot;后留在当前 tab（如 chat 或 sessions）→ 看到空白 UI（因为 token 清空了）</li>
+<li>良好的 UX：登出后自动显示 login tab + &quot;已退出登录&quot; toast</li>
+</ul>
+<p><strong>修改</strong>（登出 handler 返 gr.Tabs selected 索引）：</p>
+<pre><code class="language-python">
+def _handle_logout(auth_state_value):
+    return {}, gr.Tabs(selected=0)  # Tab 0 = login tab
+</code></pre>
+<p>需 <code>build_login_tab</code> 返回 tab 索引信息，或全局 <code>gr.Tabs</code> 使用 <code>.change</code> 监听。</p>
+<hr>
+<h3 id="p1-8-多次-401-后-session-过期提示">P1-8 · 多次 401 后 session 过期提示</h3>
+<p><strong>位置</strong>：Task 5 errors.py · Task 11 chat.py</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前 401 在 chat handler 中被捕获，返回 <code>&quot;请重新登录&quot;</code>——但如果用户连续遇到 401（如 token 过期后多发了几条消息），每次都是同一提示</li>
+<li>没有区分&quot;首次 401&quot;和&quot;多次 401&quot;：多次触发说明 session 已过期，应强制跳登录页</li>
+<li>没有在 <code>APIClient</code> 层面做 401 自动 logout</li>
+</ul>
+<p><strong>修改</strong>（APIClient._request 加 401 标记 + handler 检测）：</p>
+<pre><code class="language-python">
+# app/ui/api_client.py
+class APIClient:
+    def __init__(self, ...):
+        ...
+        self._consecutive_401 = 0
+    
+    async def _request(self, method, path, **kw):
+        resp = await self._client.request(method, path, headers=self._headers(), **kw)
+        if resp.status_code == 401:
+            self._consecutive_401 += 1
+        else:
+            self._consecutive_401 = 0
+        classify_response(resp)
+        return resp.json()
+    
+    @property
+    def session_expired(self):
+        return self._consecutive_401 &gt;= 3
+</code></pre>
+<p><code>build_chat_tab</code> 在 handler 入口检 <code>client.session_expired → gr.Error(&quot;登录已过期&quot;) + clear auth_state</code>。</p>
+<hr>
+<h3 id="p1-9-session-删除缺确认弹窗">P1-9 · Session 删除缺确认弹窗</h3>
+<p><strong>位置</strong>：Task 7 GREEN 段 L393-395</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>del_btn.click(_delete_selected, [df], df)</code>——点击就删，无确认弹窗</li>
+<li>误触删除后不可恢复（chat_sessions 物理删除或软删除）</li>
+<li>Gradio 5.0+ 不支持原生 confirm dialog，需 <code>gr.Button</code> 的 <code>_js</code> 参数调 JS <code>confirm()</code></li>
+</ul>
+<p><strong>修改</strong>（删除按钮加 JS confirm）：</p>
+<pre><code class="language-python">
+del_btn = gr.Button(&quot;删除选中&quot;)
+del_btn.click(
+    _delete_selected, [df], df,
+    _js=&quot;(idx) =&gt; confirm(&#x27;确认删除选中的会话？此操作不可恢复。&#x27;) ? idx : null&quot;,
+)
+</code></pre>
+<p>如果 <code>confirm()</code> 返 false（取消），handler 不执行（<code>prevent_concurrent=True</code> 确保）。</p>
+<hr>
+<h3 id="p1-10-中文-source-卡中文溢出-css-被-50-css-覆盖">P1-10 · 中文 source 卡中文溢出 CSS 被 5.0+ CSS 覆盖</h3>
+<p><strong>位置</strong>：Task 9 GREEN 段 · Task 2 CUSTOM_CSS L230-234</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>CUSTOM_CSS</code> 定义了 <code>.source-card pre { white-space: pre-wrap; word-wrap: break-word; }</code></li>
+<li>但 <code>source_card.py</code> 的 <code>gr.Markdown(f&quot;</code>`<code>\\n{src.content}\\n</code>`<code>&quot;)</code> 渲染在 Gradio 5.0+ 的 <code>prose</code> 类名下——Gradio 5.0 自带的 tailwind prose 类优先级高于 <code>pre</code> 元素选择器</li>
+<li>实际测试中，中文长文本可能不换行（overflow-x scroll）而不是 wrap</li>
+<li>plan 没有提供实际 CSS 覆盖测试（Task 9 RED 只断言 CSS class 存在，不测真实渲染）</li>
+</ul>
+<p><strong>修改</strong>（CUSTOM_CSS 提高优先级 + 测试补渲染断言）：</p>
+<pre><code class="language-css">
+/* 提高优先级覆盖 Gradio 5.0 prose 样式 */
+.source-card pre,
+.source-card code,
+.gr-box .source-card pre {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+}
+</code></pre>
+<p>Task 9 RED 测试 <code>test_source_card_breaks_long_text</code> 补：</p>
+<pre><code class="language-python">
+# 除 CSS class 外，断言 rendered HTML 含 word-break 属性
+assert &quot;overflow-wrap: break-word&quot; in source_card_html
+</code></pre>
+<hr>
+<h3 id="p1-11-config-中-cors_origin-默认值耦合-7860">P1-11 · Config 中 <code>cors_origin</code> 默认值耦合 7860</h3>
+<p><strong>位置</strong>：Task 1 GREEN 段 L202</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>cors_origin: str = &quot;http://localhost:7860&quot;</code>——硬编码假设 Gradio 总是 7860</li>
+<li>如果 <code>.env</code> 改了 <code>GRADIO_SERVER_PORT=7861</code>，<code>cors_origin</code> 也要手动改——同步问题</li>
+<li>应该从 <code>gradio_server_port</code> 自动拼接</li>
+</ul>
+<p><strong>修改</strong>（config.py UISettings 用 <code>@computed_field</code> 或 model_validator 自动生成）：</p>
+<pre><code class="language-python">
+class UISettings(BaseSettings):
+    api_base_url: str = &quot;http://localhost:8000&quot;
+    theme_bg: str = &quot;#0d1117&quot;
+    theme_accent: str = &quot;#58a6ff&quot;
+    font_family: str = &quot;PingFang SC, Microsoft YaHei, sans-serif&quot;
+    gradio_server_name: str = &quot;0.0.0.0&quot;
+    gradio_server_port: int = 7860
+
+    @property
+    def cors_origin(self) -&gt; str:
+        &quot;&quot;&quot;自动从 gradio_server_name + port 拼接。&quot;&quot;&quot;
+        host = &quot;localhost&quot; if self.gradio_server_name == &quot;0.0.0.0&quot; else self.gradio_server_name
+        return f&quot;http://{host}:{self.gradio_server_port}&quot;
+</code></pre>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-grchatbottypemessages-50-兼容性未验证">P2-1 · <code>gr.Chatbot(type=&quot;messages&quot;)</code> 5.0+ 兼容性未验证</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L511 · Tech Stack L131</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>type=&quot;messages&quot;</code> 在 Gradio 5.0 是强制参数（5.0 以前的 <code>type=&quot;tuples&quot;</code>/<code>type=&quot;messages&quot;</code> 兼容）</li>
+<li>但 plan 没有单元测试验证这个参数在 <strong>安装的 Gradio 版本</strong> 上可用</li>
+<li>如果 <code>gradio&gt;=5.0,&lt;6</code> 装到了 5.0.0-beta，<code>type=&quot;messages&quot;</code> 可能还没稳定</li>
+</ul>
+<p><strong>修改</strong>（Task 11 RED 补版本兼容性测试）：</p>
+<pre><code class="language-python">
+# tests/unit/test_ui_tabs.py
+def test_chatbot_type_messages_supported():
+    &quot;&quot;&quot;Gradio 5.0+ 必须支持 gr.Chatbot(type=&#x27;messages&#x27;)。&quot;&quot;&quot;
+    import gradio as gr
+    # 构造实例不报错即可
+    chatbot = gr.Chatbot(type=&quot;messages&quot;, label=&quot;test&quot;)
+    assert chatbot.type == &quot;messages&quot;
+</code></pre>
+<hr>
+<h3 id="p2-2-ingest-进度-404-提示缺指导">P2-2 · Ingest 进度 404 提示缺指导</h3>
+<p><strong>位置</strong>：Task 12 GREEN 段 L573-576</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>test_poll_handles_404_gracefully</code> 断言抛 <code>NotFound</code> 且&quot;给用户明确提示&quot;</li>
+<li>但提示内容没定义——用户只知道&quot;找不到&quot;，不知道怎么办</li>
+<li>good UX：告知 job_id + 可能原因 + 操作建议</li>
+</ul>
+<p><strong>修改</strong>（errors.py NotFound 加 context）：</p>
+<pre><code class="language-python">
+class NotFound(Exception):
+    &quot;&quot;&quot;404 — 静默，不暴露存在性。&quot;&quot;&quot;
+    def __init__(self, detail=&quot;未找到&quot;, resource_type=None, resource_id=None):
+        self.detail = detail
+        self.resource_type = resource_type
+        self.resource_id = resource_id
+    
+    def user_message(self):
+        if self.resource_type == &quot;ingest_job&quot;:
+            return f&quot;⚠️ 任务 {self.resource_id} 未找到，可能已过期或被清理&quot;
+        return self.detail
+</code></pre>
+<hr>
+<h3 id="p2-3-mobile-responsive-缺">P2-3 · Mobile responsive 缺</h3>
+<p><strong>位置</strong>：M9 plan 全篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Gradio 5.0 默认移动端支持较差（宽屏优先）</li>
+<li>4 tab 的 layout 在手机屏幕（&lt;768px）上会挤变形</li>
+<li>Gradio 支持 CSS media query 和 <code>responsive=True</code> 参数</li>
+</ul>
+<p><strong>修改</strong>（CUSTOM_CSS 补 mobile query）：</p>
+<pre><code class="language-css">
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .chat-message { font-size: 14px; }
+    .source-card pre { font-size: 12px; }
+    .gr-gallery { --gr-gallery-columns: 1; }
+}
+</code></pre>
+<hr>
+<h3 id="p2-4-plan-部分引用编号偏移">P2-4 · Plan 部分引用编号偏移</h3>
+<p><strong>位置</strong>：L547-548</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>RED · tests/unit/test_ui_message_parser.py::test_poll_progress_updates_status（放错文件了，挪到 progress.py 测试）</code></li>
+<li>注释说&quot;放错文件了&quot;但 plan 没有修正——文本内引用 <code>test_ui_message_parser</code> 但实际应该 <code>test_ui_progress</code></li>
+<li>实施了人在写 <code>test_ui_message_parser.py</code> 时找不到这个测试</li>
+</ul>
+<p><strong>修改</strong>：Task 12 RED 两步改为：</p>
+<ol>
+<li><code>tests/unit/test_ui_message_parser.py</code> 行删掉</li>
+<li>只留 <code>tests/unit/test_ui_progress.py::test_poll_returns_completed</code></li>
+</ol>
+<hr>
+<h3 id="p2-5-缺-test_poll_uses_gr_progress_tqdm-的测试如何-mock-grprogress">P2-5 · 缺 <code>test_poll_uses_gr_progress_tqdm</code> 的测试如何 mock gr.Progress 的具体实现</h3>
+<p><strong>位置</strong>：Task 12 RED L568-570</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>RED 说用 <code>gr.Progress(track_tqdm=True)</code> 包装 → 调 poll → 断言 tqdm-style 更新触发</li>
+<li>但在单元测试中，<code>gr.Progress</code> 是 Gradio UI 对象——没法直接 mock</li>
+<li>实际可行的做法：mock <code>gr.Progress.__call__</code> 或传一个 mock callable</li>
+</ul>
+<p><strong>修改</strong>（Task 12 RED 测试补 mock 方法说明）：</p>
+<pre><code class="language-python">
+# 实际测试写法：
+def test_poll_uses_gr_progress_tqdm():
+    mock_progress = MagicMock(spec=gr.Progress)
+    progress_comp = IngestProgress(mock_client, &quot;job_123&quot;, mock_progress)
+    
+    # 执行 poll（mock 网络）
+    data = await progress_comp.poll_until_done(interval=0.01, max_wait=1.0)
+    
+    # 断言 gr.Progress 被调用来更新进度
+    mock_progress.assert_called()
+    call_args = mock_progress.call_args
+    assert call_args[0][0] &gt;= 0.0  # progress value
+</code></pre>
+<hr>
+<h3 id="p2-6-test_tabs_do_not_share_state_across_switches-的-mock-实现不">P2-6 · test_tabs_do_not_share_state_across_switches 的 mock 实现不完整</h3>
+<p><strong>位置</strong>：Task 14 RED L656-658</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>RED 说&quot;模拟用户在 login tab 输入用户名 → 切到 chat tab → 断言 chat tab 的 State 没拿到 login 用户名&quot;</li>
+<li>但 <code>gr.BrowserState</code> 是浏览器 localStorage ——单元测试无法模拟跨 tab 的 BrowserState 隔离</li>
+<li>GradioTestClient 也不支持模拟用户点击不同 tab</li>
+</ul>
+<p><strong>修改</strong>：改为 mock 测试 <code>AuthState</code> vs <code>gr.State</code> 的隔离逻辑：</p>
+<pre><code class="language-python">
+def test_auth_state_not_leaked_to_session_state():
+    auth = gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)
+    session = gr.State(value=None)
+    # 模拟 login 后 auth 被设
+    auth.value = {&quot;token&quot;: &quot;xxx&quot;, &quot;user_id&quot;: &quot;1&quot;, &quot;username&quot;: &quot;test&quot;}
+    # 断言 session 不受影响
+    assert session.value is None  # session 是组件级 State
+</code></pre>
+<hr>
+<h3 id="p2-7-缺-gradio-启动后浏览器自动打开抑制">P2-7 · 缺 Gradio 启动后浏览器自动打开抑制</h3>
+<p><strong>位置</strong>：Task 14 GREEN 段 L649-651</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>demo.launch(server_name=settings.ui.gradio_server_name, server_port=settings.ui.gradio_server_port)</code></li>
+<li>Gradio 默认 <code>inbrowser=True</code>——在 docker 容器内会尝试打开浏览器（报错不影响但日志脏）</li>
+<li>Docker 容器内没有浏览器，<code>webbrowser.open</code> 会抛 <code>FileNotFoundError</code></li>
+</ul>
+<p><strong>修改</strong>（launch_ui 加 <code>inbrowser=False</code>）：</p>
+<pre><code class="language-python">
+def launch_ui():
+    demo = build_ui()
+    demo.launch(
+        server_name=settings.ui.gradio_server_name,
+        server_port=settings.ui.gradio_server_port,
+        inbrowser=False,           # Docker 内禁止开浏览器
+        share=False,               # V1 不开公网链接
+        allowed_paths=[&quot;/data&quot;],   # 允许 M8 /file 端点路径
+    )
+</code></pre>
+<hr>
+<h3 id="p2-8-_handle_chat-返回-5-个值但调用方配置只有-5-个-output维护成本高">P2-8 · <code>_handle_chat</code> 返回 5 个值但调用方配置只有 5 个 output——维护成本高</h3>
+<p><strong>位置</strong>：Task 11 L513-516</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>[chatbot, gr.Column(), gr.Gallery(), gr.Markdown(), query]</code>——5 个 output 组件</li>
+<li>handler 返回 5 个 <code>gr.update()</code>/string——顺序一旦错，UI 错乱</li>
+<li>任何组件增减都要同步改 3 处（调用方 outputs、handler 签名、handler return）</li>
+</ul>
+<p><strong>修改</strong>（Task 11 REFACTOR 段提前落实——用 dataclass 打包）：</p>
+<pre><code class="language-python">
+@dataclass
+class ChatResult:
+    chatbot: gr.Chatbot
+    source_column: gr.Column
+    image_gallery: gr.Gallery
+    trace_link: gr.Markdown
+    query: gr.Textbox
+
+# handler 内
+return ChatResult(
+    chatbot=[...],
+    source_column=gr.update(...),
+    image_gallery=gr.update(...),
+    trace_link=gr.update(...),
+    query=&quot;&quot;,
+)
+</code></pre>
+<p>虽然 Gradio 不支持 dataclass 返回值，但可以作为 python <code>dict</code> 或 <code>list</code> 的中间表示——或在 <code>gr.Blocks.load</code> 回调中用 JS 处理。</p>
+<hr>
+<h2 id="交叉验证总结">交叉验证总结</h2>
+<h3 id="m7m9-依赖链">M7→M9 依赖链</h3>
+<table>
+<tr><th>项</th><th>M7 review</th><th>M9 依赖</th><th>状态</th></tr>
+<tr><td>----</td><td>-----------</td><td>---------</td><td>------</td></tr>
+<tr><td>answer_chitchat_node 缺实现</td><td>M7 P0-6</td><td>M9 chat 端点的 chitchat 路径不可用</td><td>⚠️ 依赖表未标注（见 §8-3）</td></tr>
+<tr><td>graph 超时保护缺</td><td>M7 P0-4</td><td>M9 chat handler 30s timeout 后 <code>NetworkError</code> 未捕获（见 §8-2）</td><td>❌ P1-10 补异常捕获</td></tr>
+<tr><td>checkpointer API 兼容</td><td>M7 P0-2/P0-3</td><td>M9 不直接依赖 checkpointer</td><td>✅ 通过</td></tr>
+<tr><td>节点级异常传播</td><td>M7 P0-8</td><td>M9 chat 端点收到 500 → <code>UpstreamError</code></td><td>✅ 已分类</td></tr>
+</table>
+<h3 id="m8m9-依赖链">M8→M9 依赖链</h3>
+<table>
+<tr><th>项</th><th>M8 review</th><th>M9 依赖</th><th>状态</th></tr>
+<tr><td>----</td><td>-----------</td><td>---------</td><td>------</td></tr>
+<tr><td>CORS 中间件配置</td><td>M8 P2-3</td><td>M9 跨域请求依赖 M8 CORS header</td><td>❌ <strong>P0-1</strong> 缺验证测试</td></tr>
+<tr><td>chat 超时保护</td><td>M8 P0-1</td><td>M9 chat 端点的 httpx 30s timeout</td><td>⚠️ P1-10 补异常处理</td></tr>
+<tr><td>/file 端点 stub</td><td>未实现</td><td>M9 image thumbnail 依赖</td><td>❌ <strong>P0-3</strong> image fallback 缺</td></tr>
+<tr><td>路由鉴权完整</td><td>M8 P1-11</td><td>M9 全走 Bearer token</td><td>✅ 通过</td></tr>
+</table>
+<h3 id="m3m9-依赖链">M3→M9 依赖链</h3>
+<table>
+<tr><th>项</th><th>M3 review</th><th>M9 依赖</th><th>状态</th></tr>
+<tr><td>----</td><td>-----------</td><td>---------</td><td>------</td></tr>
+<tr><td>pytest-httpx 依赖</td><td>M3 P1-18</td><td>M9 单元测试 mock httpx</td><td>✅ 假设 M3 已修</td></tr>
+<tr><td>gradio&gt;=5.0,&lt;6 依赖</td><td>无</td><td>M9 核心依赖</td><td>✅ pyproject 列明</td></tr>
+</table>
+<hr>
+<h2 id="新发现问题汇总">新发现问题汇总</h2>
+<table>
+<tr><th>ID</th><th>级别</th><th>区域</th><th>问题</th><th>位置</th></tr>
+<tr><td>----</td><td>------</td><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>P0-1</td><td>P0</td><td>CORS</td><td>M8→M9 CORS 跨域验证缺集成测试</td><td>DoD L713-726</td></tr>
+<tr><td>P0-2</td><td>P0</td><td>Docker</td><td>gradio service 缺 healthcheck，E2E race</td><td>Task 15 L663-677</td></tr>
+<tr><td>P0-3</td><td>P0</td><td>Image</td><td>image thumbnail 加载失败缺 fallback，M8 /file 端点可能不存在</td><td>Task 10 L486-494</td></tr>
+<tr><td>P1-1</td><td>P1</td><td>Chat</td><td>等待响应时缺 loading 状态</td><td>Task 11 L508-534</td></tr>
+<tr><td>P1-2</td><td>P1</td><td>Error</td><td>错误提示用 gr.Markdown 而非 gr.Error() toast</td><td>Task 6/11/13</td></tr>
+<tr><td>P1-3</td><td>P1</td><td>Chat</td><td>新消息后缺 auto-scroll</td><td>Task 11 L511</td></tr>
+<tr><td>P1-4</td><td>P1</td><td>Chat</td><td>缺 Enter 发送/Shift+Enter 换行 keyboard shortcut</td><td>Task 11 L512</td></tr>
+<tr><td>P1-5</td><td>P1</td><td>Ingest</td><td>file upload 缺前端文件大小检查（&gt;50MB）</td><td>Task 13 L589-591</td></tr>
+<tr><td>P1-6</td><td>P1</td><td>Ingest</td><td>URL ingest 前端验证缺（格式/长度/空）</td><td>Task 13 L594-599</td></tr>
+<tr><td>P1-7</td><td>P1</td><td>Login</td><td>logout 后不跳转 login tab</td><td>Task 6 login.py</td></tr>
+<tr><td>P1-8</td><td>P1</td><td>Error</td><td>多次 401 后 session 过期检查缺</td><td>Task 5 errors.py</td></tr>
+<tr><td>P1-9</td><td>P1</td><td>Session</td><td>session 删除缺确认弹窗</td><td>Task 7 L393-395</td></tr>
+<tr><td>P1-10</td><td>P1</td><td>Chat</td><td>M8 超时/502 的 UpstreamError 在 chat handler 未捕获</td><td>Task 11 L524</td></tr>
+<tr><td>P1-11</td><td>P1</td><td>Config</td><td>cors_origin 硬编码 7860，不随 port 联动</td><td>Task 1 L202</td></tr>
+<tr><td>P2-1</td><td>P2</td><td>Chat</td><td>gr.Chatbot(type=&quot;messages&quot;) 版本兼容性未验证</td><td>Tech Stack L131</td></tr>
+<tr><td>P2-2</td><td>P2</td><td>Ingest</td><td>进度 404 提示缺操作指导</td><td>Task 12 L573-576</td></tr>
+<tr><td>P2-3</td><td>P2</td><td>CSS</td><td>移动端响应式缺</td><td>plan 全篇</td></tr>
+<tr><td>P2-4</td><td>P2</td><td>Plan</td><td>引用编号偏移（test_ui_message_parser→test_ui_progress）</td><td>L547-548</td></tr>
+<tr><td>P2-5</td><td>P2</td><td>Test</td><td>gr.Progress mock 实现方法未说明</td><td>Task 12 L568-570</td></tr>
+<tr><td>P2-6</td><td>P2</td><td>Test</td><td>test_tabs_do_not_share_state mock 无法在 GradioTestClient 实现</td><td>Task 14 L656-658</td></tr>
+<tr><td>P2-7</td><td>P2</td><td>Docker</td><td>lauch() 缺 inbrowser=False（容器内报错）</td><td>Task 14 L649-651</td></tr>
+<tr><td>P2-8</td><td>P2</td><td>Refactor</td><td>_handle_chat 返回 5 个值硬编码，维护成本高</td><td>Task 11 L513-516</td></tr>
+</table>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<h3 id="实施顺序">实施顺序</h3>
+<p>按 P0 → P1 → P2 优先修完，然后按 Day 1-5 顺序实施：</p>
+<ol>
+<li><strong>动手前必改</strong>：P0-1（CORS 集成测试）+ P0-2（gradio healthcheck）+ P0-3（image fallback）</li>
+<li><strong>Day 1-2 基础设施阶段随改</strong>：P1-11（cors_origin 联动）+ P2-7（inbrowser=False）</li>
+<li><strong>Day 3 chat tab 阶段</strong>：P1-1（loading）+ P1-3（auto-scroll）+ P1-4（keyboard shortcut）+ 迁移 gr.Markdown error→gr.Error toast（P1-2）</li>
+<li><strong>Day 4 ingest tab 阶段</strong>：P1-5（file size check）+ P1-6（URL validation）</li>
+<li><strong>Day 5 装配阶段</strong>：P1-7（logout redirect）+ P1-9（confirm dialog）+ P1-8（401 tracking）</li>
+<li><strong>Day 5 E2E 阶段</strong>：P0-1（CORS test）</li>
+<li><strong>剩余 P2</strong> 作为优化任务放在 5 个工作日之后的 polish session</li>
+</ol>
+<h3 id="风险提醒">风险提醒</h3>
+<ul>
+<li><strong>M8 CORS 中间件顺序问题（M8 P2-3）</strong>是最致命的——如果 M8 没修，M9 做再多也没用。M9 开写前应确认 M8 merge 后 <code>curl -X OPTIONS -H &quot;Origin: http://localhost:7860&quot; http://localhost:8000/api/health</code> 返回正确的 header</li>
+<li><strong>M7 answer_chitchat_node 缺实现（M7 P0-6）</strong>——M9 的 chat tab 能工作（即使 chitchat 路径请求会 500），但用户体验差。建议在 M9 chat tab 的 handler 里加 try/except 兜底，或 M9 实施前确认 M7 已修</li>
+<li><strong>M8 /file 端点</strong>——如果 M8 或 M12 不实现，M9 的 image thumbnail 功能需要降级到只支持 data URL（M7 graph 返回的 image_ref 格式相关）</li>
+</ul>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>M9-review-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope §4.1 + 决策 #7/#16）</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

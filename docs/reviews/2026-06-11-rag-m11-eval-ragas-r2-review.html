@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M11 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M11 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>300 行</span>
+<span>16 P0</span>
+<span>25 P1</span>
+<span>8 P2</span>
+    <span>2026-06-11-rag-m11-eval-ragas-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证19-项逐项">1. r1 修复验证（19 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#新-1-p0-chitchat-子集与-cinightly-阈值耦合断裂">新-1 (P0) · chitchat 子集与 CI/nightly 阈值耦合断裂</a></li>
+<li><a href="#新-2-p0-ragas-evaluate-raise_exceptionsfalse-行为-per_item-usag">新-2 (P0) · RAGAS evaluate() raise_exceptions=False 行为 + per_item usage 取法 plan 假设未证伪</a></li>
+<li><a href="#新-3-p1-with_configcallbacks-与-m3-工厂返回值兼容性未断言">新-3 (P1) · with_config({&amp;quot;callbacks&amp;quot;: []}) 与 M3 工厂返回值兼容性未断言</a></li>
+<li><a href="#新-4-p1-baseline-参数使用方式与-v1-git-化策略不匹配">新-4 (P1) · --baseline 参数使用方式与 V1 git 化策略不匹配</a></li>
+<li><a href="#新-5-p1-5-chitchat-题在-ci-20-题子集被跳过p1-2-修复未达chitchat-路径-ci-覆盖目">新-5 (P1) · 5 chitchat 题在 CI 20 题子集被跳过——P1-2 修复未达&amp;quot;chitchat 路径 CI 覆盖&amp;quot;目标</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m3m4-m6m7m8m9m10m12">3. 跨 M 一致性检查（M0/M1/M3/M4-M6/M7/M8/M9/M10/M12）</a></li>
+<li><a href="#新-6-p1-m8-trace_id-vs-request_id-命名断裂未在-m11-plan-明示">新-6 (P1) · M8 trace_id vs request_id 命名断裂未在 M11 plan 明示</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表结构">4.1 风险表结构</a></li>
+<li><a href="#42-补全质量评估">4.2 补全质量评估</a></li>
+<li><a href="#43-r2-需补风险行建议">4.3 r2 需补风险行（建议）</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-本轮修-2-p0-3-p1">5.1 本轮（修 2 P0 + 3 P1）</a></li>
+<li><a href="#52-下轮m11-plan-r3">5.2 下轮（M11 plan r3）</a></li>
+<li><a href="#53-并行组织任务非工程">5.3 并行（组织任务，非工程）</a></li>
+<li><a href="#54-晚一轮v1-收尾前">5.4 晚一轮（V1 收尾前）</a></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m11-plan-r2-review-r1-修复验证">M11 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：plans/2026-06-11-rag-m11-eval-ragas.md（852 行，r1 已修）</blockquote>
+<blockquote>评审基线：reviews/2026-06-11-rag-m11-eval-ragas-review.md（r1 = 6 P0 + 8 P1 + 5 P2 = 19 项）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立 r2 验证）</blockquote>
+<blockquote>范围：验 r1 19 项修复是否到位 + 发现 r1 修复过程中是否引入新问题</blockquote>
+<blockquote>横向交叉：M0/M1/M3/M4-M6/M7/M8/M9/M10/M12 plan + 各自 r2 review</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M11 plan r1 修复<strong>完成度极高</strong>——19 项 P0/P1/P2 全部纳入 plan 修订记录（plan L807-825 共 19 行 r1 已修 + L834-852 修订记录 19 行），每项修复都在 plan 正文找到对应落地（Task 1 EvalSettings 补 cost_budget/mode / Task 4 M3 工厂注册 judge / Task 6 runner async + GraphNodeError / Task 7 LangchainLLMWrapper + reference_contexts / Task 9 report 含 git_sha + cost_usd + baseline diff / Task 10 gate 双阈值），<strong>M11 plan 已经成为合格 V1.0.0 RAGAS 评估基线</strong>。</p>
+<p>但 r2 独立审查<strong>新发现 5 个问题</strong>（2 个 P0 新阻塞 / 3 个 P1 重要），主要集中在 3 个方面：</p>
+<ol>
+<li><strong>r1 修复之间的耦合衍生</strong>——P1-8 fixture 50 题 + include_chitchat 开关 + mode=ci/nightly 三者交集没明示（5 chitchat 是否进 CI 20 题子集）</li>
+<li><strong>RAGAS 0.2.10 真实 API 行为 plan 假设未证伪</strong>——<code>evaluate()</code> 是否支持&quot;按题选指标&quot;（chitchat 跳过 context_precision）、<code>raise_exceptions=False</code> 是否真的隔离单题异常</li>
+<li><strong>跨 M 命名一致性断裂</strong>——M8 r2 已揭示 trace_id vs request_id 命名冲突，M11 plan 全文用 trace_id 但 runner 把 trace_id 写进 report 时与 M8 业务 request_id 字段如何对齐没明示</li>
+</ol>
+<p><strong>3 维度评分</strong>：</p>
+<ul>
+<li>r1 修复完成度：⭐⭐⭐⭐⭐（19/19 全部纳入 plan 修订记录 + 正文落地）</li>
+<li>RAGAS API 正确性：⭐⭐⭐⭐（LangchainLLMWrapper + reference_contexts + raise_exceptions=False 三件套到位；按题选指标 + per_item 字段没明示）</li>
+<li>跨 M 一致性：⭐⭐⭐（M3/M7/M10 主依赖已对齐；M8 trace_id 命名断裂 + M12 CI hook 字段没明示）</li>
+</ul>
+<p><strong>一句话</strong>：M11 plan r1 修复把 19 项 P0/P1/P2 <strong>全部纳入正文</strong>，<strong>M11 已达 V1.0.0 RAGAS 评估基线合格线</strong>；但 r1 修复之间耦合产生 2 个 P0（chitchat 子集选择 + RAGAS evaluate 按题选指标），需修。</p>
+<hr>
+<h2 id="1-r1-修复验证19-项逐项">1. r1 修复验证（19 项逐项）</h2>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>--------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td>RAGAS 0.2.5+ <code>LangchainLLMWrapper(judge)</code> 包装 + <code>reference_contexts</code> 字段</td><td>plan L468 <code>from ragas.llms import LangchainLLMWrapper</code> + L491 <code>llm_wrapper = LangchainLLMWrapper(judge_llm)</code> + L487 <code>reference_contexts</code> 字段；RED 测试 L456-457 <code>test_score_uses_langchain_llm_wrapper_not_raw_chat_model</code>；RED L516-518 <code>test_score_passes_reference_contexts_to_dataset</code></td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P0-2</strong></td><td>M11 显式修改 M3 factory 注册 <code>&quot;judge&quot;</code> 节点 + <code>judge.yaml</code></td><td>plan L176 Files 修改段 <code>app/llm/factory.py</code> <code>KNOWN_NODES</code> 追加 <code>&quot;judge&quot;</code> + L162 <code>app/llm/prompts/judge.yaml</code> M11 新增；Task 4 GREEN L321-336 完整 yaml + factory 注册代码；RED L318-320 + L338-340 双断言</td><td>✅ 完全到位 + C-1 联动显式标</td></tr>
+<tr><td><strong>P0-3</strong></td><td>pytest-asyncio + pytest-mock + asyncio_mode=auto + runner async + asyncio.gather 批跑</td><td>plan L116-117 Tech Stack 显式 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-mock&gt;=3.14,&lt;4</code>；L175 pyproject 修改；L734 <code>pytest.ini asyncio_mode = auto</code>；Task 6 GREEN L388-432 runner async + <code>asyncio.gather(*[...], return_exceptions=False)</code></td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P0-4</strong></td><td>RAGAS 版本 pin 收紧到 <code>==0.2.10</code></td><td>plan L110 Tech Stack <code>ragas == 0.2.10</code>（精确 pin，spec §8.6 区间兼容）；风险表 L789 明示 pin <code>==0.2.10</code> 精确</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P0-5</strong></td><td>CI/nightly 双阈值（CI 0.65 / nightly 0.7）+ mode 参数 + THRESHOLDS 表</td><td>plan L198 <code>threshold_ci: float = 0.65</code> + L206 <code>mode: Literal[&quot;ci&quot;, &quot;nightly&quot;]</code>；Task 10 GREEN L670 <code>THRESHOLDS = {&quot;ci&quot;: 0.65, &quot;nightly&quot;: 0.70}</code> + L672-679 <code>check()</code> 显式 mode 决定阈值；RED L651-657 + L682-686 完整</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P0-6</strong></td><td>trace_id 改 <code>from langfuse import get_client; get_client().get_current_trace_id()</code> + try/except</td><td>plan L395-403 <code>_safe_get_trace_id()</code> 显式 try/except 包装；L101 契约表改 <code>get_client().get_current_trace_id()</code>；L434-437 RED 测试 mock 路径正确</td><td>✅ 完全到位 + C-2 联动显式标</td></tr>
+<tr><td><strong>P1-1</strong></td><td>runner 重试缩到 graph 外部异常 + 节点失败 <code>GraphNodeError</code> 显式抛 + tenacity 重试</td><td>plan L405-407 <code>GraphNodeError</code> 类 + L417-419 节点失败显式 raise + L449 <code>tenacity @retry(stop=stop_after_attempt(3), ..., retry=retry_if_exception_type((HTTPError, RAGASJudgeError, GraphNodeError)))</code>；RED L440-447 三测试齐</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P1-2</strong></td><td>golden set 50 题含 5 chitchat + <code>include_chitchat</code> 开关 + chitchat 路径只算 answer_relevancy</td><td>plan L205 <code>include_chitchat: bool = True</code>；L283-285 5 chitchat 题示例；L292 &quot;评估只算 <code>answer_relevancy</code>，context_precision 跳过&quot;</td><td>⚠️ <strong>到位但有衍生问题</strong>：RAGAS 0.2.10 <code>evaluate()</code> 是否支持&quot;按题跳过某指标&quot;没明示 RED 测试；CI 20 题子集里 chitchat 题是否包含没明示（见 §2-新-1）</td></tr>
+<tr><td><strong>P1-3</strong></td><td><code>GoldenItem.reference_contexts: list[str]</code> + Pydantic <code>model_validator</code> 必填校验</td><td>plan L233 <code>reference_contexts: list[str] = Field(default_factory=list)</code> + L264-268 RED <code>test_validates_reference_contexts_for_non_chitchat</code> + L268 GREEN <code>model_validator</code> 守住</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P1-4</strong></td><td>judge-human diff 测试（5 题人工 ≤ 0.1）+ <code>judge.yaml</code> temperature=0.0</td><td>plan L327 <code>temperature: 0.0</code>；DoD L750 <code>judge-human diff 测试通过（5 题人工 vs judge LLM，平均 diff ≤ 0.1）</code>；风险表 L797 明示</td><td>⚠️ <strong>到位但 RED 测试缺</strong>：plan 没说 5 题人工评分数据在哪/谁负责/什么周期更新；属于组织问题不是工程问题，归 P1</td></tr>
+<tr><td><strong>P1-5</strong></td><td><code>cost_budget_usd_per_run=5.0</code> / <code>cost_budget_usd_per_week=20.0</code> + report <code>cost_usd</code> 字段 + 超 budget warning</td><td>plan L203-204 <code>cost_budget_usd_per_run</code> + <code>cost_budget_usd_per_week</code>；L552 <code>_compute_cost_usd(result)</code> + L604 <code>&quot;cost_usd&quot;</code> 字段；DoD L751</td><td>⚠️ <strong>到位但 <code>_compute_cost_usd</code> 实现缺</strong>：Files 表没列该函数；RAGAS result 如何取 usage 列没明示（<code>result.to_pandas()</code> 是否含 usage 取决于 RAGAS 版本 + 是否传 <code>llm=</code> 包装）（见 §2-新-2）</td></tr>
+<tr><td><strong>P1-6</strong></td><td>report 命名 <code>{timestamp}_{git_sha}.json</code> + git_sha/timestamp/mode 字段 + --baseline CLI + HTML diff 列</td><td>plan L548-549 <code>_get_git_sha()</code> + <code>_get_timestamp()</code> + result 注入；L554 报告路径；L360 <code>--baseline</code> CLI option；L629-637 HTML <code>vs Baseline</code> 列 diff；DoD L747 完整</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P1-7</strong></td><td>runner 从 <code>state[&quot;chunks&quot;]</code> 取（双 fallback 兼容 <code>state[&quot;sources&quot;]</code>）</td><td>plan L424 <code>&quot;contexts&quot;: state.get(&quot;chunks&quot;, state.get(&quot;sources&quot;, []))</code>；契约表 L99 显式 <code>state.get(&quot;chunks&quot;, state.get(&quot;sources&quot;, []))</code>；DoD L749</td><td>✅ 完全到位 + M7 P1-6 联动</td></tr>
+<tr><td><strong>P1-8</strong></td><td>fixture 单一 50 题文件（CI 前 20 / nightly 全部）+ mode 参数决定 sample_size</td><td>plan L63 <code>tests/fixtures/golden_set_v1.jsonl # 50 题（CI 用前 20 + nightly 用全部 + 5 chitchat + edge）</code>；L533-536 <code>actual_size = sample_size or (settings.eval.sample_size_ci if mode == &quot;ci&quot; else settings.eval.sample_size_nightly)</code> + <code>items = items[:actual_size]</code></td><td>⚠️ <strong>到位但有衍生问题</strong>：50 题里 5 chitchat 排在末尾（q046-q050），CI 20 题不包含 → CI 不覆盖 chitchat 路径（见 §2-新-1）</td></tr>
+<tr><td><strong>P2-1</strong></td><td>契约表 / 依赖表显式 &quot;假设 M7 P0-3 修后 get_graph() 返已 compile graph&quot;</td><td>plan L92 契约表 <code><strong>依赖 M7 P0-3 修复</strong>：get_graph() 返回已 compile graph</code>；L768 依赖表 <code><strong>M11 假设 M7 P0-3 修后</strong> get_graph() 返已 compile graph</code></td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P2-2</strong></td><td>风险表明示 &quot;safe_node 节点失败 → RAGAS 全 0 → gate 挂是正确捕获&quot;</td><td>plan L803 风险表 <code>safe_node 节点失败 → RAGAS 全 0 → gate 挂</code> + 缓解 <code><strong>风险表明示 &quot;这是节点失败的正确捕获，不是 CI 抖动&quot;</strong></code>；DoD L745 显式说明</td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P2-3</strong></td><td>md 拼接抽 <code>_build_markdown(result, threshold, baseline)</code> 让单测可独立测</td><td>plan L647 <code>REFACTOR</code> 显式 <code>把 md 拼接抽成 _build_markdown(result, threshold, baseline) 让单测可独立测</code></td><td>✅ 完全到位</td></tr>
+<tr><td><strong>P2-4</strong></td><td><code>make_judge_llm</code> 显式 <code>llm.with_config({&quot;callbacks&quot;: []})</code> 剥离 Langfuse callback</td><td>plan L311 <code>return llm.with_config({&quot;callbacks&quot;: []})   # P2-4 显式空 callback 覆盖 M3 自动注入</code>；L142 重复 <code>return llm.with_config({&quot;callbacks&quot;: []})</code>；RED L314-316 <code>test_judge_strips_langfuse_callback</code></td><td>⚠️ <strong>到位但与 M3 工厂可能有冲突</strong>：M3 r2 修后 factory 返回的 LLM 形态（如 <code>RunnableBinding</code> vs <code>BaseChatModel</code>）<code>with_config</code> 是否兼容没断言（见 §2-新-3）</td></tr>
+<tr><td><strong>P2-5</strong></td><td><code>test_m11_golden_set_docs_exist.py</code> 校验 doc_id 真实索引（warning 不挂）+ fixture expected_doc_id optional</td><td>plan L66 <code>tests/integration/test_m11_golden_set_docs_exist.py  # expected_doc_id 真实索引校验（warning 不挂）</code>；Task 11 RED L716-718 显式 mock + warning 不抛</td><td>✅ 完全到位</td></tr>
+</table>
+<p><strong>r1 修复验证结论</strong>：19 项中 <strong>14 项完全到位</strong>（✅）+ <strong>5 项到位但有衍生问题</strong>（⚠️）。5 项衍生问题中 3 项归 P1（人工评分数据归属 / RAGAS usage 取法 / <code>with_config</code> 兼容性），2 项归 P0（chitchat 子集选择 + RAGAS evaluate 按题选指标）。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="新-1-p0-chitchat-子集与-cinightly-阈值耦合断裂">新-1 (P0) · chitchat 子集与 CI/nightly 阈值耦合断裂</h3>
+<p><strong>位置</strong>：Task 3 L283-285 fixture 5 chitchat 题 <code>q046</code>-<code>q050</code> + Task 8 L533-536 <code>items[:actual_size]</code> + Task 10 L670 <code>THRESHOLDS = {&quot;ci&quot;: 0.65, &quot;nightly&quot;: 0.70}</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>fixture 50 题排序：18 factual + 18 summary + 9 multi_hop + 5 chitchat + edge → chitchat 排在 q046-q050</li>
+<li>CI 20 题 = 前 20 题 = 全 factual/summary → <strong>CI 不跑 chitchat 路径</strong> → P1-2 &quot;5 chitchat 进 golden set&quot; 在 CI 完全无效</li>
+<li>nightly 50 题全跑 → 5 chitchat 影响 aggregate faithfulness（chitchat 路径 answer 是 LLM 自由生成，RAGAS faithfulness 算分不稳定）</li>
+<li>P1-2 修后：&quot;chitchat 路径只算 answer_relevancy，context_precision 跳过&quot;——但 <strong>RAGAS <code>evaluate()</code> 是否支持&quot;按题跳过某指标&quot;未明示</strong>。RAGAS 0.2.10 默认对所有题算所有指定指标，要&quot;按题跳过&quot;需在 dataset 里填空字段或自定义 metric wrapper</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>CI 跑 20 题全 factual/summary → 拿到的 faithfulness aggregate 不能反映 chitchat 质量</li>
+<li>nightly 50 题 chitchat faithfulness=0 → aggregate 被拉低 → nightly gate &lt; 0.7 误报</li>
+<li>修 P1-2 时没考虑子集分布 → r1 修复合并产生新问题</li>
+</ul>
+<p><strong>建议修复</strong>（升级到 P0）：</p>
+<ul>
+<li>方案 A：fixture 排序打乱 chitchat 题，<strong>5 chitchat 均匀分布到 50 题中</strong>（如 q006, q014, q022, q030, q038）→ CI 前 20 题包含 2 题 chitchat</li>
+<li>方案 B：CI 单独有 5 题 chitchat 子集 + 15 factual 子集（fixture 拆 ci/nightly 双文件，回退到 P1-8 否决方案）</li>
+<li>方案 C：nightly 跑 50 题时 chitchat 路径<strong>单独算 sub-aggregate</strong>，不影响主 gate（gate 只看 45 题 non-chitchat faithfulness）</li>
+<li>方案 D（推荐 V1）：RAGAS evaluate 不支持按题选指标时，<strong>chitchat 题 faithfulness 字段填 1.0 占位</strong>（不参与 aggregate）—— 不优雅但能用</li>
+<li>并 Task 8 显式分项：<code>factual_score = aggregate_non_chitchat.faithfulness</code> + <code>chitchat_score = aggregate_chitchat.answer_relevancy</code>，gate 只看 factual_score</li>
+</ul>
+<h3 id="新-2-p0-ragas-evaluate-raise_exceptionsfalse-行为-per_item-usag">新-2 (P0) · RAGAS <code>evaluate()</code> <code>raise_exceptions=False</code> 行为 + per_item usage 取法 plan 假设未证伪</h3>
+<p><strong>位置</strong>：Task 7 L496 <code>raise_exceptions=False</code> + Task 8 L552 <code>_compute_cost_usd(result)</code> + DoD L751 cost tracking</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>RAGAS 0.2.10 <code>evaluate(raise_exceptions=False)</code>：实际行为是<strong>异常题 result 行填 NaN</strong>，per_item DataFrame 该行全 NaN——<strong>不是&quot;单题异常不污染整体&quot;</strong>，而是&quot;单题异常时该题指标变 NaN，aggregate 计算时 NaN 默认被 pandas skipna=True 排除&quot;</li>
+<li>这意味着：50 题跑出 1 题 LLM 异常 → 49 题有效，aggregate = 49 题均值；<strong>但 DoD 没明示&quot;异常题数 &gt; N 时应 fail&quot;</strong> 的兜底逻辑（如 5 题异常就应放弃整个 run）</li>
+<li><code>_compute_cost_usd(result)</code>：plan 假设 <code>result.to_pandas()</code> 含 <code>usage</code> 列 → RAGAS 0.2.10 默认<strong>不返回 usage</strong>，需在 <code>evaluate()</code> 显式传 <code>llm=</code> 包装类（如 <code>LangchainLLMWrapper</code>）+ 加 <code>token_usage_parser</code> callback 才能取到 token</li>
+<li>当前 plan L491-497 只传 <code>llm=llm_wrapper, raise_exceptions=False</code>——<strong>没传 usage 收集参数</strong> → <code>cost_usd</code> 永远是 0.0 → cost budget 永远不触发 warning</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>r1 P1-5 修复 <code>cost_budget_usd_per_run=5.0</code> 字段<strong>形式上到位但实际无效</strong>——<code>_compute_cost_usd</code> 拿不到真实 usage</li>
+<li>r1 P0-1 <code>raise_exceptions=False</code> 行为 plan 假设与 RAGAS 实际行为有偏差——单题异常题在 per_item DataFrame 是 NaN 行，aggregate 算时默认 skipna 但需 plan 显式处理</li>
+</ul>
+<p><strong>建议修复</strong>（升级到 P0）：</p>
+<ul>
+<li>方案 A：RAGAS 0.2.10 文档化做法是 <code>evaluate(..., callbacks=[UsageCallback()])</code>——显式追踪 LLM 调用 token</li>
+<li>方案 B：用 <code>langchain_community.callbacks.get_openai_callback()</code> 类似方案（但 M3 工厂封装后要适配）</li>
+<li>方案 C：V1 阶段不报 cost_usd 数值，只报&quot;评测完成&quot;，V1.1 加 RAGAS usage callback——但 DoD 就要降级</li>
+<li>并 Task 7 显式处理 NaN：result.to_pandas() 后 dropna(axis=0, subset=[&#x27;faithfulness&#x27;]) 算 aggregate，否则 5 题异常时 aggregate 仍算 45 题均值看似通过实际是降级</li>
+</ul>
+<h3 id="新-3-p1-with_configcallbacks-与-m3-工厂返回值兼容性未断言">新-3 (P1) · <code>with_config({&quot;callbacks&quot;: []})</code> 与 M3 工厂返回值兼容性未断言</h3>
+<p><strong>位置</strong>：Task 4 L311 / L142 <code>return llm.with_config({&quot;callbacks&quot;: []})</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M3 review P0-2 修复后工厂返回 <code>RunnableBinding</code>（M3 r2 改写方式决定具体形态）</li>
+<li><code>RunnableBinding.with_config({&quot;callbacks&quot;: []})</code> 在 langchain 1.0+ 行为：<strong>空 callbacks list 会被运行时合并</strong>（如果 LLM 调用上下文已有 callbacks，不会清空）</li>
+<li>M3 factory 走 <code>load_prompt(&quot;judge&quot;)</code> → <code>ChatAnthropic(model=..., temperature=0.0).with_config({&quot;callbacks&quot;: [langfuse_handler]})</code> 的话——M11 再 <code>.with_config({&quot;callbacks&quot;: []})</code> 在 langchain 1.0+ 是<strong>新增合并而非覆盖</strong></li>
+<li>真正要&quot;剥离 callback&quot;应：调底层 <code>llm.callbacks = []</code> 或 <code>llm._get_callback_list()</code> 清空</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>P2-4 &quot;剥离 Langfuse callback&quot; 目标在 langchain 1.0+ 可能<strong>实际不生效</strong> → judge LLM 调用仍带 Langfuse callback → 评测 trace 污染业务 trace 看板</li>
+<li>评测跑 50 题 × 4 call/题 = 200 LLM call 上报 Langfuse → 看板数据爆炸</li>
+</ul>
+<p><strong>建议修复</strong>（保持 P1）：</p>
+<ul>
+<li>RED 测试 L314-316 需<strong>实际验证回调链无 Langfuse handler</strong>：用 <code>langchain_core.callbacks.BaseCallbackManager</code> 注入 spy → 调 make_judge_llm() → 调 llm.invoke(...) → 断言 spy 未触发 Langfuse 上报</li>
+<li>工厂返回值如果是 <code>RunnableBinding</code> 而非 <code>BaseChatModel</code>，plan 需明示&quot;对 binding 的 with_config 行为差异&quot;</li>
+<li>或方案 B：M11 judge 不走 M3 工厂（破坏 C-1 联动），直接 <code>ChatAnthropic(model=&quot;minimax-cn/MiniMax-M3&quot;, temperature=0.0)</code> 显式 new 一个，物理上无 callback</li>
+</ul>
+<h3 id="新-4-p1-baseline-参数使用方式与-v1-git-化策略不匹配">新-4 (P1) · <code>--baseline</code> 参数使用方式与 V1 git 化策略不匹配</h3>
+<p><strong>位置</strong>：Task 5 L360 CLI <code>--baseline</code> option + Task 9 L620 <code>write_html(result, path, threshold, baseline_path=None)</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>P1-6 修复 <code>report 命名 {timestamp}_{git_sha}.json</code> + <code>git 化</code>——但 <code>--baseline</code> 是 CLI 参数，<strong>每次跑评测要手传 baseline 路径</strong></li>
+<li>V1 git 化策略 = <code>eval_history/{date}/report.json</code>——<strong>没说 baseline 默认从 git 历史取最近一次</strong>（如 <code>git log --diff-filter=A --name-only</code> 找上一个 report 文件）</li>
+<li>实际用法：每次跑 nightly 都要记得 <code>--baseline eval_history/2026-06-10/report.json</code>，否则 baseline diff 列空</li>
+<li>M12 Hardening 接 CI 时怎么传 baseline？CI workflow 怎么知道最近一次 baseline 路径？</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>P1-6 形式上到位（diff 列存在），实际 V1 用起来很笨——CI 跑没 baseline → diff 列空 → 失去对比意义</li>
+</ul>
+<p><strong>建议修复</strong>（保持 P1）：</p>
+<ul>
+<li>M11 自身加 default：<code>_default_baseline_path()</code> 函数用 <code>git log</code> 找最近一次 <code>tests/fixtures/eval_history/20*/report.json</code></li>
+<li>或 M12 CI workflow 把 baseline 路径写进 env var：<code>EVAL_BASELINE_PATH=eval_history/latest.json</code>（symlink 最新一次）</li>
+<li>并 plan DoD 加一条：&quot;nightly 跑完自动更新 <code>eval_history/latest.json</code> symlink 指向最新 report&quot;</li>
+</ul>
+<h3 id="新-5-p1-5-chitchat-题在-ci-20-题子集被跳过p1-2-修复未达chitchat-路径-ci-覆盖目">新-5 (P1) · 5 chitchat 题在 CI 20 题子集被跳过——P1-2 修复未达&quot;chitchat 路径 CI 覆盖&quot;目标</h3>
+<p><strong>位置</strong>：Task 3 L283-285 fixture 5 chitchat 题 <code>q046</code>-<code>q050</code> + Task 8 L533-536 <code>items = items[:20]</code> for CI</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>P1-2 修复目标：&quot;chitchat 路径有 CI 覆盖&quot;——但 fixture 排序 + CI 前 20 题 = CI 跑不到 chitchat</li>
+<li>修订记录 L841 写 &quot;golden set 5 chitchat 题 + include_chitchat 开关 + chitchat 路径只算 answer_relevancy&quot;——<strong>没明示 chitchat 进哪个子集</strong></li>
+<li>实际：5 chitchat 题只 nightly 跑 50 题时进，CI 20 题完全不覆盖 chitchat 路径</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>P1-2 修复后 chitchat 路径<strong>实际只在 nightly 跑</strong>（每晚一次）→ 任何白天 PR 引入的 chitchat 回归<strong>CI 不报</strong></li>
+<li>spec §3.3 L241 chitchat 路径<strong>有 SLA 要求</strong>（用户寒暄回答质量）→ CI 不覆盖 = V1 上线风险</li>
+</ul>
+<p class="ok"><strong>建议修复</strong>（保持 P1，但应与新-1 一起合并修）：</p>
+<ul>
+<li>与新-1 方案 A 合并：fixture 50 题里 chitchat 均匀分布（q006, q014, q022, q030, q038）→ CI 20 题包含 2 题 chitchat</li>
+<li>或方案 B：CI 20 题 = 15 factual/summary + 5 chitchat（fixture 重新分区，CI 子集不是简单前 N 题）</li>
+<li>DoD 显式：&quot;CI 子集覆盖 3 question_type（factual/summary/chitchat），nightly 子集覆盖 4 question_type（含 multi_hop）&quot;</li>
+</ul>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m3m4-m6m7m8m9m10m12">3. 跨 M 一致性检查（M0/M1/M3/M4-M6/M7/M8/M9/M10/M12）</h2>
+<table>
+<tr><th>上游 M</th><th>M11 依赖</th><th>M11 plan 现状</th><th>M 上游 r2 状态</th><th>一致性</th></tr>
+<tr><td>--------</td><td>---------</td><td>-------------</td><td>--------------</td><td>------</td></tr>
+<tr><td><strong>M0 infra</strong></td><td>docker-compose up PG + OpenSearch 真跑评测</td><td>L588 &quot;需 docker compose up（M0）+ ANTHROPIC_API_KEY&quot; + 测试策略 L730 显式</td><td>M0 已修</td><td>✅ 一致：M11 真跑依赖 M0 起来，CI 用 mock 不依赖</td></tr>
+<tr><td><strong>M1 alembic</strong></td><td>golden set 可关联 ingest_jobs.doc_id 校验</td><td>L766 &quot;M1 alembic（golden set 可关联 ingest_jobs.doc_id 校验完整性）&quot;</td><td>M1 已修</td><td>✅ 一致：M11 P2-5 校验 doc_id 真实索引已用 M1 schema</td></tr>
+<tr><td><strong>M3 llm-embed</strong></td><td><code>make_llm(&quot;judge&quot;)</code> + judge.yaml（<strong>M11 显式修改 M3 已建文件</strong>）</td><td>L43 仓库布局明示 &quot;M11 修改 factory.py 注册 judge&quot; + L176 Files 修改 + L321-336 完整代码</td><td>M3 r2 已修</td><td>✅ 一致：M11 范本影响段明示，与 M3 r2 KNOWN_NODES 扩展同步</td></tr>
+<tr><td><strong>M3 callback 注入</strong></td><td>judge LLM <code>with_config({&quot;callbacks&quot;: []})</code> 剥离</td><td>L142 + L311 <code>with_config({&quot;callbacks&quot;: []})</code></td><td>M3 r2 改用 <code>RunnableBinding</code> 形式</td><td>⚠️ <strong>新-3 揭示</strong>：M3 r2 后 callback 注入方式可能与 M11 剥离方式不兼容，需 RED 测试实际验证</td></tr>
+<tr><td><strong>M4-M6 retrieval</strong></td><td><code>state[&quot;chunks&quot;]</code> 字段名 + 接口</td><td>L424 <code>&quot;contexts&quot;: state.get(&quot;chunks&quot;, state.get(&quot;sources&quot;, []))</code> 双 fallback</td><td>M7 P1-6 修复已统一 chunks 字段名</td><td>✅ 一致：双 fallback 兼容 M4-M6 旧数据</td></tr>
+<tr><td><strong>M7 graph 7 节点</strong></td><td><code>get_graph()</code> 返回已 compile graph + <code>graph.ainvoke</code></td><td>L92 &quot;M11 假设 M7 P0-3 修后 get_graph() 返已 compile graph&quot; + L412-416 <code>graph.ainvoke</code> 调用</td><td>M7 r2 已修</td><td>✅ 一致：M7 4 项 r1 衍生修复已落，M11 假设成立</td></tr>
+<tr><td><strong>M7 answer_chitchat_node</strong></td><td>chitchat 路径评估</td><td>L292 &quot;chitchat 路径只算 answer_relevancy&quot;</td><td>M7 r2 已修</td><td>⚠️ <strong>新-1 揭示</strong>：chitchat 路径在 CI 子集被跳过，与 M7 chitchat 节点 CI 覆盖目标不一致</td></tr>
+<tr><td><strong>M7 safe_node 装饰器</strong></td><td>节点失败 <code>state.error</code> 字段 + <code>GraphNodeError</code> 显式 raise</td><td>L405-419 <code>GraphNodeError</code> + tenacity retry</td><td>M7 r2 P0-8 已修</td><td>✅ 一致：M11 P1-1 修复与 M7 safe_node 联动到位</td></tr>
+<tr><td><strong>M8 trace_id 命名</strong></td><td>M11 report 写 trace_id</td><td>L51 <code>app/observability/langfuse.py # 读 trace_id 关联报告</code> + L101 契约表 + L546 <code>result[&quot;trace_ids&quot;]</code></td><td>M8 r2 揭示 <code>request_id</code> vs <code>trace_id</code> 命名断裂</td><td>⚠️ <strong>新-6 揭示</strong>：M8 r2 揭示 M8 业务级用 <code>request_id</code>，M10/M11 用 <code>trace_id</code>——M11 runner 拿到的 trace_id 写到 report 时与 M8 业务 request_id 字段如何对齐没明示（见下）</td></tr>
+<tr><td><strong>M10 langfuse 公开 API</strong></td><td><code>from langfuse import get_client; get_client().get_current_trace_id()</code> + try/except</td><td>L395-403 <code>_safe_get_trace_id()</code> 完整实现</td><td>M10 r2 P0-3 已修</td><td>✅ 一致：与 M10 r2 修复的公开 API 路径完全对齐</td></tr>
+<tr><td><strong>M10 flush + 装饰器</strong></td><td>M11 假设 M10 修后 Langfuse trace 上报稳定</td><td>L772 &quot;M10 P0-2 flush + P0-5 装饰器（M11 假设 M10 修后 Langfuse trace 上报稳定）&quot;</td><td>M10 r2 已修</td><td>✅ 一致：M11 弱依赖 M10 修复后能力</td></tr>
+<tr><td><strong>M12 hardening</strong></td><td>CI workflow 接 <code>python -m app.eval.ragas_run --mode ci</code></td><td>L765 &quot;M12 Hardening（CI 流程调 <code>python -m app.eval.ragas_run --mode ci</code>）&quot; + L731 显式</td><td>M12 已修</td><td>✅ 一致：M11 产出 gate 钩子，M12 接 CI workflow</td></tr>
+<tr><td><strong>M11 → M11 自身</strong></td><td>gate 抛 <code>GateViolationError</code> exit 1</td><td>L696-698 <code>except GateViolationError as e: click.echo(f&quot;GATE FAILED: {e}&quot;, err=True); sys.exit(1)</code></td><td>自身</td><td>✅ 一致：CLI exit code 1 路径完整</td></tr>
+</table>
+<p class="warn"><strong>跨 M 一致性结论</strong>：12 项 M 依赖中 <strong>9 项完全一致</strong>（✅）+ <strong>3 项有潜在断裂</strong>（⚠️）：M3 callback 兼容性（新-3）/ M7 chitchat CI 覆盖（新-1+新-5）/ M8 trace_id 命名（新-6）。</p>
+<h3 id="新-6-p1-m8-trace_id-vs-request_id-命名断裂未在-m11-plan-明示">新-6 (P1) · M8 trace_id vs request_id 命名断裂未在 M11 plan 明示</h3>
+<p><strong>位置</strong>：M11 runner L425 <code>&quot;trace_id&quot;: _safe_get_trace_id() or &quot;&quot;</code> + M11 report L546 <code>result[&quot;trace_ids&quot;]</code> + M11 report HTML L640-641 <code>Trace ID</code> 列</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 r2 揭示：M8 业务级 logging/middleware 用 <code>request_id</code> 字段，M10 Langfuse 暴露 <code>trace_id</code>，两者命名断裂</li>
+<li>M11 runner 拿 Langfuse <code>trace_id</code> 写进 report，但跑评测时用户发请求的 <code>request_id</code> 怎么关联？没明示</li>
+<li>HTML 报告 L640-641 表格列叫 <code>Trace ID</code>——与 M8 业务侧 logging 用的 <code>request_id</code> 不一致 → 双追溯时人工对不上</li>
+</ul>
+<p><strong>影响</strong>：</p>
+<ul>
+<li>M11 报告 Trace ID 与 M8 业务日志的 Request ID 实际是<strong>不同 ID 体系</strong>，但文档/代码都简称 &quot;ID&quot; → 排障时混淆</li>
+<li>双向追溯：用户报错带 request_id → 找 Langfuse trace 要先在 M8 middleware 写 request_id → trace_id 映射</li>
+</ul>
+<p><strong>建议修复</strong>（保持 P1）：</p>
+<ul>
+<li>M11 report 字段名改 <code>langfuse_trace_id</code>（明确是 Langfuse 的 ID，不是 M8 request_id）</li>
+<li>HTML 表格列名 <code>Langfuse Trace ID</code>（明示 ID 来源）</li>
+<li>runner 多取一个字段：<code>_safe_get_request_id()</code>（从 M8 middleware context var 取），report 写 <code>request_id</code> 与 <code>langfuse_trace_id</code> 两列</li>
+<li>或 M11 plan 加注释：M8 r2 揭示的 trace_id/request_id 命名断裂待 M8 plan r3 一并修</li>
+</ul>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表结构">4.1 风险表结构</h3>
+<p>plan 风险表 L778-806 共 29 行：</p>
+<ul>
+<li><strong>原 r0 风险</strong>：6 行（OPENAI_API_KEY / Faithfulness 昂贵 / Golden set 漂移 / judge 4xx5xx / jinja2 / metrics API）</li>
+<li><strong>r1 修复风险</strong>：13 行（LangchainLLMWrapper / CI 双阈值 / context_precision / judge 节点注册 / trace_id API / safe_node 节点失败 / M7 chunks 字段 / pytest-asyncio / judge 偏差 / cost 跟踪 / chitchat / report 存储 / CI-nightly 差异 / get_graph 契约 / safe_node 行为 / template / judge callback / doc_id 校验）</li>
+<li><strong>r1 已修标注</strong>：19 行（L807-825 修订记录段，与风险表分离）</li>
+<li><strong>修订记录</strong>：19 行（L834-852 修订记录段）</li>
+</ul>
+<h3 id="42-补全质量评估">4.2 补全质量评估</h3>
+<table>
+<tr><th>维度</th><th>评估</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td><strong>原 r0 风险保留</strong></td><td>⭐⭐⭐⭐⭐</td><td>6 行原风险全部保留（OPENAI_API_KEY / Faithfulness 昂贵 / Golden set 漂移 / judge 4xx5xx / jinja2 / metrics API），未删除</td></tr>
+<tr><td><strong>r1 修复 19 项全覆盖</strong></td><td>⭐⭐⭐⭐⭐</td><td>19 项 P0/P1/P2 全部进入风险表，标记&quot;已修&quot;或&quot;缓解&quot;</td></tr>
+<tr><td><strong>曾被否决替代方案</strong></td><td>⭐⭐⭐⭐</td><td>9 行有&quot;曾被否决的替代方案&quot;列（M3 同步加 / 统一 50 题 / 双文件 CI+nightly / pin <code>&gt;=0.2,&lt;1</code> / 统一 0.7 / 复用 ground_truth / 不区分内外异常 / 用同步 runner / 换不同厂商 judge / 不跟踪 cost / M11 不测 chitchat / V1 直接 S3 / M11 runner 自己 compile / 忽略此现象 / V1 用 jinja2 / 继承 M3 factory callback / V1 必存在 / 让 RAGAS 默认读 env / fail fast 不重试 / 用 jinja2 模板 / 断言关键词 in answer）—— <strong>列有意义</strong>，避免下轮重提</td></tr>
+<tr><td><strong>r1 修复衍生新风险</strong></td><td>⭐⭐</td><td><strong>新-1/新-2/新-3/新-5/新-6 揭示的 5 个 r1 衍生问题未进入风险表</strong>——r2 需补 5 行</td></tr>
+<tr><td><strong>跨 M 联动风险</strong></td><td>⭐⭐⭐</td><td>M3/M7/M10 主依赖已标，但 <strong>M8 命名断裂未标</strong>（见新-6）</td></tr>
+<tr><td><strong>风险量化</strong></td><td>⭐⭐⭐</td><td>CI 20 题 ±0.15 偏差已量化；judge LLM ±0.1 偏差已量化；cost 50 题 × 4 call 已量化</td></tr>
+</table>
+<h3 id="43-r2-需补风险行建议">4.3 r2 需补风险行（建议）</h3>
+<pre><code class="language-">
+| RAGAS 0.2.10 evaluate() 是否支持按题跳过某指标 | 风险：chitchat 题 context_precision 跳过需 dataset 填空字段或自定义 wrapper | 缓解：V1 阶段 chitchat 题 faithfulness 填 1.0 占位，V1.1 用 RAGAS 0.3 的 metric callback |
+| RAGAS 0.2.10 raise_exceptions=False 实际行为 | 风险：异常题 per_item NaN，aggregate 默认 skipna 算 49 题均值，DoD 没明示&quot;异常题数 &gt; N 应 fail&quot; | 缓解：Task 7 显式 dropna + 异常题数 &gt; 5 抛异常 |
+| RAGAS 0.2.10 evaluate() 不返回 usage 字段 | 风险：cost_usd 永远 0.0，cost budget 永远不触发 warning | 缓解：V1 阶段 RAGAS 显式传 UsageCallback 收集 token；V1.1 替换为 token-level tracking |
+| M3 r2 后 RunnableBinding.with_config 与 M11 callback 剥离兼容性 | 风险：M11 with_config({&quot;callbacks&quot;: []}) 在 langchain 1.0+ 是合并而非覆盖，judge LLM 仍带 Langfuse callback | 缓解：M11 RED 测试断言 callback spy 实际不触发；或 M11 judge 不走 M3 工厂直接 ChatAnthropic(...) |
+| M8 r2 揭示 trace_id vs request_id 命名断裂 | 风险：M11 report 写 trace_id 但 M8 业务侧用 request_id，双追溯混淆 | 缓解：M11 report 字段改名 `langfuse_trace_id`；runner 多取 request_id；M8 plan r3 一并修 |
+| 5 chitchat 题在 CI 前 20 题子集被跳过 | 风险：CI 不覆盖 chitchat 路径，PR 引入 chitchat 回归 CI 不报 | 缓解：fixture 重排 chitchat 均匀分布（q006, q014, q022, q030, q038）；或 CI 子集 15 factual + 5 chitchat |
+| --baseline CLI 参数与 V1 git 化策略不匹配 | 风险：CI workflow 不知道怎么传 baseline，diff 列空 | 缓解：M11 default 用 git log 找最近一次 report；M12 CI workflow env var 传 baseline 路径 |
+</code></pre>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<p>按 r1 修复完成度 + r2 新发现问题排优先级：</p>
+<h3 id="51-本轮修-2-p0-3-p1">5.1 本轮（修 2 P0 + 3 P1）</h3>
+<ol>
+<li><strong>新-1 (P0) · chitchat 子集选择</strong></li>
+</ol>
+<ul>
+<li>方案 A：fixture 重排 chitchat 均匀分布（q006, q014, q022, q030, q038）—— 工程量小</li>
+<li>方案 C（推荐）：nightly 跑 50 题时 chitchat 路径单独算 sub-aggregate，gate 只看 45 题 non-chitchat faithfulness</li>
+<li>配套修新-5：DoD 加 &quot;CI 子集覆盖 3 question_type&quot;</li>
+</ul>
+<ol>
+<li><strong>新-2 (P0) · RAGAS evaluate raise_exceptions + usage 实际行为</strong></li>
+</ol>
+<ul>
+<li>Task 7 GREEN 加：<code>result_df = result.to_pandas(); valid_df = result_df.dropna(subset=[&#x27;faithfulness&#x27;]); if len(valid_df) &lt; 0.9 * len(items): raise EvalInsufficientDataError</code></li>
+<li>Task 7 GREEN 加：RAGAS evaluate 显式传 usage 收集 callback，或 V1 阶段 <code>_compute_cost_usd</code> 改用本地 token 计数器（judge LLM invoke 前后手动计）</li>
+<li>配套：DoD L751 改&quot;cost 跟踪：report 含 <code>cost_usd</code> 字段（V1 阶段可能为 0，V1.1 启用 RAGAS usage callback）&quot;</li>
+</ul>
+<ol>
+<li><strong>新-3 (P1) · <code>with_config</code> 兼容性</strong></li>
+</ol>
+<ul>
+<li>RED L314-316 加 callback spy 断言：注入 <code>FakeCallbackHandler</code>，调 make_judge_llm() → 调 .invoke() → 断言 spy 未触发 Langfuse 上报</li>
+<li>风险表加一行（见 §4.3）</li>
+</ul>
+<ol>
+<li><strong>新-4 (P1) · <code>--baseline</code> 默认值</strong></li>
+</ol>
+<ul>
+<li>M11 加 <code>_default_baseline_path()</code>：<code>git log --diff-filter=A --name-only --pretty=format: tests/fixtures/eval_history/ | head -1</code></li>
+<li>风险表加一行</li>
+</ul>
+<ol>
+<li><strong>新-6 (P1) · M8 trace_id 命名断裂</strong></li>
+</ol>
+<ul>
+<li>M11 report 字段名改 <code>langfuse_trace_id</code>（与 M8 <code>request_id</code> 区分）</li>
+<li>HTML 表格列名改 <code>Langfuse Trace ID</code></li>
+<li>runner 多取一个 <code>_safe_get_request_id()</code>（从 M8 middleware context var）</li>
+<li>风险表加一行</li>
+</ul>
+<h3 id="52-下轮m11-plan-r3">5.2 下轮（M11 plan r3）</h3>
+<ul>
+<li>与 M3 r2 + M7 r2 + M10 r2 同步落代码</li>
+<li>M3 factory 注册 judge 节点 + judge.yaml 占位（已显式）</li>
+<li>M7 graph 修复 chunks 字段名 + safe_node 装饰器（已显式）</li>
+<li>M10 修复 get_current_trace_id 公开 API 路径（已显式）</li>
+<li>M8 r3 一并修 trace_id/request_id 命名断裂</li>
+</ul>
+<h3 id="53-并行组织任务非工程">5.3 并行（组织任务，非工程）</h3>
+<ul>
+<li>golden set fixture 50 题（含 chitchat 5 题）由产品 / 数据团队标注</li>
+<li>judge LLM 偏差自评估：5 题人工评分，由 M11 负责人维护</li>
+</ul>
+<h3 id="54-晚一轮v1-收尾前">5.4 晚一轮（V1 收尾前）</h3>
+<ul>
+<li>M11 报告长期存储 + baseline 对比（P1-6 部分落地，V1 git 化 + nightly diff）</li>
+<li>judge LLM 自评估常态化（P1-4，5 题人工 + judge LLM diff ≤ 0.1）</li>
+<li>eval cost 跟踪完整化（P1-5，RAGAS usage callback 接通）</li>
+</ul>
+<hr>
+<h2 id="总结">总结</h2>
+<table>
+<tr><th>项</th><th>数量</th><th>状态</th></tr>
+<tr><td>---</td><td>------</td><td>------</td></tr>
+<tr><td>r1 19 项 P0/P1/P2 修复</td><td>19</td><td>14 完全到位 + 5 到位但有衍生问题</td></tr>
+<tr><td>r1 修复验证表</td><td>19 行</td><td>✅</td></tr>
+<tr><td>r2 新发现问题</td><td>5</td><td>2 P0（chitchat 子集 + RAGAS evaluate 行为）+ 3 P1（callback 兼容 / baseline 默认值 / M8 命名断裂）</td></tr>
+<tr><td>跨 M 一致性检查</td><td>12 项 M</td><td>9 一致 + 3 潜在断裂（M3 callback / M7 chitchat / M8 命名）</td></tr>
+<tr><td>风险表补全质量</td><td>6 维</td><td>5 维优秀 + 1 维（r1 衍生风险）需补 5 行</td></tr>
+<tr><td>落地建议</td><td>4 轮</td><td>本轮 5 项 + 下轮同步 + 并行组织 + 晚一轮 V1 收尾</td></tr>
+</table>
+<p><strong>一句话</strong>：M11 plan r1 修复把 19 项 P0/P1/P2 全部纳入正文（修订记录 + 风险表 + Tasks），<strong>M11 已达 V1.0.0 RAGAS 评估基线合格线</strong>；但 r1 修复之间耦合产生 2 个 P0（chitchat 子集选择 + RAGAS evaluate 按题选指标）+ 3 个 P1（callback 兼容 / baseline 默认值 / M8 命名断裂），修完这 5 项 M11 才完全可动手。</p>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修复</strong>：19/19 全部纳入 plan 修订记录（plan L807-825 + L834-852）</li>
+<li><strong>r2 新发现</strong>：5 项（2 P0 + 3 P1）</li>
+<li><strong>阻塞其他 plan</strong>：</li>
+<li>新-1 + 新-5（chitchat 子集）需 fixture 重排</li>
+<li>新-2（RAGAS evaluate 行为）需 RAGAS 0.2.10 实际验证（无代码情况下只能 plan 假设）</li>
+<li>新-3（callback 兼容）需 M3 r2 实际返回值类型</li>
+<li>新-6（M8 命名断裂）需 M8 r3 联动</li>
+<li><strong>下轮同步</strong>：M3 r3 + M7 r3 + M8 r3 + M10 r3 一并落代码</li>
+</ul>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

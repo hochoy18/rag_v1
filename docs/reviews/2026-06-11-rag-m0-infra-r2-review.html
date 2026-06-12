@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M0 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M0 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>253 行</span>
+<span>21 P0</span>
+<span>30 P1</span>
+<span>33 P2</span>
+<span class="badge-r1">8 r1 标记</span>
+    <span>2026-06-11-rag-m0-infra-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证26-项逐项">1. r1 修复验证（26 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#21-修订记录失实4-处严重">2.1 ⚠️ 修订记录失实（4 处严重）</a></li>
+<li><a href="#22-envexample-主体-bug1-处">2.2 ⚠️ .env.example 主体 bug（1 处）</a></li>
+<li><a href="#23-p1-7-p1-8-修订记录笔误">2.3 ⚠️ P1-7 / P1-8 修订记录笔误</a></li>
+<li><a href="#24-r1-修复本身不引入新问题仅-1-项遗留">2.4 r1 修复本身不引入新问题（仅 1 项遗留）</a></li>
+<li><a href="#3-跨-m-一致性检查">3. 跨 M 一致性检查</a></li>
+<li><a href="#31-m0-m1schema-迁移">3.1 M0 ↔ M1（schema 迁移）</a></li>
+<li><a href="#32-m0-m2auth-鉴权">3.2 M0 ↔ M2（auth 鉴权）</a></li>
+<li><a href="#33-m0-m3llmembed-工厂">3.3 M0 ↔ M3（LLM/Embed 工厂）</a></li>
+<li><a href="#34-m0-m10langfuse-观测">3.4 M0 ↔ M10（Langfuse 观测）</a></li>
+<li><a href="#35-m0-内部一致性plan-自身">3.5 M0 内部一致性（plan 自身）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-完整性">4.1 完整性</a></li>
+<li><a href="#42-r1-修补记录单条核对22-行已修行的缓解列内容是否与-plan-主体一致">4.2 r1 修补记录单条核对（22 行已修行的「缓解」列内容是否与 plan 主体一致）</a></li>
+<li><a href="#43-风险表整体评估">4.3 风险表整体评估</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-r2-必改4-项-r2-p0修完才可动手">5.1 r2 必改（4 项 r2 P0，修完才可动手）</a></li>
+<li><a href="#52-r2-建议改3-项-r2-p2可下轮改">5.2 r2 建议改（3 项 r2 P2，可下轮改）</a></li>
+<li><a href="#53-r2-不必改">5.3 r2 不必改</a></li>
+<li><a href="#54-估时修正">5.4 估时修正</a></li>
+<li><a href="#55-跨-m-协调m0-改完后通知">5.5 跨 M 协调（M0 改完后通知）</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m0-plan-r2-review-r1-修复验证">M0 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：M0 plan <code>2026-06-10-rag-m0-infra.md</code>（r1 修订后 · 631 行）</blockquote>
+<blockquote>评审基线（r1 review）：<code>2026-06-11-rag-m0-infra-review.md</code>（659 行 · 26 项 P0/P1/P2）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立 r2 验证）</blockquote>
+<blockquote>范围：验 r1 修复是否到位（26 项逐项）+ 发现 r1 修复过程中是否引入新问题</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M0 plan 在 r1 之后从「结构对、内容薄」推进到「结构对、内容厚、但<strong>修订记录 vs plan 主体出现 4 处严重自相矛盾</strong> + 至少 2 处主体 bug」。具体三个维度：</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>r1 修复到位率</td><td>⭐⭐⭐</td><td>26 项中 22 项主体已落地；但 P0-8 / P1-2 / P2-3 / P2-5 这 4 项的<strong>修订记录文本与 plan 主体文本直接矛盾</strong>，下游实施者以谁为准无法判断</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐</td><td>M0↔M3 TEI 端口 18080 / M0↔M1 PG password / M0↔M10 Langfuse NEXTAUTH_* 均对齐；M0 内部子目录 X-1 落地但 P2-3 修订记录仍写「待 M7 拍板」产生自相矛盾</td></tr>
+<tr><td>风险表补全</td><td>⭐⭐⭐⭐</td><td>6 行原风险保留 + 22 行 r1-2026-06-11 已修行；量化指标已补；但「曾被否决的替代方案」列在 r1 已修行里都写「r1-2026-06-11」无意义</td></tr>
+<tr><td>r1 引入新问题</td><td>⚠️ 4 处</td><td>修订记录失实（P0-8 / P1-2 / P2-3 / P2-5）+ <code>.env.example</code> 主体 bug（LANGFUSE_SECRET_KEY 重复）+ P1-7/P1-8 修订记录笔误</td></tr>
+</table>
+<p><strong>一句话</strong>：r1 修复<strong>质量尚可但文档一致性塌方</strong>——若直接照 plan 实施，开发者会按主体走（OK），但按修订记录理解会严重误判（langchain 36 包 / 密码变量插值 / X-1 推迟 M7 / 错误 DSN 字符串）。<strong>建议 r2 修补修订记录 4 处失实 + 修 LANGFUSE_SECRET_KEY 重复 + 修 P1-7/P1-8 笔误后，可动手。</strong></p>
+<hr>
+<h2 id="1-r1-修复验证26-项逐项">1. r1 修复验证（26 项逐项）</h2>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证（plan 主体）</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>----------------------</td><td>------</td></tr>
+<tr><td>P0-1</td><td>4 service healthcheck + langfuse depends_on service_healthy</td><td>Task 1 L203/211/220/227 healthcheck 块齐全；L229 depends_on 链完整</td><td>✅ 到位</td></tr>
+<tr><td>P0-2</td><td>TEI 端口 18080:80</td><td>Task 1 L216 <code>18080:80</code> + README L427 <code>localhost:18080</code> + .env.example L275 <code>TEI_URL=http://tei:80</code></td><td>✅ 到位</td></tr>
+<tr><td>P0-3</td><td>langfuse depends_on postgres service_healthy</td><td>Task 1 L229 langfuse depends_on 含 postgres/opensearch/tei 三条 service_healthy</td><td>✅ 到位（与 P0-1 合并）</td></tr>
+<tr><td>P0-4</td><td>init.sql 挂载 /docker-entrypoint-initdb.d/</td><td>Task 1 L202 <code>./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro</code></td><td>✅ 到位</td></tr>
+<tr><td>P0-5</td><td>README sysctl vm.max_map_count 前置</td><td>Task 6 L415-419 完整 sysctl 命令 + 持久化</td><td>✅ 到位</td></tr>
+<tr><td>P0-6</td><td>.gitignore</td><td>Task 7 L433-467 完整 30+ 行 .gitignore 内容</td><td>✅ 到位</td></tr>
+<tr><td>P0-7</td><td>.dockerignore</td><td>Task 8 L469-494 完整 .dockerignore 内容</td><td>✅ 到位</td></tr>
+<tr><td><strong>P0-8</strong></td><td>pyproject.toml 完整内容</td><td><strong>Task 4 L358-390 给完整 pyproject.toml</strong>，dependencies = pydantic / pydantic-settings / python-dotenv / structlog（<strong>不含 langchain/langgraph/llama-index</strong>）</td><td>✅ 主体到位 / ⚠️ <strong>修订记录 L612 失实</strong>（写「langchain==1.0.8 / langgraph==1.0.5 / llama-index==0.14.8 等 36 包」，与主体矛盾）</td></tr>
+<tr><td>P0-9</td><td>TEI HF_HOME/TRANSFORMERS_CACHE=/data 挂载</td><td>Task 1 L218-219 env 完整 + volumes <code>tei_cache:/data</code></td><td>✅ 到位</td></tr>
+<tr><td>P1-1</td><td>mem_limit / cpus（PG 512m / OS 2g / TEI 4g / LF 1g）</td><td>Task 1 L204/212/221/228 4 service 全有</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-2</strong></td><td>init.sql 密码 dev-only + IF NOT EXISTS 包裹</td><td>Task 2 L239-253 完整 dev-only 注释 + DO $$ ... IF NOT EXISTS ... END $$</td><td>✅ 主体到位 / ⚠️ <strong>修订记录 L615 失实</strong>（写「<code>${POSTGRES_PASSWORD}</code> 变量插值」，<strong>init.sql 在 initdb 阶段执行，env 不可用</strong>——主体方案正确，修订记录方案是错误）</td></tr>
+<tr><td>P1-3</td><td>Langfuse NEXTAUTH_URL + NEXTAUTH_SECRET</td><td>Task 1 L226 含 NEXTAUTH_URL=${LANGFUSE_NEXTAUTH_URL} + .env.example L289-290 + Task 4 L310 LangfuseSettings 字段</td><td>✅ 到位</td></tr>
+<tr><td>P1-4</td><td>OpenSearch env 完整 + ulimits</td><td>Task 1 L209-210 env 全 + ulimits memlock/nofile 齐</td><td>✅ 到位</td></tr>
+<tr><td>P1-5</td><td>POSTGRES_INITDB_ARGS 显式声明</td><td>Task 1 L201 <code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code></td><td>✅ 到位</td></tr>
+<tr><td>P1-6</td><td>logging_setup.py + structlog 依赖</td><td>Task 4 L311 LoggingSettings + L344-356 logging_setup.py 实现 + pyproject.toml L369 structlog 依赖</td><td>✅ 到位</td></tr>
+<tr><td>P1-7</td><td>infra/check_health.sh + Files 表</td><td>Files 表 L162 含 + Task 9 L496-510 完整 shell 脚本</td><td>✅ 主体到位 / ⚠️ <strong>修订记录 L620 失实</strong>（写「5 service 状态」但 plan 实际是 <strong>4 service</strong>；M0 只有 PG/OS/TEI/Langfuse 4 个）</td></tr>
+<tr><td>P1-8</td><td>Makefile 收录常用命令</td><td>Task 10 L512-525 Makefile + Files 表 L182</td><td>✅ 主体到位 / ⚠️ <strong>修订记录 L621 失实</strong>（写「<code>make up / down / logs / test / migrate / check</code>」但主体 Makefile 是 <code>up / down / logs / health / test-unit / test-integration / clean</code>，<strong>无 migrate / check</strong>，migrate 是 M1 范畴）</td></tr>
+<tr><td>P1-9</td><td>app/config.py 末尾 settings = Settings() 全局单例</td><td>Task 4 L328 <code>settings = Settings()</code></td><td>✅ 到位</td></tr>
+<tr><td>P2-1</td><td>docker-compose 删 version: 改 name:</td><td>Task 1 L197 <code>name: rag_v1</code>，无 version 字段</td><td>✅ 到位</td></tr>
+<tr><td>P2-2</td><td>头部加「范本目的」段</td><td>L8「范本目的：M0 是 RAG V1 路线起点 plan ...」</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-3</strong></td><td>app/config.py 拆分（X-1 落地）</td><td>Task 4 L299 「P2-3 / X-1 落地：M0 直接拆 <code>app/configs/</code> 子目录」+ 仓库布局 L42 + Files 表 L165-170</td><td>✅ 主体到位 / ⚠️ <strong>修订记录 L625 失实</strong>（写「X-1 决议待落地，文档标注等 M7 拍板」，与主体「X-1 落地」直接矛盾）</td></tr>
+<tr><td>P2-4</td><td>Task 4 RED 测试补类型校验</td><td>Task 4 L336-342 test_settings_type_validation RED 用例</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-5</strong></td><td>.env.example LANGFUSE_DATABASE_URL 合法占位</td><td>Task 3 L287 <code>postgresql://rag_app:<em><strong>@postgres:5432/rag</code>（注：P2-5 修占位，但 <code></strong></em></code> 仍非真实密码）</td><td>⚠️ <strong>半到位</strong> / ⚠️ <strong>修订记录 L627 失实</strong>（写「<code>postgresql://postgres:*<strong>@postgres:5432/langfuse</code>」——用户名写成 <code>postgres</code>、DB 名写成 <code>langfuse</code>，</strong>与主体 <code>rag_app</code> / <code>rag</code> 完全不一致**；且 Langfuse v2 默认用自己 DB 不是 <code>rag</code>）</td></tr>
+<tr><td>P2-6</td><td>Task 1 估时 5min → 25min</td><td>Task 1 L194 「实测 20-30 分钟 ... 调整为 25 分钟」</td><td>✅ 到位</td></tr>
+<tr><td>P2-7</td><td>DoD 拆 warm-cache (3min) / cold-start (10min)</td><td>DoD L541-551 两档分明</td><td>✅ 到位</td></tr>
+<tr><td>P2-8</td><td>风险表每行加量化指标</td><td>风险表 L585-591 + 6 行量化（容器重试次数 / 超时 / 资源上下界 / cold start 时长）</td><td>✅ 到位</td></tr>
+<tr><td>估时</td><td>M0 整体 2d → 3d</td><td>L7 估时修正「3 个工作日（r1 修正：2d 估时不计 cold-start 镜像下载 + P0/P1 修补，实际 3d）」</td><td>✅ 到位</td></tr>
+</table>
+<p><strong>汇总</strong>：26 项 r1 修复中</p>
+<ul>
+<li>22 项<strong>主体到位 + 修订记录与主体一致</strong></li>
+<li>4 项<strong>主体到位但修订记录文本失实</strong>（P0-8 / P1-2 / P2-3 / P2-5）</li>
+<li>1 项<strong>半到位</strong>（P2-5：<code><em><strong></code> 仍非真实密码，但 r1 标的修改确实是「加注释 + 改占位」，没承诺改真实密码——这点偏严苛，但 .env.example 仍含 <code></strong></em></code> 是 r1 已知遗留）</li>
+<li>0 项<strong>主体未改</strong></li>
+</ul>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="21-修订记录失实4-处严重">2.1 ⚠️ 修订记录失实（4 处严重）</h3>
+<p><strong>问题等级</strong>：<strong>r2 P0</strong>——下游实施者可能照修订记录误判</p>
+<table>
+<tr><th>修订位置</th><th>修订记录原文（错的）</th><th>plan 主体实际内容（对的）</th><th>影响</th></tr>
+<tr><td>---------</td><td>-------------------</td><td>------------------------</td><td>------</td></tr>
+<tr><td>L612 P0-8</td><td><code>pyproject.toml 完整内容（langchain==1.0.8 / langgraph==1.0.5 / llama-index==0.14.8 等 36 包 + dev 依赖 pytest 全套）</code></td><td>Task 4 L365-370 完整 pyproject.toml：dependencies 仅 <code>pydantic / pydantic-settings / python-dotenv / structlog</code></td><td>若按修订记录装 36 包，<strong>M0 冷启动慢 + M1/M2/M8 难以介入</strong>（与主体 P0-8 决议「fastapi/uvicorn/sqlalchemy 留给 M1/M2/M8」完全冲突）</td></tr>
+<tr><td>L615 P1-2</td><td><code>init.sql 注释密码为 ${POSTGRES_PASSWORD} 变量插值（避免明文 + 多环境隔离）</code></td><td>Task 2 L246-250 主体仍是明文 <code>&#x27;rag_app_password&#x27;</code> + dev-only 注释</td><td>若按修订记录改 <code>${POSTGRES_PASSWORD}</code>，<strong>Postgres initdb 阶段 docker-entrypoint-initdb.d 不会从 env 读变量</strong>（该目录是 <code>psql -f</code> 执行 SQL 脚本，<strong>不是 shell</strong>），会产生语法错误 / password 设为字面 <code>${POSTGRES_PASSWORD}</code> 字符串。修订记录方案<strong>逻辑错误</strong></td></tr>
+<tr><td>L625 P2-3</td><td><code>app/config.py 拆分决策点（X-1 决议待落地，文档标注等 M7 拍板）</code></td><td>Task 4 L299 明确写「P2-3 / X-1 落地：M0 直接拆 <code>app/configs/</code> 子目录」</td><td>若按修订记录理解等 M7 拍板，<strong>M0 不拆子目录</strong>——会与 Files 表 L165-170（已列 6 个子文件）+ 仓库布局 L42（已画 configs/ 子目录）+ Task 4 GREEN L305（已在 configs/ 下实现）全部冲突。<strong>主体已落地，修订记录未更新</strong></td></tr>
+<tr><td>L627 P2-5</td><td><code>.env.example 加 LANGFUSE_DATABASE_URL=postgresql://postgres:***@postgres:5432/langfuse 注释</code></td><td>Task 3 L287 主体是 <code>postgresql://rag_app:***@postgres:5432/rag</code></td><td>修订记录方案<strong>用错用户名（postgres→rag_app）+ 用错 DB 名（langfuse→rag）</strong>。Langfuse v2 推荐独立 DB（通常叫 <code>langfuse</code>），但 r1 主体决定复用 M0 的 <code>rag</code> DB（dev 简化）。<strong>两条方案不可调和</strong>——下游开发者按修订记录改完会与 init.sql 的 <code>rag</code> DB 脱钩</td></tr>
+</table>
+<p><strong>统一建议</strong>：r2 修补修订记录 L612 / L615 / L625 / L627，让其与 plan 主体完全一致。<strong>不允许两条方案并存</strong>。</p>
+<h3 id="22-envexample-主体-bug1-处">2.2 ⚠️ <code>.env.example</code> 主体 bug（1 处）</h3>
+<p><strong>问题等级</strong>：<strong>r2 P0</strong>——M0 启动即会报错</p>
+<table>
+<tr><th>位置</th><th>bug</th><th>影响</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>L284-285 <code>.env.example</code></td><td><code>LANGFUSE_SECRET_KEY=sk-lf-...lder</code> 和 <code>LANGFUSE_SECRET_KEY=<em><strong>=sk-lf-...lder</code> </strong>出现两次<strong>（疑似 r1 复制粘贴失误，第二次把 <code></strong></em></code> 误当掩码插到 secret key 前面）</td><td><code>docker compose up</code> 启动 langfuse 时 pydantic-settings 加载 .env 会<strong>抛 ValidationError</strong>（SecretStr 同名变量重复 / 或第二次把 <code>***=</code> 字面量当真值）；LANGFUSE 容器起不来</td></tr>
+</table>
+<p><strong>L284-285 原文</strong>：</p>
+<pre><code class="language-">
+LANGFUSE_SECRET_KEY=sk-lf-...lder
+LANGFUSE_SECRET_KEY=***=sk-lf-...lder
+</code></pre>
+<p><strong>修复</strong>：删 L285 整行（保留 L284 一行）。</p>
+<h3 id="23-p1-7-p1-8-修订记录笔误">2.3 ⚠️ P1-7 / P1-8 修订记录笔误</h3>
+<table>
+<tr><th>修订位置</th><th>修订记录原文</th><th>实际</th><th>严重度</th></tr>
+<tr><td>---------</td><td>-----------</td><td>------</td><td>-------</td></tr>
+<tr><td>L620 P1-7</td><td><code>infra/check_health.sh 加进 Files 表（5 service 状态一行一查）</code></td><td>M0 只有 4 service（PG/OS/TEI/Langfuse）</td><td>低（笔误）</td></tr>
+<tr><td>L621 P1-8</td><td><code>Makefile 收录 make up / down / logs / test / migrate / check 常用命令</code></td><td>主体 Makefile 是 <code>up / down / logs / health / test-unit / test-integration / clean</code>（<strong>无 migrate / check</strong>）</td><td>中（migrate 暗示 M1 范畴被错引）</td></tr>
+</table>
+<p><strong>建议</strong>：r2 同步修订记录文本与 Makefile / check_health.sh 实际命令名对齐。</p>
+<h3 id="24-r1-修复本身不引入新问题仅-1-项遗留">2.4 r1 修复本身不引入新问题（仅 1 项遗留）</h3>
+<ul>
+<li><strong>P2-5 半到位</strong>：<code>LANGFUSE_DATABASE_URL</code> 占位仍是 <code><em><strong></code>，而非真实 <code>rag_app_password</code>——但 r1 P2-5 标的是「</strong>加注释 + 改占位<strong>」（review P2-5 原文），没承诺改真实密码。<code>.env.example</code> 模板用 <code></strong></em></code> 是合理做法，开发者复制后自行替换。<strong>r2 不必再追</strong>。</li>
+<li><strong>风险表行 r1-2026-06-11 的「曾被否决的替代方案」列</strong>：写了 4 行 <code>r1-2026-06-11</code>（L592-595）——这列原本是「<strong>说明为何不选其他方案</strong>」，4 个 r1 修复行写「r1-2026-06-11」是<strong>无意义</strong>（修复本身没有「曾被否决的替代方案」）。<strong>r2 建议</strong>把 r1 已修行的「曾被否决的替代方案」列改为 <code>—</code>（不适用）或干脆合并到「缓解」列。</li>
+</ul>
+<hr>
+<h2 id="3-跨-m-一致性检查">3. 跨 M 一致性检查</h2>
+<h3 id="31-m0-m1schema-迁移">3.1 M0 ↔ M1（schema 迁移）</h3>
+<table>
+<tr><th>共享契约</th><th>M0 主体</th><th>M1 预期</th><th>一致？</th></tr>
+<tr><td>---------</td><td>--------</td><td>--------</td><td>-------</td></tr>
+<tr><td><code>postgres:5432</code> 容器名</td><td>Task 1 L200 <code>ports: 5432:5432</code> + service name <code>postgres</code></td><td>M1 Alembic 需 <code>postgresql://rag_app:***@postgres:5432/rag</code></td><td>✅ 一致（service name DNS 直连）</td></tr>
+<tr><td><code>rag</code> DB 存在</td><td>Task 2 L244 <code>CREATE DATABASE rag</code> + init.sql 挂载到 docker-entrypoint-initdb.d</td><td>M1 alembic env.py 需 <code>dbname=rag</code></td><td>✅ 一致（<strong>前提是 r1 P0-4 挂载点 L202 不被破坏</strong>）</td></tr>
+<tr><td><code>POSTGRES_PASSWORD=rag_app_password</code></td><td>Task 1 L200 env</td><td>M1 alembic env.py 需同 password</td><td>✅ 一致（<strong>但 r1 P1-2 修订记录写「<code>${POSTGRES_PASSWORD}</code> 变量插值」</strong>——若误信，跨 M 一致性破坏）</td></tr>
+<tr><td><code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code></td><td>Task 1 L201</td><td>M1 migration 用 <code>citext</code> / <code>pg_trgm</code> 等 locale-sensitive 需 locale=C</td><td>✅ 一致（<strong>M1 alembic 升级时</strong> locale-C 不影响 schema）</td></tr>
+<tr><td><code>app/config.py</code> 全局单例 <code>settings = Settings()</code></td><td>Task 4 L328</td><td>M1 alembic env.py <code>from app.config import settings</code></td><td>✅ 一致（X-3 决议落地）</td></tr>
+<tr><td><code>app/configs/postgres.py</code> PostgresSettings</td><td>Task 4 L307</td><td>M1 引用 <code>settings.postgres.host</code> 等</td><td>✅ 一致（X-1 落地）</td></tr>
+</table>
+<h3 id="32-m0-m2auth-鉴权">3.2 M0 ↔ M2（auth 鉴权）</h3>
+<table>
+<tr><th>共享契约</th><th>M0 主体</th><th>M2 预期</th><th>一致？</th></tr>
+<tr><td>---------</td><td>--------</td><td>--------</td><td>-------</td></tr>
+<tr><td><code>postgres:5432</code> 容器</td><td>同上</td><td>M2 读写 <code>users</code> / <code>auth_sessions</code> 表（在 <code>rag</code> DB 内）</td><td>✅</td></tr>
+<tr><td><code>app/configs/postgres.py</code></td><td>同上</td><td>M2 扩展 <code>PostgresSettings</code> 加 <code>auth_db: str = &#x27;rag&#x27;</code></td><td>✅（X-1 子目录方案支持扩展）</td></tr>
+<tr><td><code>app/config.py</code> 单例</td><td>同上</td><td>M2 引用 <code>settings.postgres.password.get_secret_value()</code></td><td>✅</td></tr>
+<tr><td><strong>未发现 init.sql 与 M2 冲突</strong></td><td>—</td><td>M2 需 <code>users</code> / <code>auth_sessions</code> 表，但 schema 迁移归 M1 负责</td><td>✅ 边界清晰</td></tr>
+</table>
+<h3 id="33-m0-m3llmembed-工厂">3.3 M0 ↔ M3（LLM/Embed 工厂）</h3>
+<table>
+<tr><th>共享契约</th><th>M0 主体</th><th>M3 预期</th><th>一致？</th></tr>
+<tr><td>---------</td><td>--------</td><td>--------</td><td>-------</td></tr>
+<tr><td>TEI 容器端口 <code>tei:80</code>（容器内）</td><td>Task 1 L216 <code>18080:80</code> + .env.example L275 <code>TEI_URL=http://tei:80</code></td><td>M3 引用 <code>TEI_URL</code> 调 embed</td><td>✅</td></tr>
+<tr><td>TEI host 端口 18080</td><td>README L427 <code>localhost:18080</code> + check_health.sh L506</td><td>M3 smoke test 走 host 端点</td><td>✅</td></tr>
+<tr><td><code>tei_cache</code> volume /data</td><td>Task 1 L218-219</td><td>M3 复启动后不重下 bge-m3</td><td>✅</td></tr>
+<tr><td>Langfuse <code>langfuse:3000</code> 容器内端口</td><td>Task 1 L225 + .env.example L282</td><td>M3 trace 上报</td><td>✅</td></tr>
+<tr><td>Langfuse NEXTAUTH_*</td><td>Task 1 L226</td><td>M3 用 public/secret key 调 Langfuse Python SDK</td><td>✅</td></tr>
+<tr><td><strong>未发现 M3 与 M0 冲突</strong></td><td>—</td><td>—</td><td>✅</td></tr>
+</table>
+<h3 id="34-m0-m10langfuse-观测">3.4 M0 ↔ M10（Langfuse 观测）</h3>
+<table>
+<tr><th>共享契约</th><th>M0 主体</th><th>M10 预期</th><th>一致？</th></tr>
+<tr><td>---------</td><td>--------</td><td>--------</td><td>-------</td></tr>
+<tr><td><code>langfuse:3000</code> 服务名</td><td>Task 1 L225</td><td>M10 在 app 代码内调 Langfuse SDK 上报 trace</td><td>✅</td></tr>
+<tr><td><code>LANGFUSE_PUBLIC_KEY</code> / <code>LANGFUSE_SECRET_KEY</code></td><td>.env.example L283-284</td><td>M10 应用层 SDK 读 env</td><td>✅（<strong>前提 L284-285 重复 bug 修掉</strong>）</td></tr>
+<tr><td><code>LANGFUSE_DATABASE_URL=postgresql://rag_app:***@postgres:5432/rag</code></td><td>Task 3 L287</td><td>M10 不直接连 DB（Langfuse 容器内连），无需改</td><td>✅</td></tr>
+<tr><td><strong>未发现 M10 与 M0 冲突</strong></td><td>—</td><td>—</td><td>✅</td></tr>
+</table>
+<h3 id="35-m0-内部一致性plan-自身">3.5 M0 内部一致性（plan 自身）</h3>
+<table>
+<tr><th>检查项</th><th>结果</th></tr>
+<tr><td>--------</td><td>------</td></tr>
+<tr><td>LANGFUSE_NEXTAUTH_URL 出现在 Task 1 / .env.example / LangfuseSettings 三处</td><td>✅ 三处一致（Task 1 L226 / .env.example L290 / Task 4 L310）</td></tr>
+<tr><td>LANGFUSE_SECRET_KEY 在 .env.example 出现两次</td><td>❌ 重复（见 2.2）</td></tr>
+<tr><td><code>app/configs/</code> 子目录在 Architecture / Files / Tasks / DoD / 风险表 五处出现</td><td>✅ 五处一致（X-1 落地完整）</td></tr>
+<tr><td>TEI 端口 18080 在 Task 1 / .env.example / README / check_health.sh / 风险表 / DoD 六处出现</td><td>✅ 六处一致</td></tr>
+<tr><td>mem_limit 在 Task 1 + 风险表 L591 出现</td><td>✅ 一致（PG 512m / OS 2g / TEI 4g / LF 1g）</td></tr>
+<tr><td>init.sql 挂载点 <code>/docker-entrypoint-initdb.d/01-init.sql:ro</code></td><td>Task 1 L202 出现一次</td><td>✅ 唯一</td></tr>
+<tr><td><code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code></td><td>Task 1 L201 + 风险表 L589 两处</td><td>✅ 一致</td></tr>
+<tr><td>修订记录 vs 主体一致性（P0-8 / P1-2 / P2-3 / P2-5）</td><td>❌ <strong>4 处矛盾</strong>（见 2.1）</td></tr>
+</table>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-完整性">4.1 完整性</h3>
+<table>
+<tr><th>维度</th><th>原 r0 风险表</th><th>r1 修订后</th><th>评估</th></tr>
+<tr><td>------</td><td>------------</td><td>---------</td><td>------</td></tr>
+<tr><td>风险行数</td><td>6 行原风险</td><td>6 行原风险保留 + 4 行 r1-2026-06-11 P?-X 已修</td><td>✅ 原风险未被覆盖</td></tr>
+<tr><td>量化指标</td><td>全是抽象缓解（如「失败则重试」）</td><td>L585-591 六行原风险全部加量化（容器重试次数 / 超时 / 资源上下界 / cold start 时长 / port 冲突检测脚本）</td><td>✅ P2-8 到位</td></tr>
+<tr><td>曾被否决的替代方案列</td><td>6 行原风险都有（如 OpenSearch 替代 ES8 / SaaS / k8s / PostHog）</td><td>原 6 行保留；4 行 r1 已修行写 <code>r1-2026-06-11</code> 占位</td><td>⚠️ <strong>r1 已修行的「替代方案」列无意义</strong>——修复行为本身没有「被否决的替代方案」（L592-595）</td></tr>
+<tr><td>风险类型分布</td><td>启动 / 端口 / 迁移 / 兼容性 / 布局 / 资源 6 类</td><td>同 + 4 行「修复确认」</td><td>✅ 覆盖到位</td></tr>
+</table>
+<h3 id="42-r1-修补记录单条核对22-行已修行的缓解列内容是否与-plan-主体一致">4.2 r1 修补记录单条核对（22 行已修行的「缓解」列内容是否与 plan 主体一致）</h3>
+<table>
+<tr><th>r1 修订行</th><th>风险表「缓解」列内容</th><th>plan 主体是否落地</th><th>一致？</th></tr>
+<tr><td>----------</td><td>------------------</td><td>----------------</td><td>-------</td></tr>
+<tr><td>P0-1 已修（L592）</td><td>4 service healthcheck + depends_on chain</td><td>✅</td><td>✅</td></tr>
+<tr><td>P0-2 ~ P0-9 已修（L593）</td><td>TEI 18080 / HF_HOME / init.sql 挂载 / sysctl / .gitignore / .dockerignore / pyproject</td><td>✅</td><td>✅</td></tr>
+<tr><td>P1-1 ~ P1-9 已修（L594）</td><td>mem_limit / IF NOT EXISTS / NEXTAUTH_* / OPENSEARCH_JAVA_OPTS / POSTGRES_INITDB_ARGS / logging_setup / check_health.sh / Makefile / settings 单例</td><td>✅</td><td>✅</td></tr>
+<tr><td>P2-1 ~ P2-8 已修（L595）</td><td>name: rag_v1 / 范本目的 / X-1 落地 / 类型校验 / 合法占位 / 估时 / DoD 拆档 / 量化指标</td><td>⚠️ 4 项与修订记录文本不一致（见 2.1）</td><td>⚠️ <strong>半一致</strong></td></tr>
+</table>
+<h3 id="43-风险表整体评估">4.3 风险表整体评估</h3>
+<ul>
+<li><strong>优点</strong>：原 6 行风险保留、量化指标补全、4 行 r1 修复行提供变更轨迹</li>
+<li><strong>缺点</strong>：</li>
+</ul>
+<ol>
+<li>4 行 r1 修复行的「缓解」列写得过细、应有指向 plan 主体位置的链接（如 <code>Task 1 L202</code>）而非堆在风险表</li>
+<li>r1 已修行的「曾被否决的替代方案」列写 <code>r1-2026-06-11</code> 无意义</li>
+<li>4 行 r1 已修行的「缓解」文本与修订记录文本有微小差异（risk L595 P2-1~8 写「<code><em><strong></code> 改 <code>rag_app_password</code>」实际主体仍 <code></strong></em></code>）</li>
+</ol>
+<p><strong>建议</strong>：r2 把 4 行 r1 已修行的「缓解」列简化为「详见本文 §Tasks 1-10 对应位置 + 修订记录 P?-X」指针形式，避免与 plan 主体文本不同步时双重失实。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-r2-必改4-项-r2-p0修完才可动手">5.1 r2 必改（4 项 r2 P0，<strong>修完才可动手</strong>）</h3>
+<p>按修复代价从小到大：</p>
+<ol>
+<li><strong>r2 P0-A · 删 L285 重复行</strong>：<code>LANGFUSE_SECRET_KEY=***=sk-lf-...lder</code> 整行删除（10 秒）</li>
+<li><strong>r2 P0-B · 修 P1-7 修订记录</strong>：L620 改「5 service 状态」→「4 service 状态」+ 指 check_health.sh 实际内容（30 秒）</li>
+<li><strong>r2 P0-C · 修 P1-8 修订记录</strong>：L621 改命令列表为「<code>up / down / logs / health / test-unit / test-integration / clean</code>」+ 删「migrate」（30 秒）</li>
+<li><strong>r2 P0-D · 修 4 处修订记录失实</strong>（L612 / L615 / L625 / L627）：</li>
+</ol>
+<ul>
+<li>L612 P0-8 改「`pyproject.toml 完整内容（见 Task 4 L358-390；含 pydantic / pydantic-settings / python-dotenv / structlog + dev pytest，<strong>不含 langchain / langgraph / llama-index</strong>）」</li>
+<li>L615 P1-2 改「<code>init.sql 注释密码为 dev-only 明文 + IF NOT EXISTS 包裹（initdb 阶段 env 不可用，<strong>不</strong>能用 </code>${POSTGRES_PASSWORD}` 变量插值）」——同时<strong>解释为何不变量插值</strong></li>
+<li>L625 P2-3 改「<code>app/config.py</code> 拆分（X-1 <strong>已落地</strong>：M0 直接拆 <code>app/configs/</code> 子目录，详见 Task 4 L299-330 + Files 表 L165-170）」</li>
+<li>L627 P2-5 改「<code>.env.example</code> 加 <code>LANGFUSE_DATABASE_URL=postgresql://rag_app:*<strong>@postgres:5432/rag</code> 注释（</strong>复用 M0 的 <code>rag</code> DB；不创建独立 <code>langfuse</code> DB**——dev 简化）」</li>
+</ul>
+<h3 id="52-r2-建议改3-项-r2-p2可下轮改">5.2 r2 建议改（3 项 r2 P2，<strong>可下轮改</strong>）</h3>
+<ol>
+<li><strong>r2 P2-A · 风险表 4 行 r1 已修行的「替代方案」列</strong>：改为 <code>—</code> 或合并到「缓解」列</li>
+<li><strong>r2 P2-B · 风险表 4 行 r1 已修行的「缓解」列</strong>：改为指针形式（如 <code>详见 Task 1 L202-229</code>），减少与 plan 主体重复失实风险</li>
+<li><strong>r2 P2-C · P2-5 <code>.env.example</code></strong>：把 <code>***</code> 改 <code>rag_app_password</code> 真实值（让 docker compose up 一次成功；否则开发者得手动改 .env）</li>
+</ol>
+<h3 id="53-r2-不必改">5.3 r2 不必改</h3>
+<ul>
+<li>26 项 r1 修复中 22 项主体已落地且与修订记录一致，<strong>不需重做</strong></li>
+<li>跨 M 一致性（M0↔M1/M2/M3/M10）<strong>全部对齐</strong>，不需跨 M 协调</li>
+<li>估时 3d 修正<strong>合理</strong>，不需调</li>
+</ul>
+<h3 id="54-估时修正">5.4 估时修正</h3>
+<ul>
+<li>r2 修补：估 <strong>30-60 分钟</strong>（4 处修订记录失实 + 1 处主体 bug + 3 处笔误）</li>
+<li>r2 修补 + verify：估 <strong>1 个工作日</strong></li>
+<li>M0 整体仍 <strong>3d</strong>（r1 修正后估时不变）</li>
+</ul>
+<h3 id="55-跨-m-协调m0-改完后通知">5.5 跨 M 协调（M0 改完后通知）</h3>
+<ul>
+<li>通知 M1：<code>POSTGRES_PASSWORD=rag_app_password</code>（明文固定，不变量插值；M1 alembic env.py 需用同 password）</li>
+<li>通知 M2 / M3 / M7 / M10：<code>from app.config import settings</code> 语法（X-3 已落地）+ <code>app/configs/</code> 子目录可扩展（X-1 已落地）</li>
+<li>通知 M3：TEI 容器内端口 80 / host 端口 18080（容器间互访用 <code>tei:80</code>，host 走 <code>localhost:18080</code>）</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修复完成度</strong>：26 项中 22 项到位、4 项主体到位但修订记录失实</li>
+<li><strong>r1 引入新问题</strong>：4 处修订记录失实 + 1 处主体 bug（<code>LANGFUSE_SECRET_KEY</code> 重复）+ 2 处笔误（P1-7 5 service / P1-8 migrate）</li>
+<li><strong>跨 M 一致性</strong>：全部对齐</li>
+<li><strong>风险表补全</strong>：原 6 行保留 + 量化指标补全；但 4 行 r1 已修行的「替代方案」列无意义</li>
+<li><strong>建议</strong>：r2 修补 4 处修订记录失实 + 1 处主体 bug + 2 处笔误后（约 30-60 分钟），<strong>可动手</strong></li>
+<li><strong>不可直接动手</strong>：L284-285 <code>LANGFUSE_SECRET_KEY</code> 重复会导致 langfuse 容器起不来（<strong>r2 P0 阻塞</strong>）</li>
+</ul>
+<p>M0 plan <strong>结构完整、跨 M 对齐、22/26 r1 修复到位</strong>，但<strong>修订记录自相矛盾 + 1 处主体 bug</strong> 需 r2 修补后才是「真正可动手」状态。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1 Plan Review · Schema 层</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M1 Plan Review · Schema 层</h1>
+  <div class="meta">
+    <span>963 行</span>
+<span>40 P0</span>
+<span>69 P1</span>
+<span>27 P2</span>
+    <span>2026-06-11-rag-m1-schema-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-alembicini-模板-vars-占位符语法错已有-review-重复">P0-1 · alembic.ini 模板 %(VAR)s 占位符语法错（已有 review 重复）</a></li>
+<li><a href="#p0-2-单元测试用-sqlite但-4-张表含-pg-only-类型">P0-2 · 单元测试用 sqlite，但 4 张表含 PG-only 类型</a></li>
+<li><a href="#p0-3-aiosqlite-缺依赖却要用">P0-3 · aiosqlite 缺依赖却要用</a></li>
+<li><a href="#p0-4-test_migration_has_all_tables-测试脆">P0-4 · test_migration_has_all_tables 测试脆</a></li>
+<li><a href="#p0-5-appdb__init__py-暴露-api-描述内部矛盾">P0-5 · app/db/__init__.py 暴露 API 描述内部矛盾</a></li>
+<li><a href="#p0-6-alembic-envpy-缺-target_metadata-与-run_async-配置细节">P0-6 · alembic env.py 缺 target_metadata 与 run_async 配置细节</a></li>
+<li><a href="#p0-7-timestampmixinupdated_at-onupdate-限制未在-plan-注释化">P0-7 · TimestampMixin.updated_at onupdate 限制未在 plan 注释化</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-ingest_jobspayload_hash-缺-unique-约束与-idempotency-语义不符">P1-1 · ingest_jobs.payload_hash 缺 UNIQUE 约束（与 idempotency 语义不符）</a></li>
+<li><a href="#p1-2-chat_sessions-缺-user_id-is_active-updated_at-desc-复合索引">P1-2 · chat_sessions 缺 (user_id, is_active, updated_at DESC) 复合索引</a></li>
+<li><a href="#p1-3-缺-userscreated_by-usersupdated_by-审计字段v2-必加">P1-3 · 缺 users.created_by / users.updated_by 审计字段（V2 必加）</a></li>
+<li><a href="#p1-4-缺-usersemail-字段m12-hardening-几乎必加">P1-4 · 缺 users.email 字段（M12 hardening 几乎必加）</a></li>
+<li><a href="#p1-5-缺-usersdeleted_at-软删除字段与-is_active-实现不同">P1-5 · 缺 users.deleted_at 软删除字段（与 is_active 实现不同）</a></li>
+<li><a href="#p1-6-缺-chat_sessionslast_message_at-字段m8-api-排序用">P1-6 · 缺 chat_sessions.last_message_at 字段（M8 API 排序用）</a></li>
+<li><a href="#p1-7-缺-ingest_jobscompleted_at-auth_sessionsexpires_at_hard-">P1-7 · 缺 ingest_jobs.completed_at / auth_sessions.expires_at_hard / auth_sessions.user_id 索引</a></li>
+<li><a href="#p1-8-缺-appauthpassword_validatorpy-函数m2-必用m1-可定">P1-8 · 缺 app/auth/password_validator.py 函数（M2 必用，M1 可定）</a></li>
+<li><a href="#p1-9-缺-downgrade-实现要求alembic-默认要可回滚">P1-9 · 缺 downgrade() 实现要求（alembic 默认要可回滚）</a></li>
+<li><a href="#p1-10-缺-enum-类型-vs-varcharcheck-的设计决策">P1-10 · 缺 enum 类型 vs VARCHAR+CHECK 的设计决策</a></li>
+<li><a href="#p1-11-缺-connection-pool-配置细节pool_size-10-max_overflow-20-依据">P1-11 · 缺 connection pool 配置细节（pool_size 10 / max_overflow 20 依据）</a></li>
+<li><a href="#p1-12-缺-asyncpg-pgbouncer-兼容配置prod-必踩">P1-12 · 缺 asyncpg + pgbouncer 兼容配置（prod 必踩）</a></li>
+<li><a href="#p1-13-缺-db-migration-并发锁alembic-同时跑两个会冲突">P1-13 · 缺 DB migration 并发锁（alembic 同时跑两个会冲突）</a></li>
+<li><a href="#p1-14-缺-__table_args__-集中声明索引vs-在列里声明">P1-14 · 缺 __table_args__ 集中声明索引（vs 在列里声明）</a></li>
+<li><a href="#p1-15-缺-server-side-default-显式声明-vs-client-side">P1-15 · 缺 server-side default 显式声明 vs client-side</a></li>
+<li><a href="#p1-16-缺-pytestini-的-toolpytestini_optionsx-2-待落地">P1-16 · 缺 pytest.ini 的 [tool.pytest.ini_options]（X-2 待落地）</a></li>
+<li><a href="#p1-17-缺-appconfigpy-全局单例约定x-3-待落地">P1-17 · 缺 app/config.py 全局单例约定（X-3 待落地）</a></li>
+<li><a href="#p1-18-缺-postgresql_concurrentlytrue-选项生产加索引">P1-18 · 缺 postgresql_concurrently=True 选项（生产加索引）</a></li>
+<li><a href="#p1-19-缺-usersusername-citext-大小写处理决策">P1-19 · 缺 users.username citext / 大小写处理决策</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-缺-appconfigs-拆分决策x-1-待落地">P2-1 · 缺 app/configs/ 拆分决策（X-1 待落地）</a></li>
+<li><a href="#p2-2-缺-m1-plan-头部范本目的段">P2-2 · 缺 M1 plan 头部&amp;quot;范本目的&amp;quot;段</a></li>
+<li><a href="#p2-3-缺-envexample-完整内容m1-范围">P2-3 · 缺 .env.example 完整内容（M1 范围）</a></li>
+<li><a href="#p2-4-缺-usersfailed_login_attempts-locked_until-字段m2-防爆破用">P2-4 · 缺 users.failed_login_attempts / locked_until 字段（M2 防爆破用）</a></li>
+<li><a href="#p2-5-缺-ingest_jobsretry_count-next_retry_at-字段m4-m6-重试用">P2-5 · 缺 ingest_jobs.retry_count / next_retry_at 字段（M4-M6 重试用）</a></li>
+<li><a href="#p2-6-缺-auth_sessionsip_address-user_agent-字段m2-异常登录告警用">P2-6 · 缺 auth_sessions.ip_address / user_agent 字段（M2 异常登录告警用）</a></li>
+<li><a href="#p2-7-缺-chat_sessionsmetadata-jsonb-字段m7-graph-节点扩展用">P2-7 · 缺 chat_sessions.metadata JSONB 字段（M7 graph 节点扩展用）</a></li>
+<li><a href="#p2-8-缺-4-表的-idempotency_key-通用字段api-重试用">P2-8 · 缺 4 表的 idempotency_key 通用字段（API 重试用）</a></li>
+<li><a href="#p2-9-timestampmixin-没继承-mappedasdataclass-简化-boilerplate">P2-9 · TimestampMixin 没继承 MappedAsDataclass 简化 boilerplate</a></li>
+<li><a href="#与已有-review-交叉验证">与已有 review 交叉验证</a></li>
+<li><a href="#你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#第一波本轮必改7-项-p0">第一波（本轮必改，7 项 P0）</a></li>
+<li><a href="#第二波重要19-项-p1">第二波（重要，19 项 P1）</a></li>
+<li><a href="#第三波优化9-项-p2">第三波（优化，9 项 P2）</a></li>
+<li><a href="#跨-m-协调m1-改完后通知">跨 M 协调（M1 改完后通知）</a></li>
+<li><a href="#估时修正">估时修正</a></li>
+<li><a href="#等待决策">等待决策</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m1-plan-review-schema-层">M1 Plan Review · Schema 层</h1>
+<blockquote>评审对象：M1 (2026-06-10-rag-m1-schema.md, 395 行)</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec（§0 决策 #13/#14 / §1 架构 / §2 模块树 / §3.2 Auth 数据流 / §5 错误矩阵 / §8 依赖清单）+ 已有 review 报告 + M0 review + M3 范本 11 段</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M1 plan 完整覆盖 11 段模板（Goal / 不包含 / Architecture / Tech Stack / Files / Tasks / 测试 / DoD / 依赖 / 风险 / 修订记录），4 张表 DDL 定义完整且与 spec §3.2 Auth 数据流对齐。但<strong>实施就绪度不足</strong>——alembic.ini 模板语法错（已知 P0-4）、sqlite 测 PG-only 类型的&quot;假绿&quot;风险（已知 P0-5）、aiosqlite 缺依赖（已知 P0-6）、test_migration_has_all_tables 脆（已知 P0-7）这 4 个 P0 必改；<strong>外加本 review 新发现的 15+ 个问题</strong>，覆盖审计字段、索引策略、连接池配置、enum 设计、alembic 生产化选项、跨 M 配置接口等领域。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐⭐</td><td>11 段齐，仓库布局 / 模块树 / 契约边界表完整</td></tr>
+<tr><td>DDL 完整性</td><td>⭐⭐⭐⭐</td><td>4 表列 / 约束 / 索引都有，缺 UNIQUE 索引和部分查询索引</td></tr>
+<tr><td>一致性</td><td>⭐⭐⭐</td><td>表字段与 spec §3.2 对齐；但 alembic.ini 模板错 / <code>app/db/__init__.py</code> 暴露不一致 / <code>app/config.py</code> 全局单例未落实（X-3）</td></tr>
+<tr><td>实施就绪度</td><td>⭐⭐</td><td>P0-4 ~ P0-7 全未改；TDD 粒度看似 2-5 分钟，alembic 配置 + async migration 实测超 5 分钟</td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐</td><td>risk 表 6 行覆盖主要风险，但缺 alembic 并发 / asyncpg + pgbouncer 兼容性 / 缺 enum 类型一致性</td></tr>
+<tr><td>跨 M 契约</td><td>⭐⭐⭐</td><td>契约表清晰，但 <code>app/config.py</code> 拆分（X-1）和全局单例（X-3）都未决议</td></tr>
+</table>
+<p><strong>一句话</strong>：M1 plan 框架对、DDL 主体对，但 alembic 工程化与生产化考虑严重不足，<strong>未修 P0 + 6 个新 P0 之前不可直接动手</strong>。</p>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-alembicini-模板-vars-占位符语法错已有-review-重复">P0-1 · alembic.ini 模板 <code>%(VAR)s</code> 占位符语法错（已有 review 重复）</h3>
+<p><strong>位置</strong>：M1 Task 4 GREEN 段 L289</p>
+<pre><code class="language-">
+sqlalchemy.url = postgresql+asyncpg://%(DB_USER)s:%(DB_PASS)s@%(DB_HOST)s:%(DB_PORT)s/%(DB_NAME)s
+</code></pre>
+<p><strong>问题</strong>：Alembic 1.13+ <code>sqlalchemy.url</code> 必须是完整 DSN 或留空，<code>%(VAR)s</code> 这种 ConfigParser interpolation 已被弃用。占位符要在 <code>env.py</code> 用 <code>config.set_main_option(...)</code> 设置。</p>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-ini">
+# alembic.ini
+sqlalchemy.url =
+</code></pre>
+<pre><code class="language-python">
+# alembic/env.py
+from app.config import settings
+config.set_main_option(&quot;sqlalchemy.url&quot;, settings.db.database_url)
+</code></pre>
+<p><strong>已有 review</strong>：P0-4 已列，本次 verify <strong>仍未改</strong>。</p>
+<hr>
+<h3 id="p0-2-单元测试用-sqlite但-4-张表含-pg-only-类型">P0-2 · 单元测试用 sqlite，但 4 张表含 PG-only 类型</h3>
+<p><strong>位置</strong>：M1 Task 2 RED 段 L243 / Task 3 GREEN 段 L277</p>
+<pre><code class="language-python">
+# sqlite 内存数据库建表 → 断言 User 有 id/username/...
+# 单元测试 mock DB_URL 用 sqlite+aiosqlite 也行
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>ingest_jobs.payload</code> 列定义是 <code>JSONB</code>——sqlite 不支持，会降级为 <code>TEXT</code></li>
+<li><code>auth_sessions.token_hash</code> 等 VARCHAR(64) 在 PG 有 UNIQUE 约束，sqlite 测 <code>IntegrityError</code> 形态可能不一致</li>
+<li>4 表全用 PG 原生 <code>UUID</code>——sqlite 存没问题但 PK 类型语义不同</li>
+<li>单测在 sqlite 全绿，但 <code>alembic upgrade head</code> 在 PG 上挂——<strong>假绿</strong></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>方案 A（推荐）：删 sqlite 单测，全部走 <code>pytest-postgresql</code> / testcontainers</li>
+<li>方案 B：单测只测&quot;模型类可 import / 字段名正确 / <code>__table_args__</code> 含预期约束&quot;，不真正 DDL 化</li>
+</ul>
+<p><strong>已有 review</strong>：P0-5 已列。</p>
+<hr>
+<h3 id="p0-3-aiosqlite-缺依赖却要用">P0-3 · aiosqlite 缺依赖却要用</h3>
+<p><strong>位置</strong>：M1 Task 3 GREEN 段 L277</p>
+<pre><code class="language-">
+单元测试 mock DB_URL 用 sqlite+aiosqlite 也行
+</code></pre>
+<p><strong>问题</strong>：<code>pyproject.toml</code> 依赖列表<strong>没有 aiosqlite</strong>。<code>pip install</code> 后单测 <code>import aiosqlite</code> 失败。即使改用方案 A（testcontainers），P0-2 的 dev 依赖也要列。</p>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>走方案 A：dev 依赖加 <code>pytest-postgresql &gt;=6.0,&lt;7</code> + <code>testcontainers[postgresql] &gt;=4.0,&lt;5</code></li>
+<li>走方案 B（保留 sqlite 备选）：dev 依赖加 <code>aiosqlite &gt;=0.20,&lt;1</code>（spec §8.5 已声明此版本，可直接复用）</li>
+</ul>
+<p><strong>已有 review</strong>：P0-6 已列。</p>
+<hr>
+<h3 id="p0-4-test_migration_has_all_tables-测试脆">P0-4 · <code>test_migration_has_all_tables</code> 测试脆</h3>
+<p><strong>位置</strong>：M1 Task 4 RED 段 L298-299</p>
+<pre><code class="language-python">
+# 解析 0001_initial_schema.py → 断言 upgrade 包含 4 个 op.create_table() 调用
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>alembic 默认生成的 revision 文件名是 hex revision id（如 <code>7f8a9b2c3d4e_initial_schema.py</code>），<strong>不是</strong> plan 里写的 <code>0001_initial_schema.py</code>——这个测试<strong>永远</strong>过不了</li>
+<li>即使改文件名，AST 解析对注释 / 字符串内嵌 / 换行敏感</li>
+<li>真验证应走 <code>alembic upgrade head</code> → 查 <code>information_schema</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ol>
+<li><strong>删这个测试</strong>（Task 5 集成测试 <code>test_migrate_up_creates_tables</code> 已经覆盖）</li>
+<li>同步：plan Files 表 + 任务描述里把所有 <code>0001_initial_schema.py</code> 改为 <code>7f8a9b2c3d4e_initial_schema.py</code>（或用 <code>alembic init --package</code> 生成的 hex 名），或显式说明&quot;用 <code>alembic revision --autogenerate</code> 生成后改名为 <code>0001_</code> 前缀&quot;</li>
+<li>file_naming_convention 也要在 env.py 配：<code>file_template = %%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(slug)s</code> 才会产生 <code>20260611_2230_initial_schema.py</code></li>
+</ol>
+<p><strong>已有 review</strong>：P0-7 已列前半段（脆），本 review <strong>新发现</strong>文件命名规范与 plan 描述不一致。</p>
+<hr>
+<h3 id="p0-5-appdb__init__py-暴露-api-描述内部矛盾">P0-5 · <code>app/db/__init__.py</code> 暴露 API 描述内部矛盾</h3>
+<p><strong>位置</strong>：M1 Files 表 L207 + 仓库布局 L75 + Task 3 REFACTOR 段 L279</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Files 表 L207：&quot;暴露 <code>async_session</code> / <code>get_session</code> / <code>AsyncSession</code>&quot;</li>
+<li>仓库布局 L75：&quot;暴露 <code>async_session</code> / <code>get_session</code> / <code>AsyncSession</code>&quot;</li>
+<li>Task 3 REFACTOR L279：&quot;把 <code>engine</code> / <code>async_session</code> 声明移到 <code>__init__.py</code> 提供 <code>__all__</code>&quot;</li>
+</ul>
+<p><strong>矛盾</strong>：Files 表<strong>不包含</strong> <code>engine</code>，REFACTOR 段<strong>包含</strong> <code>engine</code>。</p>
+<p><strong>修改</strong>：统一为 <code>__init__.py</code> 暴露：</p>
+<pre><code class="language-python">
+# app/db/__init__.py
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import async_session, async_session_factory, engine, get_session
+
+__all__ = [&quot;AsyncSession&quot;, &quot;async_session&quot;, &quot;async_session_factory&quot;, &quot;engine&quot;, &quot;get_session&quot;]
+</code></pre>
+<p><strong>已有 review</strong>：P2-7 已列。</p>
+<hr>
+<h3 id="p0-6-alembic-envpy-缺-target_metadata-与-run_async-配置细节">P0-6 · alembic env.py 缺 <code>target_metadata</code> 与 <code>run_async</code> 配置细节</h3>
+<p><strong>位置</strong>：M1 Task 4 GREEN 段 L290-292</p>
+<pre><code class="language-python">
+# alembic/env.py
+import app.db.base
+target_metadata = app.db.base.DeclarativeBase.metadata
+# async migration runner：用 run_async 模式（Alembic 1.13+ async support）
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>&quot;用 run_async 模式&quot; 是 Alembic 1.13+ 的 async migration 模板，<strong>不是一行配置</strong>——需要 <code>asyncio.run()</code> 包装 + <code>connection.run_sync(...)</code> 包裹 <code>context.run_migrations()</code></li>
+<li>直接照 plan 抄会让 <code>alembic upgrade head</code> 在 async engine 上失败：<code>ProgrammingError: cannot run sync operation in async context</code></li>
+<li>env.py 还需 <code>connectable = create_async_engine(...)</code> + <code>async def run_async_migrations()</code></li>
+</ul>
+<p><strong>修改</strong>（env.py 完整模板）：</p>
+<pre><code class="language-python">
+import asyncio
+from logging.config import fileConfig
+
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from alembic import context
+from app.config import settings
+from app.db.base import DeclarativeBase
+import app.db.models  # noqa: F401 触发 model 注册
+
+config = context.config
+config.set_main_option(&quot;sqlalchemy.url&quot;, settings.db.database_url)
+
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+target_metadata = DeclarativeBase.metadata
+
+
+def do_run_migrations(connection: Connection) -&gt; None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -&gt; None:
+    connectable = create_async_engine(settings.db.database_url, poolclass=pool.NullPool)
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
+
+
+def run_migrations_online() -&gt; None:
+    asyncio.run(run_async_migrations())
+
+
+run_migrations_online()
+</code></pre>
+<p><strong>新发现</strong>（已有 review 未列）。</p>
+<hr>
+<h3 id="p0-7-timestampmixinupdated_at-onupdate-限制未在-plan-注释化">P0-7 · <code>TimestampMixin.updated_at</code> onupdate 限制未在 plan 注释化</h3>
+<p><strong>位置</strong>：M1 Task 2 GREEN 段 L248</p>
+<pre><code class="language-python">
+updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>onupdate=func.now()</code> <strong>只在 ORM <code>session.execute(update(Model))</code> 之外、不带 values 时触发</strong>；走 bulk update <code>session.execute(update(Model).values(...))</code> 不会动 <code>updated_at</code></li>
+<li>M4 ingest pipeline 走 <code>UPDATE ingest_jobs SET status=..., chunks_count=... WHERE id=?</code> 形式——<code>updated_at</code> <strong>不会</strong>自动更新</li>
+<li>plan 缺这个 caveat，M4 实现时会踩坑</li>
+</ul>
+<p><strong>修改</strong>：在 TimestampMixin docstring 显式写：</p>
+<pre><code class="language-python">
+class TimestampMixin:
+    &quot;&quot;&quot;updated_at only auto-updates on ORM-level dirty detection.
+    For bulk update via session.execute(update(...).values(...)),
+    pass updated_at=func.now() explicitly. See M4 ingest_jobs.
+    &quot;&quot;&quot;
+</code></pre>
+<p><strong>已有 review</strong>：P1-4 已列。</p>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-ingest_jobspayload_hash-缺-unique-约束与-idempotency-语义不符">P1-1 · <code>ingest_jobs.payload_hash</code> 缺 UNIQUE 约束（与 idempotency 语义不符）</h3>
+<p><strong>位置</strong>：M1 §4 ingest_jobs 表 L144</p>
+<pre><code class="language-">
+| `payload_hash` | `VARCHAR(64)` | NOT NULL | SHA-256(source + payload) |
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §3.1 写&quot;<code>INSERT ingest_jobs (status=pending, source, payload_hash)</code>&quot;——payload_hash 是幂等键</li>
+<li>列定义只 NOT NULL <strong>没 UNIQUE</strong>——同 payload 可被 INSERT 多次，破坏幂等</li>
+<li>M4 ingest pipeline 要用 <code>ON CONFLICT (payload_hash) DO NOTHING</code> 语义，没 UNIQUE 约束就没法 <code>ON CONFLICT</code></li>
+</ul>
+<p><strong>修改</strong>：补 <code>UNIQUE INDEX uq_ingest_jobs_payload_hash ON ingest_jobs(payload_hash)</code></p>
+<p><strong>已有 review</strong>：P1-5 已列。</p>
+<hr>
+<h3 id="p1-2-chat_sessions-缺-user_id-is_active-updated_at-desc-复合索引">P1-2 · <code>chat_sessions</code> 缺 <code>(user_id, is_active, updated_at DESC)</code> 复合索引</h3>
+<p><strong>位置</strong>：M1 §4 chat_sessions 表 L134</p>
+<pre><code class="language-">
+Indexes: (user_id, updated_at DESC) — 按用户查询最近会话
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §3.2 写&quot;GET /api/sessions → SELECT * FROM chat_sessions WHERE user_id=current_user ORDER BY updated_at DESC&quot;</li>
+<li>现有索引 <code>(user_id, updated_at DESC)</code> 已能服务这个查询，但<strong>没考虑 <code>is_active=FALSE</code> 软删除</strong>——M8 API 实际查询要加 <code>WHERE is_active=TRUE</code></li>
+<li>加 <code>is_active</code> 到索引才能走 index scan</li>
+</ul>
+<p><strong>修改</strong>：索引改为 <code>(user_id, is_active, updated_at DESC)</code>，加速&quot;按用户查活跃会话&quot;</p>
+<p><strong>已有 review</strong>：P1-6 已列。</p>
+<hr>
+<h3 id="p1-3-缺-userscreated_by-usersupdated_by-审计字段v2-必加">P1-3 · 缺 <code>users.created_by</code> / <code>users.updated_by</code> 审计字段（V2 必加）</h3>
+<p><strong>位置</strong>：M1 §4 users 表 L98-108</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>4 表都没审计字段 <code>created_by</code> / <code>updated_by</code></li>
+<li>V1 spec §9 明说&quot;单租户&quot;——但 V2 切多租户 + admin 后台必加</li>
+<li>M1 schema 阶段补 2 个 nullable 列零成本；V2 再加要做 migration 还得 backfill NULL</li>
+</ul>
+<p><strong>修改</strong>：在 users / auth_sessions / chat_sessions / ingest_jobs 都加：</p>
+<pre><code class="language-python">
+created_by: Mapped[uuid.UUID | None] = mapped_column(UUID, ForeignKey(&quot;users.id&quot;), nullable=True)
+updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID, ForeignKey(&quot;users.id&quot;), nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-4-缺-usersemail-字段m12-hardening-几乎必加">P1-4 · 缺 <code>users.email</code> 字段（M12 hardening 几乎必加）</h3>
+<p><strong>位置</strong>：M1 §4 users 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>V1 用户系统只 <code>username</code>+<code>password_hash</code>，没 <code>email</code></li>
+<li>M12 hardening 要做&quot;密码重置邮件 / 账号找回 / 异常登录告警&quot;——100% 缺 email</li>
+<li>M1 阶段加 <code>email VARCHAR(255) UNIQUE NULL</code> 零成本（先 nullable 不影响注册）</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-5-缺-usersdeleted_at-软删除字段与-is_active-实现不同">P1-5 · 缺 <code>users.deleted_at</code> 软删除字段（与 <code>is_active</code> 实现不同）</h3>
+<p><strong>位置</strong>：M1 §4 users 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>现有 <code>is_active BOOLEAN</code> 是&quot;软禁用&quot;标记，但删除用户要走&quot;完全隐藏 + 30 天可恢复&quot;语义</li>
+<li>M2 logout 不会动 <code>is_active</code>；真正删账号时是 <code>is_active=FALSE</code> 还是 <code>deleted_at=NOW()</code>？两者语义不同：</li>
+<li><code>is_active=FALSE</code> → 管理员禁用（账号仍占位）</li>
+<li><code>deleted_at</code> → 用户自删（30 天硬删）</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>加 <code>deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)</code></li>
+<li>加 unique partial index：<code>CREATE UNIQUE INDEX uq_users_username_active ON users(username) WHERE deleted_at IS NULL</code>——允许&quot;已删用户的 username 被新用户复用&quot;</li>
+</ul>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-6-缺-chat_sessionslast_message_at-字段m8-api-排序用">P1-6 · 缺 <code>chat_sessions.last_message_at</code> 字段（M8 API 排序用）</h3>
+<p><strong>位置</strong>：M1 §4 chat_sessions 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>现有 <code>updated_at</code> 既会被任何 UPDATE 触发（M9 UI 改 title、未来的 metadata 改动），不能准确反映&quot;最后消息时间&quot;</li>
+<li>M8 API <code>/api/sessions</code> 返回的列表前端通常按&quot;最后消息时间&quot;排序</li>
+<li>M7 graph 节点 save_memory 时应显式 <code>last_message_at = NOW()</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-7-缺-ingest_jobscompleted_at-auth_sessionsexpires_at_hard-">P1-7 · 缺 <code>ingest_jobs.completed_at</code> / <code>auth_sessions.expires_at_hard</code> / <code>auth_sessions.user_id</code> 索引</h3>
+<p><strong>位置</strong>：M1 §4 多张表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>4 表的 FK 列（<code>auth_sessions.user_id</code> / <code>chat_sessions.user_id</code> / <code>ingest_jobs.user_id</code>）都<strong>没显式索引</strong>——虽然 PG 不会自动给 FK 建索引</li>
+<li><code>ingest_jobs.status</code> 经常被 M4 worker 轮询（<code>WHERE status=&#x27;pending&#x27; ORDER BY created_at LIMIT 10</code>），缺 <code>(status, created_at)</code> 复合索引会全表扫</li>
+<li><code>auth_sessions.expires_at_hard</code> 被 M2 cleanup job 用来&quot;清理过期 token&quot;（<code>WHERE expires_at_hard &lt; NOW()</code>），缺索引会随表增大变慢</li>
+<li>M11 RAGAS 评测要&quot;最近 7 天 ingest 的成功率&quot;——<code>ingest_jobs.completed_at</code> 缺索引</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+# auth_sessions
+__table_args__ = (
+    Index(&quot;ix_auth_sessions_user_id&quot;, &quot;user_id&quot;),
+    Index(&quot;ix_auth_sessions_expires_at_hard&quot;, &quot;expires_at_hard&quot;),
+)
+
+# ingest_jobs
+__table_args__ = (
+    Index(&quot;ix_ingest_jobs_user_id_created_at&quot;, &quot;user_id&quot;, &quot;created_at&quot;),
+    Index(&quot;ix_ingest_jobs_status_created_at&quot;, &quot;status&quot;, &quot;created_at&quot;),
+    Index(&quot;ix_ingest_jobs_completed_at&quot;, &quot;completed_at&quot;),
+    UniqueConstraint(&quot;payload_hash&quot;, name=&quot;uq_ingest_jobs_payload_hash&quot;),
+)
+</code></pre>
+<p><strong>新发现</strong>（FK 自动索引这件事 PG 不会做，必须显式）。</p>
+<hr>
+<h3 id="p1-8-缺-appauthpassword_validatorpy-函数m2-必用m1-可定">P1-8 · 缺 <code>app/auth/password_validator.py</code> 函数（M2 必用，M1 可定）</h3>
+<p><strong>位置</strong>：M1 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §3.2 写&quot;POST /api/auth/register → 校验（用户名唯一、密码强度）&quot;</li>
+<li>M2 auth 业务逻辑要用&quot;密码强度校验&quot;函数，但 plan 整篇没规划</li>
+<li>M1 schema 阶段定 <code>app/auth/password_validator.py</code> 签名（含最小长度 / 字符类型 / 常见密码 blacklist hook），M2 只接业务</li>
+</ul>
+<p><strong>修改</strong>（Files 表追加 M1 新增）：</p>
+<pre><code class="language-">
+app/auth/__init__.py                # 包标识
+app/auth/password_validator.py      # validate_password(pw: str) -&gt; None  # raise ValueError
+tests/unit/test_password_validator.py  # 弱密码 / 强密码 / 边界值
+</code></pre>
+<p>实现草稿：</p>
+<pre><code class="language-python">
+# app/auth/password_validator.py
+import re
+
+MIN_LENGTH = 12
+MAX_LENGTH = 128
+COMMON_PASSWORDS = {&quot;password&quot;, &quot;12345678&quot;, &quot;qwerty&quot;, ...}  # 简化
+
+def validate_password(pw: str) -&gt; None:
+    if not (MIN_LENGTH &lt;= len(pw) &lt;= MAX_LENGTH):
+        raise ValueError(f&quot;Password length must be {MIN_LENGTH}-{MAX_LENGTH}&quot;)
+    if pw.lower() in COMMON_PASSWORDS:
+        raise ValueError(&quot;Password too common&quot;)
+    if not re.search(r&quot;[a-z]&quot;, pw) or not re.search(r&quot;[A-Z]&quot;, pw):
+        raise ValueError(&quot;Password must contain mixed case&quot;)
+    if not re.search(r&quot;\d&quot;, pw):
+        raise ValueError(&quot;Password must contain digit&quot;)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-9-缺-downgrade-实现要求alembic-默认要可回滚">P1-9 · 缺 <code>downgrade()</code> 实现要求（alembic 默认要可回滚）</h3>
+<p><strong>位置</strong>：M1 Task 4 GREEN 段 L294-296</p>
+<pre><code class="language-">
+# 生成初始迁移：cd apps/rag_v1 &amp;&amp; alembic revision --autogenerate -m &quot;initial_schema&quot;
+# 检查生成的 migration 确认 4 张表全部在 upgrade() 中
+# 手动补 CHECK / INDEX / FK 约束（autogenerate 可能遗漏）
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan 只说&quot;补 CHECK/INDEX/FK&quot;，没说 <code>downgrade()</code> 也要补</li>
+<li>alembic 1.13+ 默认要求 <code>downgrade()</code> 必须能跑（<code>alembic downgrade base</code> 要回到空 schema）</li>
+<li>初始 migration 不写 downgrade 等于关掉回滚能力——以后想 <code>alembic downgrade -1</code> 调试会卡住</li>
+</ul>
+<p><strong>修改</strong>：Task 4 GREEN 段补&quot;手写 <code>downgrade()</code> 删除 4 表 + drop enum（如有）+ drop index&quot;，并加 RED 测试 <code>test_migration_downgrade_works</code>（<code>alembic downgrade base</code> → 4 表全没了）。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-10-缺-enum-类型-vs-varcharcheck-的设计决策">P1-10 · 缺 enum 类型 vs VARCHAR+CHECK 的设计决策</h3>
+<p><strong>位置</strong>：M1 §4 ingest_jobs 表 L143-144</p>
+<pre><code class="language-">
+| `source` | `VARCHAR(16)` | NOT NULL, CHECK IN file/url/confluence | 数据源 |
+| `status` | `VARCHAR(16)` | NOT NULL, DEFAULT pending | pending/running/indexed/failed |
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §0 决策表（其他位置）暗示 &quot;status enum&quot; 概念（pending/running/indexed/failed 是状态机的离散状态）</li>
+<li>M1 plan 用 VARCHAR+CHECK——可以，但跟 PG 原生 <code>CREATE TYPE ... AS ENUM</code> 比：</li>
+<li>VARCHAR+CHECK：加新值只需 <code>ALTER TABLE ... DROP CONSTRAINT ... ADD CONSTRAINT ... CHECK (...)</code>，改 app 端 enum 同步</li>
+<li>PG ENUM：加新值需 <code>ALTER TYPE ... ADD VALUE &#x27;...&#x27;</code>（PG 9.6+ 还要 <code>IF NOT EXISTS</code> 兼容老 enum value）</li>
+<li>VARCHAR+CHECK 在 ORM 层更灵活</li>
+<li>plan <strong>没在风险表记录这个选择</strong>——M4-M6 worker 写代码时会有&quot;为什么不用 enum&quot;的疑问</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>风险表补一行：<code>enum 选择</code> | 风险：PG ENUM 加 value 不能在事务内 / VARCHAR+CHECK 改 CHECK 约束要锁表（M4 写入时短暂锁）| 缓解：V1 状态机简单（4 值）+ 数据量小，锁表 &lt; 100ms 可接受</li>
+<li>Tech Stack 表加一句&quot;不引入 sqlalchemy Enum 类型，用 String + CheckConstraint&quot;</li>
+</ul>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-11-缺-connection-pool-配置细节pool_size-10-max_overflow-20-依据">P1-11 · 缺 connection pool 配置细节（pool_size 10 / max_overflow 20 依据）</h3>
+<p><strong>位置</strong>：M1 Task 3 GREEN 段 L270 + 风险表 L386</p>
+<pre><code class="language-">
+engine = create_async_engine(settings.db.database_url, pool_size=..., max_overflow=..., echo=...)
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>风险表说&quot;pool_size=10 / max_overflow=20&quot;——<strong>没给依据</strong></li>
+<li>V1 单进程 / 单副本 fastapi + 1 ingest worker，10+20=30 连接是 PG 默认 <code>max_connections=100</code> 的 30%</li>
+<li>没依据的默认值会让 M8 API 流量上来后变瓶颈</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>风险表该行改：<code>依据：V1 单副本 30 连接，预留 70 给 Langfuse / LangGraph checkpointer / M11 RAGAS / 调试客户端</code> + 加 <code>pool_recycle=1800</code>（防 stale connection，30 分钟回收）+ <code>pool_pre_ping=True</code>（防连接被 PG 端断）</li>
+<li>Tech Stack 表补 <code>pool_recycle=1800</code> 字段</li>
+</ul>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-12-缺-asyncpg-pgbouncer-兼容配置prod-必踩">P1-12 · 缺 asyncpg + pgbouncer 兼容配置（prod 必踩）</h3>
+<p><strong>位置</strong>：M1 Task 3 GREEN 段 L270</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M12 hardening 几乎必加 pgbouncer（transaction pool 模式）</li>
+<li>asyncpg 在 transaction pool 模式下<strong>默认</strong>会缓存 prepared statement——pgbouncer 不支持 → 报错 <code>PreparedStatementError</code></li>
+<li>必须显式 <code>connect_args={&quot;statement_cache_size&quot;: 0, &quot;prepared_statement_cache_size&quot;: 0}</code></li>
+</ul>
+<p><strong>修改</strong>（env.py 或 session.py 显式注释）：</p>
+<pre><code class="language-python">
+engine = create_async_engine(
+    settings.db.database_url,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=1800,
+    pool_pre_ping=True,
+    connect_args={
+        &quot;statement_cache_size&quot;: 0,      # 兼容 pgbouncer transaction pool
+        &quot;prepared_statement_cache_size&quot;: 0,
+    },
+    echo=settings.db.echo,
+)
+</code></pre>
+<p>并在风险表补一行：<code>pgbouncer transaction pool 兼容</code> | 风险：asyncpg 默认 cache prepared statement 会报 <code>PreparedStatementError</code> | 缓解：<code>statement_cache_size=0</code> + M12 加 pgbouncer 后零改动</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-13-缺-db-migration-并发锁alembic-同时跑两个会冲突">P1-13 · 缺 DB migration 并发锁（alembic 同时跑两个会冲突）</h3>
+<p><strong>位置</strong>：M1 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>部署场景：CI 跑 <code>alembic upgrade head</code> + 容器启动时跑 <code>alembic upgrade head</code>——两进程同时改 schema 必冲突</li>
+<li>PG 自带 <code>pg_advisory_lock</code> 可在 env.py 里 <code>context.run_migrations()</code> 前 <code>SELECT pg_advisory_lock(alembic_lock_id)</code>，但 plan 没说</li>
+</ul>
+<p><strong>修改</strong>（env.py 补 advisory lock）：</p>
+<pre><code class="language-python">
+# alembic/env.py
+ALEMBIC_LOCK_ID = 0x5241475631  # &#x27;RAG_V1&#x27; hex
+
+def do_run_migrations(connection: Connection) -&gt; None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        # ... 其他参数
+    )
+    connection.exec_driver_sql(f&quot;SELECT pg_advisory_lock({ALEMBIC_LOCK_ID})&quot;)
+    try:
+        with context.begin_transaction():
+            context.run_migrations()
+    finally:
+        connection.exec_driver_sql(f&quot;SELECT pg_advisory_unlock({ALEMBIC_LOCK_ID})&quot;)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-14-缺-__table_args__-集中声明索引vs-在列里声明">P1-14 · 缺 <code>__table_args__</code> 集中声明索引（vs 在列里声明）</h3>
+<p><strong>位置</strong>：M1 §4 4 张表 L97-153</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>现有 DDL 表只写&quot;Indexes: <code>(user_id, updated_at DESC)</code>&quot; 是注释形式</li>
+<li>SQLAlchemy 2.0 推荐用 <code>__table_args__ = (Index(...), UniqueConstraint(...), CheckConstraint(...))</code> 集中声明</li>
+<li>列里用 <code>index=True</code> 散落 + <code>__table_args__</code> 混用，autogenerate 难预测</li>
+</ul>
+<p><strong>修改</strong>：plan §4 张表结构每表都加 <code>__table_args__</code> 块示意：</p>
+<pre><code class="language-python">
+class ChatSession(Base, TimestampMixin):
+    __tablename__ = &quot;chat_sessions&quot;
+    __table_args__ = (
+        Index(&quot;ix_chat_sessions_user_active_updated&quot;, &quot;user_id&quot;, &quot;is_active&quot;, &quot;updated_at&quot;),
+        Index(&quot;ix_chat_sessions_last_message_at&quot;, &quot;last_message_at&quot;),
+    )
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-15-缺-server-side-default-显式声明-vs-client-side">P1-15 · 缺 server-side default 显式声明 vs client-side</h3>
+<p><strong>位置</strong>：M1 §4 users 表 L107-108</p>
+<pre><code class="language-">
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | 创建时间 |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, auto-update | 更新时间 |
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>&quot;DEFAULT now()&quot; 语义模糊：可以是 client-side <code>default=datetime.now</code> 或 server-side <code>server_default=text(&quot;now()&quot;)</code></li>
+<li>M4 ingest worker 多进程同时写入，client-side <code>datetime.now()</code> 会<strong>不同时区漂移</strong></li>
+<li>必须显式 <code>server_default=func.now()</code> 让 PG 端统一时间</li>
+</ul>
+<p><strong>修改</strong>：plan GREEN 段统一：</p>
+<pre><code class="language-python">
+created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    server_default=func.now(),  # PG 端 now()，统一时区
+    nullable=False,
+)
+</code></pre>
+<p>并在注释里写&quot;全部时间字段用 TIMESTAMPTZ + server_default=func.now()，禁止 client-side default&quot;</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-16-缺-pytestini-的-toolpytestini_optionsx-2-待落地">P1-16 · 缺 <code>pytest.ini</code> 的 <code>[tool.pytest.ini_options]</code>（X-2 待落地）</h3>
+<p><strong>位置</strong>：M1 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>已有 review X-2 决议&quot;5 份 plan 同步更新 pytest.ini rootdir&quot;</li>
+<li>M1 plan 整篇<strong>没提到</strong> <code>pytest.ini</code> 或 <code>pyproject.toml</code> 的 pytest 配置</li>
+<li>没有 <code>asyncio_mode = &quot;auto&quot;</code>，单测 <code>async def test_xxx</code> 不会自动被 pytest-asyncio 识别</li>
+<li>M1 集成测试 <code>test_m1_schema_migration.py</code> 全是 async，没 <code>asyncio_mode = &quot;auto&quot;</code> 直接报错</li>
+</ul>
+<p><strong>修改</strong>（Task 6 旁补 Task 7）：</p>
+<pre><code class="language-toml">
+# pyproject.toml
+[tool.pytest.ini_options]
+asyncio_mode = &quot;auto&quot;
+testpaths = [&quot;tests&quot;]
+addopts = &quot;-v --tb=short --strict-markers&quot;
+markers = [
+    &quot;require_docker: marks tests as requiring docker compose up (deselect with &#x27;-m \&quot;not require_docker\&quot;&#x27;)&quot;,
+]
+</code></pre>
+<p><strong>已有 review</strong>：P2-1 / X-2 已列。</p>
+<hr>
+<h3 id="p1-17-缺-appconfigpy-全局单例约定x-3-待落地">P1-17 · 缺 <code>app/config.py</code> 全局单例约定（X-3 待落地）</h3>
+<p><strong>位置</strong>：M1 Task 1 GREEN 段 L236-238</p>
+<pre><code class="language-python">
+class DBSettings(BaseSettings): ...
+Settings 聚合 db: DBSettings = DBSettings()
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>已有 review X-3 决议&quot;<code>app/config.py</code> 末尾 <code>settings = Settings()</code> 暴露全局单例&quot;</li>
+<li>M1 Task 1 没落实这行</li>
+<li>M1 集成测试 <code>test_m1_schema_migration.py</code> 用 <code>subprocess alembic upgrade head</code>——alembic 进程<strong>重新 import</strong> <code>app.config</code>，不会复用 FastAPI 进程的单例</li>
+<li>解决：env.py 也 <code>from app.config import settings</code> + <code>config.set_main_option(&quot;sqlalchemy.url&quot;, settings.db.database_url)</code>（P0-1 修法已含）</li>
+</ul>
+<p><strong>修改</strong>：Task 1 GREEN 段末尾补：</p>
+<pre><code class="language-python">
+# app/config.py 文件末尾
+settings = Settings()  # 全局单例
+</code></pre>
+<p><strong>已有 review</strong>：X-3 / M0 review P1-9 已列。</p>
+<hr>
+<h3 id="p1-18-缺-postgresql_concurrentlytrue-选项生产加索引">P1-18 · 缺 <code>postgresql_concurrently=True</code> 选项（生产加索引）</h3>
+<p><strong>位置</strong>：M1 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>op.create_index(...)</code> 默认<strong>非 concurrently</strong>——会锁表</li>
+<li>4 表的索引创建在 dev 环境（空表）瞬间完成，但生产环境 users 表 1M+ rows 时会锁几分钟</li>
+<li>M12 hardening 切 prod 前必改</li>
+</ul>
+<p><strong>修改</strong>（env.py 显式声明 + migration 文件用 op.create_index(..., postgresql_concurrently=True)）：</p>
+<pre><code class="language-python">
+def do_run_migrations(connection: Connection) -&gt; None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=False,  # PG 用 False，SQLite 才用 True
+    )
+</code></pre>
+<p>并在 migration 0001 里所有 <code>op.create_index</code> 改 <code>postgresql_concurrently=True</code>。</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-19-缺-usersusername-citext-大小写处理决策">P1-19 · 缺 <code>users.username</code> citext / 大小写处理决策</h3>
+<p><strong>位置</strong>：M1 §4 users 表 L102</p>
+<pre><code class="language-">
+| `username` | `VARCHAR(64)` | UNIQUE, NOT NULL | 用户名 |
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>VARCHAR(64)</code> 默认大小写敏感——<code>Alice</code> 和 <code>alice</code> 视为不同</li>
+<li>实际 UX 通常希望&quot;大小写不敏感唯一&quot;</li>
+<li>方案 A：装 <code>citext</code> 扩展，列改 <code>CITEXT</code></li>
+<li>方案 B：存时统一 <code>username.lower()</code>，unique 索引</li>
+<li>方案 C：保持现状，UX 警告</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>风险表补：<code>username 大小写</code> | 风险：Alice/alice 双注册 | 缓解：M2 业务层 <code>username = username.lower().strip()</code>，UNIQUE 索引实际是 case-insensitive</li>
+<li>或：装 citext 扩展 + M0 init.sql 补 <code>CREATE EXTENSION IF NOT EXISTS citext;</code></li>
+</ul>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-缺-appconfigs-拆分决策x-1-待落地">P2-1 · 缺 <code>app/configs/</code> 拆分决策（X-1 待落地）</h3>
+<p><strong>位置</strong>：M1 Files 表 + 修订记录</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>已有 review X-1 决议&quot;M0 直接拆 <code>app/configs/</code> 子目录&quot;</li>
+<li>M1 跟着在 M0 拆好后只追加 <code>db.py</code> 文件即可</li>
+<li>M1 plan 当前描述的是&quot;M0 已有 app/config.py，M1 追加 DBSettings&quot;——<strong>没意识到 X-1 落地后会变成子目录</strong></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>Files 表&quot;修改&quot;段改：<code>app/configs/db.py</code>（新建子目录文件）</li>
+<li>跨 M 协调段加&quot;等待 X-1 决议后再定&quot;</li>
+</ul>
+<p><strong>已有 review</strong>：X-1 已列。</p>
+<hr>
+<h3 id="p2-2-缺-m1-plan-头部范本目的段">P2-2 · 缺 M1 plan 头部&quot;范本目的&quot;段</h3>
+<p><strong>位置</strong>：M1 plan L1-7</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M3 范本 L8 有&quot;<code>&gt; 范本目的：给 M0/M1/M2/M4–M12 提供&quot;单里程碑&quot;计划的结构样板</code>&quot;</li>
+<li>M1 plan 头部<strong>没</strong>这行</li>
+<li>M0 review P2-2 提了 M0 缺，M1 同样缺</li>
+</ul>
+<p><strong>修改</strong>：M1 plan L1-7 末尾加：</p>
+<pre><code class="language-">
+&gt; 范本目的：M1 是 RAG V1 路线第二个 plan，给 M2/M4-M12 提供&quot;数据层&quot;前置定义
+</code></pre>
+<p><strong>新发现</strong>（M0 review P2-2 已类比）。</p>
+<hr>
+<h3 id="p2-3-缺-envexample-完整内容m1-范围">P2-3 · 缺 <code>.env.example</code> 完整内容（M1 范围）</h3>
+<p><strong>位置</strong>：M1 Task 6 GREEN 段 L339</p>
+<pre><code class="language-">
+.env.example 追加 DATABASE_URL=postgresql+asyncpg://rag_app:rag_app_password@postgres:5432/rag
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>只追加 1 行，<strong>没说</strong>前面 M0 加的 <code>POSTGRES_PASSWORD</code> 等是否要在 .env.example 显式声明</li>
+<li>新人 copy <code>.env.example</code> → <code>.env</code> 时，<code>rag_app_password</code> 与 init.sql 不一致会连不上</li>
+<li>缺 1 行注释：<code># 此处密码必须与 infra/init.sql 的 POSTGRES_PASSWORD 一致</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-">
+# DB
+DATABASE_URL=postgresql+asyncpg://rag_app:rag_app_password@postgres:5432/rag
+# 注意：rag_app / rag_app_password 必须与 infra/init.sql 的 POSTGRES_USER / POSTGRES_PASSWORD 一致
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-4-缺-usersfailed_login_attempts-locked_until-字段m2-防爆破用">P2-4 · 缺 <code>users.failed_login_attempts</code> / <code>locked_until</code> 字段（M2 防爆破用）</h3>
+<p><strong>位置</strong>：M1 §4 users 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M2 auth 业务做&quot;连续 5 次密码错锁 15 分钟&quot;是基本防爆破</li>
+<li>字段在 M2 加要做 migration；M1 加零成本</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-5-缺-ingest_jobsretry_count-next_retry_at-字段m4-m6-重试用">P2-5 · 缺 <code>ingest_jobs.retry_count</code> / <code>next_retry_at</code> 字段（M4-M6 重试用）</h3>
+<p><strong>位置</strong>：M1 §4 ingest_jobs 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M4 ingest pipeline TEI/Confluence 失败要重试（spec §5 错误矩阵：TEI 指数退避 3 次，Confluence 429 token bucket）</li>
+<li>没 retry_count 字段，每次重试要新建 ingest_job 记录——表会爆</li>
+<li>M2 实施时建议先预留</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+max_retries: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-6-缺-auth_sessionsip_address-user_agent-字段m2-异常登录告警用">P2-6 · 缺 <code>auth_sessions.ip_address</code> / <code>user_agent</code> 字段（M2 异常登录告警用）</h3>
+<p><strong>位置</strong>：M1 §4 auth_sessions 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M12 hardening 异常登录告警要&quot;陌生 IP 登录&quot;——没存 ip 就没法分析</li>
+<li>M1 加零成本，nullable</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)  # PG 原生 INET
+user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-7-缺-chat_sessionsmetadata-jsonb-字段m7-graph-节点扩展用">P2-7 · 缺 <code>chat_sessions.metadata</code> JSONB 字段（M7 graph 节点扩展用）</h3>
+<p><strong>位置</strong>：M1 §4 chat_sessions 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M7 graph node 想存&quot;会话配置 / model preference / 提示词版本&quot;等元数据</li>
+<li>没 metadata 字段就要么新加表，要么塞 title 里——都不优雅</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+session_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=dict)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-8-缺-4-表的-idempotency_key-通用字段api-重试用">P2-8 · 缺 4 表的 <code>idempotency_key</code> 通用字段（API 重试用）</h3>
+<p><strong>位置</strong>：M1 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 API 客户端重试会&quot;重复创建 chat_session&quot; / &quot;重复创建 ingest_job&quot;</li>
+<li>当前靠 payload_hash 兜 ingest_job，chat_session 没幂等键</li>
+<li>通用做法：每表加 <code>idempotency_key VARCHAR(64) UNIQUE NULL</code> 字段</li>
+</ul>
+<p><strong>修改</strong>（4 表都加）：</p>
+<pre><code class="language-python">
+idempotency_key: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+</code></pre>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-9-timestampmixin-没继承-mappedasdataclass-简化-boilerplate">P2-9 · <code>TimestampMixin</code> 没继承 <code>MappedAsDataclass</code> 简化 boilerplate</h3>
+<p><strong>位置</strong>：M1 Task 2 GREEN 段 L248</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>SQLAlchemy 2.0 支持 <code>class User(Base, TimestampMixin, MappedAsDataclass)</code> 自动生成 <code>__init__</code></li>
+<li>4 个 ORM 类 boilerplate 减半</li>
+</ul>
+<p><strong>修改</strong>：plan 推荐 <code>MappedAsDataclass</code> 模式</p>
+<p><strong>新发现</strong>。</p>
+<hr>
+<h2 id="与已有-review-交叉验证">与已有 review 交叉验证</h2>
+<table>
+<tr><th>ID</th><th>已有 review 项</th><th>M1 plan 是否已改</th><th>本报告</th></tr>
+<tr><td>----</td><td>--------------</td><td>--------------</td><td>-------</td></tr>
+<tr><td>P0-4</td><td>alembic.ini <code>%(VAR)s</code> 占位符语法错</td><td>❌ 未改</td><td>P0-1</td></tr>
+<tr><td>P0-5</td><td>sqlite 测 JSONB 等 PG-only 类型</td><td>❌ 未改</td><td>P0-2</td></tr>
+<tr><td>P0-6</td><td>aiosqlite 缺依赖</td><td>❌ 未改</td><td>P0-3</td></tr>
+<tr><td>P0-7</td><td>test_migration_has_all_tables 脆</td><td>❌ 未改</td><td>P0-4（+ 新发现命名规范不一致）</td></tr>
+<tr><td>P1-4</td><td>TimestampMixin.updated_at onupdate 限制</td><td>❌ 未改</td><td>P0-7</td></tr>
+<tr><td>P1-5</td><td>ingest_jobs.payload_hash 缺 UNIQUE</td><td>❌ 未改</td><td>P1-1</td></tr>
+<tr><td>P1-6</td><td>chat_sessions 缺复合索引</td><td>❌ 未改</td><td>P1-2</td></tr>
+<tr><td>P2-7</td><td>app/db/__init__.py 暴露不一致</td><td>❌ 未改</td><td>P0-5</td></tr>
+<tr><td>X-1</td><td>app/config.py 拆分</td><td>❌ 未改</td><td>P2-1</td></tr>
+<tr><td>X-2</td><td>pytest.ini rootdir</td><td>❌ 未改</td><td>P1-16</td></tr>
+<tr><td>X-3</td><td>settings 全局单例</td><td>❌ 未改</td><td>P1-17</td></tr>
+<tr><td>M0 P1-9</td><td>config.py 末尾 settings = Settings() 单例</td><td>❌ 未改</td><td>P1-17</td></tr>
+</table>
+<p><strong>结论</strong>：M1 范围内已有 review 列出的 12 项，<strong>全部 ❌ 未改</strong>。plan 作者需在动手前批量更新。</p>
+<hr>
+<h2 id="你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</h2>
+<p class="warn">合计 <strong>15 个新问题</strong>：</p>
+<ol>
+<li><strong>P0-4 后半段</strong> · alembic 默认 hex revision id 与 plan 写 <code>0001_</code> 前缀不一致</li>
+<li><strong>P0-6</strong> · alembic env.py 缺 <code>run_async_migrations()</code> 完整模板</li>
+<li><strong>P1-3</strong> · 4 表缺 <code>created_by</code> / <code>updated_by</code> 审计字段（V2 多租户必加）</li>
+<li><strong>P1-4</strong> · users 缺 <code>email</code> + <code>email_verified_at</code>（M12 密码重置必加）</li>
+<li><strong>P1-5</strong> · users 缺 <code>deleted_at</code> 软删除字段（与 <code>is_active</code> 语义不同）</li>
+<li><strong>P1-6</strong> · chat_sessions 缺 <code>last_message_at</code>（M8 API 排序用）</li>
+<li><strong>P1-7</strong> · FK 列 + 查询列缺索引（PG 不会自动给 FK 建索引）</li>
+<li><strong>P1-8</strong> · 缺 <code>app/auth/password_validator.py</code> 函数（M2 必用）</li>
+<li><strong>P1-9</strong> · 缺 <code>downgrade()</code> 实现要求</li>
+<li><strong>P1-10</strong> · 缺 enum vs VARCHAR+CHECK 的设计决策记录</li>
+<li><strong>P1-11</strong> · 缺 connection pool recycle + pre_ping（防 stale connection）</li>
+<li><strong>P1-12</strong> · 缺 asyncpg + pgbouncer 兼容配置（statement_cache_size=0）</li>
+<li><strong>P1-13</strong> · 缺 DB migration 并发锁（pg_advisory_lock）</li>
+<li><strong>P1-14</strong> · 缺 <code>__table_args__</code> 集中声明索引</li>
+<li><strong>P1-15</strong> · 缺 server-side default 显式声明（vs client-side timezone 漂移）</li>
+<li><strong>P1-18</strong> · 缺 <code>postgresql_concurrently=True</code> 选项（生产加索引）</li>
+<li><strong>P1-19</strong> · 缺 <code>users.username</code> citext / 大小写处理决策</li>
+<li><strong>P2-2</strong> · 缺 M1 plan 头部&quot;范本目的&quot;段</li>
+<li><strong>P2-3</strong> · 缺 <code>.env.example</code> 完整内容 + 密码一致性注释</li>
+<li><strong>P2-4</strong> · 缺 <code>users.failed_login_attempts</code> / <code>locked_until</code>（M2 防爆破）</li>
+<li><strong>P2-5</strong> · 缺 <code>ingest_jobs.retry_count</code> / <code>next_retry_at</code>（M4-M6 重试）</li>
+<li><strong>P2-6</strong> · 缺 <code>auth_sessions.ip_address</code> / <code>user_agent</code>（M12 异常登录告警）</li>
+<li><strong>P2-7</strong> · 缺 <code>chat_sessions.metadata</code> JSONB（M7 graph 扩展）</li>
+<li><strong>P2-8</strong> · 缺 4 表的 <code>idempotency_key</code> 字段（API 重试幂等）</li>
+<li><strong>P2-9</strong> · 缺 <code>MappedAsDataclass</code> boilerplate 简化</li>
+</ol>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<p>按 P0 → P1 → P2 优先级：</p>
+<h3 id="第一波本轮必改7-项-p0">第一波（本轮必改，7 项 P0）</h3>
+<ol>
+<li>P0-1 alembic.ini 留空 + env.py 注入</li>
+<li>P0-2 删 sqlite 单测，走 testcontainers</li>
+<li>P0-3 dev 依赖加 <code>pytest-postgresql</code> + <code>testcontainers[postgresql]</code></li>
+<li>P0-4 删 <code>test_migration_has_all_tables</code> + 改 file_template 让 revision id 可控</li>
+<li>P0-5 统一 <code>__init__.py</code> 暴露 <code>engine</code> / <code>async_session</code> / <code>async_session_factory</code> / <code>get_session</code> / <code>AsyncSession</code></li>
+<li>P0-6 env.py 给完整 <code>run_async_migrations</code> 模板</li>
+<li>P0-7 TimestampMixin docstring 显式写 onupdate 限制 + M4 bulk update caveat</li>
+</ol>
+<h3 id="第二波重要19-项-p1">第二波（重要，19 项 P1）</h3>
+<ol>
+<li>P1-1 ingest_jobs.payload_hash 加 UNIQUE</li>
+<li>P1-2 chat_sessions 索引加 is_active</li>
+<li>P1-3 4 表加 created_by / updated_by</li>
+<li>P1-4 users 加 email</li>
+<li>P1-5 users 加 deleted_at + partial unique index</li>
+<li>P1-6 chat_sessions 加 last_message_at</li>
+<li>P1-7 FK 列 + 状态/时间列全加索引</li>
+<li>P1-8 app/auth/password_validator.py + 单元测试</li>
+<li>P1-9 显式写 downgrade() + RED 测试</li>
+<li>P1-10 风险表补 enum vs VARCHAR+CHECK 选择</li>
+<li>P1-11 pool_recycle=1800 + pool_pre_ping=True</li>
+<li>P1-12 connect_args statement_cache_size=0</li>
+<li>P1-13 env.py 加 pg_advisory_lock</li>
+<li>P1-14 __table_args__ 集中声明索引</li>
+<li>P1-15 server_default=func.now() 统一</li>
+<li>P1-16 pyproject.toml 加 [tool.pytest.ini_options]</li>
+<li>P1-17 app/config.py 末尾 <code>settings = Settings()</code> 单例</li>
+<li>P1-18 op.create_index postgresql_concurrently=True</li>
+<li>P1-19 users.username citext 决策（选 M2 业务 lower() 方案）</li>
+</ol>
+<h3 id="第三波优化9-项-p2">第三波（优化，9 项 P2）</h3>
+<p>27-35. P2-1 ~ P2-9</p>
+<h3 id="跨-m-协调m1-改完后通知">跨 M 协调（M1 改完后通知）</h3>
+<ul>
+<li>通知 M2：users 表已有 <code>email</code> / <code>deleted_at</code> / <code>failed_login_attempts</code> / <code>locked_until</code> 字段；<code>app/auth/password_validator.py</code> 已存在</li>
+<li>通知 M4：ingest_jobs 表已有 <code>retry_count</code> / <code>next_retry_at</code> / <code>metadata</code> / <code>idempotency_key</code>；bulk update 时显式传 <code>updated_at=func.now()</code></li>
+<li>通知 M7：chat_sessions 表已有 <code>last_message_at</code> / <code>metadata</code> JSONB 字段</li>
+<li>通知 M8：chat_sessions 索引已是 <code>(user_id, is_active, updated_at DESC)</code> + <code>last_message_at</code></li>
+<li>通知 M12：auth_sessions 表已有 <code>ip_address</code> / <code>user_agent</code>；prod 部署时 connection_args 已含 <code>statement_cache_size=0</code> 兼容 pgbouncer</li>
+</ul>
+<h3 id="估时修正">估时修正</h3>
+<ul>
+<li>M1 整体估时从 <strong>3d → 5d</strong>（P0 修补 1d + P1 实施 1d + 集成测试 1d + buffer 1d）</li>
+</ul>
+<h3 id="等待决策">等待决策</h3>
+<ul>
+<li>X-1 <code>app/config.py</code> 拆分 <code>configs/</code> 子目录是否在 M1 阶段就动手（推荐是，alembic env.py 引用 <code>app.configs.db</code> 比 <code>app.config.db</code> 更清晰）</li>
+<li>P1-10 enum vs VARCHAR+CHECK 是否要在 M1 阶段换 enum（推荐不换，autogenerate 对 enum 支持不完善）</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>不可动手</strong>：P0-1 ~ P0-7 共 7 项必改</li>
+<li><strong>建议本轮改</strong>：P1-1 ~ P1-19 共 19 项</li>
+<li><strong>可下轮改</strong>：P2-1 ~ P2-9 共 9 项</li>
+<li><strong>新问题合计</strong>：25 个（已有 review 未列），覆盖 DDL 字段、索引、alembic 工程化、连接池配置、跨 M 协调</li>
+<li><strong>已有 review 验证</strong>：M1 范围内 12 项，全部 ❌ 未改</li>
+</ul>
+<p>M1 plan <strong>结构齐、DDL 主体对，但 alembic 工程化与生产化考虑严重不足，schema 层就缺了 M2/M4/M7/M8/M12 多个后续 M 必用字段</strong>。修完 P0 + P1 前 7 项可动手，后 12 项 P1 强烈建议同轮修完以避免 schema migration 回滚成本。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

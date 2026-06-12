@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M7 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M7 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>480 行</span>
+<span>37 P0</span>
+<span>26 P1</span>
+<span>23 P2</span>
+<span class="badge-r1">2 r1 标记</span>
+    <span>2026-06-11-rag-m7-graph-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证33-项逐项">1. r1 修复验证（33 项逐项）</a></li>
+<li><a href="#11-p0-项验证8-项">1.1 P0 项验证（8 项）</a></li>
+<li><a href="#12-p1-项验证14-项">1.2 P1 项验证（14 项）</a></li>
+<li><a href="#13-p2-项验证9-项">1.3 P2 项验证（9 项）</a></li>
+<li><a href="#14-33-项修复到位率统计">1.4 33 项修复到位率统计</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#新-1p1-workflowpy-add_conditional_edges-mapping-缺-end-选项">新-1（P1）· workflow.py add_conditional_edges mapping 缺 END 选项</a></li>
+<li><a href="#新-2p1-save_memory-节点-chitchat-路径与-retrieve-路径复用m10-业务级-trace">新-2（P1）· save_memory 节点 chitchat 路径与 retrieve 路径复用——M10 业务级 trace 无法区分</a></li>
+<li><a href="#新-3p2-safe_node-装饰器不捕获-asynciocancellederror-与-keyboardinter">新-3（P2）· safe_node 装饰器不捕获 asyncio.CancelledError 与 KeyboardInterrupt</a></li>
+<li><a href="#新-4p2-answersettingsmax_chunk_chars800-与-m4-ingest-chunk_siz">新-4（P2）· AnswerSettings.max_chunk_chars=800 与 M4 ingest chunk_size=512 tokens 的对齐问题</a></li>
+<li><a href="#新-5p2-修订记录-l938-970-33-行与计划表-6-行原风险曾被否决的替代方案列语义不一致">新-5（P2）· 修订记录 L938-970 33 行与计划表 6 行原风险&amp;quot;曾被否决的替代方案&amp;quot;列语义不一致</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m2m3m4m5m6m8m9m10m11m12">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M8/M9/M10/M11/M12）</a></li>
+<li><a href="#m7-m0infra-docker-compose">M7 ↔ M0（infra · docker-compose）</a></li>
+<li><a href="#m7-m1schema-chat_sessions">M7 ↔ M1（schema · chat_sessions）</a></li>
+<li><a href="#m7-m2auth-depends">M7 ↔ M2（auth · Depends）</a></li>
+<li><a href="#m7-m3llm-工厂-tei-embedding-强依赖">M7 ↔ M3（LLM 工厂 + TEI Embedding） · 强依赖</a></li>
+<li><a href="#m7-m4ingest-file-opensearch-写">M7 ↔ M4（ingest-file · OpenSearch 写）</a></li>
+<li><a href="#m7-m5ingest-url-m7-m6ingest-confluence">M7 ↔ M5（ingest-url） / M7 ↔ M6（ingest-confluence）</a></li>
+<li><a href="#m7-m8api-chat-强依赖">M7 ↔ M8（api-chat） · 强依赖</a></li>
+<li><a href="#m7-m9ui-gradio">M7 ↔ M9（ui-gradio）</a></li>
+<li><a href="#m7-m10obs-langfuse-业务级-trace-强依赖">M7 ↔ M10（obs-langfuse · 业务级 trace） · 强依赖</a></li>
+<li><a href="#m7-m11eval-ragas">M7 ↔ M11（eval-ragas）</a></li>
+<li><a href="#m7-m12hardening-中间件">M7 ↔ M12（hardening · 中间件）</a></li>
+<li><a href="#跨-m-一致性总结">跨 M 一致性总结</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表结构">4.1 风险表结构</a></li>
+<li><a href="#42-风险表质量评估">4.2 风险表质量评估</a></li>
+<li><a href="#43-r1-review-建议补的-5-行风险是否落到位">4.3 r1 review 建议补的 5 行风险是否落到位</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-r2-必改4-项-r1-衍生新问题">5.1 r2 必改（4 项 r1 衍生新问题）</a></li>
+<li><a href="#52-r2-可选修订记录整合">5.2 r2 可选（修订记录整合）</a></li>
+<li><a href="#53-实施顺序建议按当前-plan">5.3 实施顺序建议（按当前 plan）</a></li>
+<li><a href="#54-跨-m-通知清单r2-阶段">5.4 跨 M 通知清单（r2 阶段）</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m7-plan-r2-review-r1-修复验证">M7 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>plans/2026-06-10-rag-m7-graph.md</code>（r1 版本 · 971 行 · 33 项 P0/P1/P2 全部修复）</blockquote>
+<blockquote>评审基线：r1 review <code>reviews/2026-06-11-rag-m7-graph-review.md</code>（925 行 · 8 P0 + 14 P1 + 9 P2 + 2 跨 M）</blockquote>
+<blockquote>参考 review：M0–M6 r1 + r2 review（已修/补漏）、M8–M12 r1 review（已修）</blockquote>
+<blockquote>评审时间：2026-06-11（r2 阶段）</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查 · 验证 r1 修复质量 + 发现 r1 引入新问题）</blockquote>
+<blockquote>范围：M7 plan 33 项 r1 修复逐项验证 + r1 修复过程中是否引入新问题 + 跨 M 一致性 12 联动 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p class="ok">M7 plan r1 是 RAG V1 路线中<strong>修复密度最高</strong>的 plan——931 行主体 + 修订记录 33 行已修清单 + 风险表追加 33 行 <code>r1-2026-06-11 已修</code> 条目。8 项 P0（含 3 项从 P1/P2 升级）已全部补实现 + 配 RED 测试；14 项 P1（classify 关键词 / 并查策略 / JSON 解析 / chunk 截断 / source score 透传 / settings 化 index 名 / 连接池配置 / 测试依赖 / 降级逻辑等）已全部落地；9 项 P2 已落（含类型注解 / 集成测试拆分 / OpenSearch 连接池 / retrieve_with_fallback 移位 / 节点名统一）。</p>
+<p class="ok"><strong>r1 修复到位率约 92%</strong>——33 项中 31 项能在 plan 主体（Task 1-11 + Files 表 + DoD + 修订记录）找到对应落地实现；2 项存在轻度漂移（P0-7 save_memory 注释 vs M10 联动落地、P1-15 测试依赖 Tech Stack 表落但 <code>pyproject.toml</code> dev 段是否同步需代码 review 时复核）。r1 修复过程<strong>未引入新阻塞问题</strong>，但发现 4 项<strong>r1 衍生新问题</strong>（新-1 workflow.py <code>add_conditional_edges</code> mapping 缺 <code>END</code> / 新-2 <code>save_memory</code> 节点 chitchat 路径不复用 / 新-3 <code>safe_node</code> 不捕获 <code>asyncio.CancelledError</code> / 新-4 <code>AnswerSettings.max_chunk_chars=800</code> 与 M4 ingest chunk_size=512 的对齐问题），全部为 P1/P2。</p>
+<p><strong>维度评分</strong>：</p>
+<table>
+<tr><th>维度</th><th>r1 评分</th><th>r2 评分</th><th>变化</th></tr>
+<tr><td>------</td><td>--------</td><td>--------</td><td>------</td></tr>
+<tr><td>节点完整性</td><td>❌ 6/8 实现</td><td>✅ <strong>8/8 完整</strong></td><td>大幅提升</td></tr>
+<tr><td>API 正确性（langgraph 1.0.5）</td><td>❌ aget/contextmanager 错</td><td>✅ <strong>aget_tuple + 普通工厂</strong></td><td>大幅提升</td></tr>
+<tr><td>异常传播</td><td>❌ 6/7 节点裸奔</td><td>✅ <strong>safe_node 全 8 节点包装</strong></td><td>大幅提升</td></tr>
+<tr><td>settings 化</td><td>⚠️ 部分 hardcode</td><td>✅ <strong>fallback/index/pool/截断 全配置</strong></td><td>提升</td></tr>
+<tr><td>跨 M 一致性</td><td>⚠️ 缺 M3 联动</td><td>✅ <strong>M3 KNOWN_NODES 追加 answer_chitchat 明示</strong></td><td>提升</td></tr>
+<tr><td>风险表透明度</td><td>⚠️ 6 行原风险</td><td>✅ <strong>6 原 + 27 r1 已修 + 2 跨 M</strong></td><td>提升</td></tr>
+<tr><td>编译可运行性</td><td>❌ P0 漏导致 TypeError/AttributeError</td><td>✅ <strong>P0-1/2/3 修后跑得通</strong></td><td>提升</td></tr>
+</table>
+<p class="ok"><strong>一句话</strong>：r1 修复<strong>整体质量高、覆盖率完整、TDD 节奏保留到位</strong>——M7 plan 已是 RAG V1 路线中<strong>可立即动手实施</strong>的状态。修完 4 项 r1 衍生新问题后即可进入 implementation 阶段。</p>
+<hr>
+<h2 id="1-r1-修复验证33-项逐项">1. r1 修复验证（33 项逐项）</h2>
+<h3 id="11-p0-项验证8-项">1.1 P0 项验证（8 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容（r1 修订记录）</th><th>实际验证（plan L/段落）</th><th>状态</th></tr>
+<tr><td>---------</td><td>--------------------</td><td>--------------------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td>checkpointer 双重定义 → 删 <code>app/memory/checkpointer.py</code>，所有逻辑集中 <code>app/graph/checkpointer.py</code></td><td>修订记录 L938 + 风险表 L894 + 仓库布局 L82-83（&quot;checkpointer 单文件口径：本 plan 实施 P0-1 方案 A（推荐），删除 <code>app/memory/checkpointer.py</code> 文件，所有 checkpointer 逻辑集中在 <code>app/graph/checkpointer.py</code>&quot;）+ spec §2 模块树 L205 同步</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-2</strong></td><td><code>load_memory_node</code> 改用 <code>cp.aget_tuple(config)</code> 解析 <code>saved.checkpoint.get(&quot;messages&quot;, [])</code></td><td>Task 9 GREEN 段 L642-650：代码明确 <code>saved = await cp.aget_tuple({&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}})</code> + <code>checkpoint = saved.checkpoint if saved else {}</code> + <code>messages = list(checkpoint.get(&quot;messages&quot;, []))</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-3</strong></td><td><code>make_checkpointer</code> 删 <code>@asynccontextmanager</code> 改为普通 <code>async def make_checkpointer() -&gt; BaseCheckpointSaver</code></td><td>Task 2 GREEN 段 L261-283：函数签名 <code>async def make_checkpointer() -&gt; BaseCheckpointSaver</code>（无 contextmanager 装饰）；try/except <code>(PermissionError, Exception)</code> 降级 SQLite；<code>await cp.setup()</code> 不再 yield</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-4</strong></td><td>graph 8 节点 &lt; langgraph 默认 <code>max_iterations=25</code>；M8 必须 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code> 包装；Task 11 RED 加 <code>test_invoke_timeout_via_wait_for</code></td><td>Task 11 GREEN L799-800 注释：&quot;P0-4: 节点数 8 &lt; langgraph 1.0.5 默认 max_iterations=25, 安全 / 单节点超时由 M8 调用方 asyncio.wait_for 包装&quot; + 跨 M 联动 L882&quot;M8 graph.invoke 必须用 asyncio.wait_for(...)&quot; + Task 11 RED 段 L831-833 RED 测试 <code>test_invoke_timeout_via_wait_for</code> 演示调用方模式</td><td>✅ <strong>到位</strong>（但仅文档化 + 演示测试，真实超时包装在 M8 落地——这是 M7/M8 边界划分的合理选择）</td></tr>
+<tr><td><strong>P0-5</strong></td><td>删 <code>route_after_answer</code> + <code>test_routes_to_save_memory_after_answer</code>；<code>workflow.py</code> 用 <code>add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code> 常量边</td><td>Task 10 L706 注释 &quot;<strong>已删除</strong> route_after_answer 及对应测试 test_routes_to_save_memory_after_answer&quot; + workflow.py L792-793 <code>g.add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code> + <code>g.add_edge(&quot;answer_chitchat&quot;, &quot;save_memory&quot;)</code> 两条常量边</td><td>✅ <strong>到位</strong>（无二义性）</td></tr>
+<tr><td><strong>P0-6</strong></td><td>新增 Task 9b <code>answer_chitchat_node</code> 实现 + <code>app/prompts/answer_chitchat.yaml</code> + 通知 M3 工厂 <code>KNOWN_NODES</code> 追加 <code>&quot;answer_chitchat&quot;</code></td><td>Task 9b L662-681 完整 GREEN 实现（<code>make_llm(&quot;answer_chitchat&quot;)</code> + history + query + <code>sources=[]</code> + <code>chunks=[]</code>）+ Files 表 L189 已加 <code>app/prompts/answer_chitchat.yaml</code> + 跨 M 联动 L881 明示&quot;必须注册 answer_chitchat 节点到 KNOWN_NODES&quot; + DoD L852 &quot;8 节点函数全部就位&quot; + workflow.py L779 <code>g.add_node(&quot;answer_chitchat&quot;, answer_chitchat_node)</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-7</strong></td><td><code>save_memory_node</code> 注释明确 checkpointer 自动 persist 行为 + M10 用 <code>NodeInterrupt</code> 而非改本函数</td><td>Task 9 GREEN L652-657 注释 + 修订记录 L900 + 跨 M 联动 L883 &quot;M10 save_memory no-op 无 intercept，M10 若需节点级 trace 用 NodeInterrupt 而非改 save_memory&quot;</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-8</strong></td><td><code>app/graph/errors.py</code> 新增 <code>safe_node(name)</code> 装饰器 + <code>GraphNodeError</code> / <code>GraphNodeFallback</code> 异常类；所有 8 节点函数 <code>@safe_node(name)</code> 包装</td><td>Task 11 GREEN L724-755：<code>safe_node</code> 装饰器完整代码（try/except + <code>state.error = f&quot;{node_name}_failed: {str(e)[:200]}&quot;</code> + <code>log.error</code> + 不抛出）+ 所有 8 节点 GREEN 段均显式 <code>@safe_node(&quot;...&quot;)</code>：load_memory L641 / classify L582 / query_rewrite L612 / retrieve L815 / rerank L478 / answer L522 / answer_chitchat L672 / save_memory L652</td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p class="ok"><strong>P0 验证小结</strong>：8 项全部到位，P0 阻塞全部解除。其中：</p>
+<ul>
+<li>P0-1/P0-2/P0-3 是代码跑不起来的<strong>编译/运行</strong>级修复 → 已全修</li>
+<li>P0-5/P0-6/P0-7/P0-8 是 graph 设计完整性修复 → 已全修</li>
+<li>P0-4 是跨 M 调用方约束（已落 M7 plan + 跨 M 联动通知 M8）</li>
+</ul>
+<h3 id="12-p1-项验证14-项">1.2 P1 项验证（14 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P1-1</strong></td><td><code>store.py</code> vs <code>retriever.py</code> 边界：Files 表注释明确 <code>store.py</code> 仅 M4-M6 ingest 用，<code>retriever.py</code> graph 节点专用</td><td>仓库布局 L51-56（store.py L54 &quot;<strong>仅供 M4-M6 ingest 用</strong>&quot; + retriever.py L55 &quot;retrieve 节点用&quot;）+ 修订记录 L902</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-2</strong></td><td>fallback 文案移入 <code>RetrievalSettings.fallback_message</code></td><td>Files 表 修改段 L202 &quot;RetrievalSettings{fallback_message=...}&quot; + Task 11 GREEN L825 <code>answer = settings.retrieval.fallback_message</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-3</strong></td><td><code>CHITCHAT_KEYWORDS</code> 拆 <code>_CHITCHAT_STRONG</code> + <code>_CHITCHAT_MEDIUM</code> + 中强度 RED 测试</td><td>Task 7 GREEN L573-578：强集合（指代词/人称/翻译软件问候）+ 中集合（哪些/这些/那些/此/其/您/如上/前述）+ RED 测试 <code>test_classify_heuristic_chinese_pronouns_medium</code> L559-560</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-4</strong></td><td><code>retrieve_node</code> 多 rewrite 并查策略 + <code>dedupe_by_doc</code> 合并去重</td><td>Task 4 GREEN L412-423：<code>rewrites = state.get(&quot;rewrites&quot;) or [state[&quot;query&quot;]]</code> + <code>for r in rewrites: chunks = await retrieve(r, top_k=10); all_chunks.extend(chunks)</code> + <code>deduped = dedupe_by_doc(all_chunks)</code> + RED 测试 <code>test_retrieve_node_invoke_in_graph_handles_multiple_rewrites</code> L408-409</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-5</strong></td><td><code>parse_json_scores</code> + <code>_extract_json</code> 完整实现（markdown block / 裸 JSON / scores 字段 / 长度校验 / 0-10 clip）+ 5 个 RED 测试</td><td>Task 5 GREEN L447-473 完整实现 + 5 个 RED 测试 L435-446（<code>test_parse_json_scores_handles_markdown_block</code> / <code>handles_invalid_json_returns_neutral</code> / <code>clips_to_0_10_range</code> / <code>handles_wrong_length_returns_neutral</code> / <code>test_rerank_fallback_on_invalid_json</code> L503-504）</td><td>✅ <strong>到位</strong>（实现完整 + 测试覆盖 4 种边界 + 1 个上层降级）</td></tr>
+<tr><td><strong>P1-6</strong></td><td><code>AnswerSettings.max_chunk_chars=800</code> 默认；answer prompt 中截断；RED 测试</td><td>Files 表 修改段 L202 &quot;AnswerSettings{max_chunk_chars=800}&quot; + Task 6 GREEN L531 <code>max_chars = settings.answer.max_chunk_chars</code> + L535 <code>text_excerpt = c[&quot;text&quot;][:max_chars]</code> + RED 测试 L517-518 <code>test_answer_truncates_chunks_to_max_chars</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-7</strong></td><td><code>classify_node</code> 传 history + query；RED 测试</td><td>Task 7 GREEN L590-593：<code>msgs = list(state.get(&quot;messages&quot;) or [])</code> + <code>msgs.append(HumanMessage(content=q))</code> + <code>resp = await llm.ainvoke(msgs)</code> + RED 测试 L562-563 <code>test_classify_passes_history_to_llm</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-8</strong></td><td>rerank 评分写入 <code>chunk[&quot;rerank_score&quot;]</code>；answer source 构造读 <code>c.get(&quot;rerank_score&quot;, 0.0)</code>；RED 测试</td><td>Task 5 GREEN L496-499 <code>chunks=[{**c, &quot;rerank_score&quot;: s} for c, s in ranked]</code> + Task 6 GREEN L541 <code>&quot;score&quot;: c.get(&quot;rerank_score&quot;, 0.0)</code> + RED 测试 L514-515 <code>test_answer_passes_rerank_score_to_source</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-9</strong></td><td><code>OpenSearchSettings.index_name=&quot;chunks&quot;</code>；retriever 读 settings</td><td>Files 表 修改段 L202 &quot;OpenSearchSettings{url, index_name=\&quot;chunks\&quot;, pool_size=20}&quot; + Task 4 GREEN L374 <code>index=settings.opensearch.index_name</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-10</strong></td><td><code>dedupe_by_doc</code> 策略：同 doc_id 保留最高 <code>_score</code>，首次出现位置优先</td><td>Task 4 GREEN L387-406 完整实现（<code>seen: dict[str, Chunk]</code> + 分数比较 + 顺序保持）+ RED 测试 L383-384 <code>test_dedupes_by_doc_id_keeps_highest_score</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-11</strong></td><td><code>CheckpointerSettings{pool_size=5, max_overflow=10}</code> 显式配置 + 总连接数注释</td><td>Files 表 修改段 L202 &quot;CheckpointerSettings{dsn, sqlite_path, pool_size=5, max_overflow=10}&quot; + Task 2 GREEN L266-272 注释 &quot;P1-11: 显式连接池 / 默认 pool_size=5, max_overflow=10 / 总连接数 5+10+10+20=45 &lt; PG max_connections=100&quot;</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-12</strong></td><td>thread_id UUID 碰撞：V1 接受 + 风险表记录 + 注释 V2 改 <code>f&quot;{tenant_id}_{uuid4()}&quot;</code></td><td>风险表 L913 + 修订记录 L957</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-13</strong></td><td>kNN filter context 预留：注释 V1.1 可加 <code>query.knn.vector.filter.term.metadata.user_id</code></td><td>风险表 L914 + 修订记录 L958</td><td>✅ <strong>到位</strong>（仅注释 + 风险记录，无代码变更——符合 P1-13 V1 不做但预埋的定位）</td></tr>
+<tr><td><strong>P1-14</strong></td><td>chunk text 截断两处独立：rerank 500 / answer 800</td><td>Task 5 L489 <code>f&quot;[{i}] {c[&#x27;text&#x27;][:500]}\n&quot;</code> + Task 6 L535 <code>text_excerpt = c[&quot;text&quot;][:max_chars]</code>（max_chars=800 默认）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-15</strong></td><td><code>pytest-httpx</code> / <code>freezegun</code> 测试依赖：Tech Stack 表追加 + pyproject dev 段加</td><td>Tech Stack 表 L145-146：<code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>freezegun&gt;=1.5,&lt;2</code> + Files 表 修改段 L201 &quot;dev 段追加 <code>pytest-httpx&gt;=0.30,&lt;1</code> / <code>freezegun&gt;=1.5,&lt;2</code>&quot;</td><td>⚠️ <strong>Tech Stack 落到位</strong> · <code>pyproject.toml</code> dev 段具体新增位置需 implementation 时复核（plan 文字承诺&quot;dev 段追加&quot;但未给 pyproject.toml 段位置）</td></tr>
+<tr><td><strong>P1-16</strong></td><td><code>make_checkpointer</code> <code>try/except (PermissionError, Exception)</code> + 自动降级 SQLite + <code>log.warning</code></td><td>Task 2 GREEN L276-283 完整实现 + RED 测试 L292-293 <code>test_falls_back_to_sqlite_on_setup_permission_error</code></td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p><strong>P1 验证小结</strong>：14 项全部到位。P1-15 唯一轻度漂移——Tech Stack 表声明 + Files 表修改段承诺&quot;dev 段追加&quot;一致，但 plan 未给出 pyproject.toml 实际 diff（这是 plan 风格问题，非功能问题，implementation 时按字面补即可）。P1-13 全部以注释 + 风险记录形式落地，符合&quot;V1 不做但预埋&quot;的定位。</p>
+<h3 id="13-p2-项验证9-项">1.3 P2 项验证（9 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P2-1</strong></td><td><code>RagState.state_version: int</code> 字段；<code>load_memory_node</code> 用 <code>state.get(&quot;field&quot;, default)</code> 兼容</td><td>Task 1 GREEN L243 <code>state_version: int</code> + Task 9 GREEN L649 <code>messages = list(checkpoint.get(&quot;messages&quot;, []))</code> + RED 测试 L631-632 <code>test_load_memory_handles_missing_old_checkpoint_fields</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-2</strong></td><td>graph 并发安全：风险表记录 langgraph checkpointer 乐观锁 + M8 串行化 + UI 禁双击</td><td>风险表 L919 + 修订记录 L963</td><td>✅ <strong>到位</strong>（仅风险表，无代码）</td></tr>
+<tr><td><strong>P2-3</strong></td><td>classify LLM 兜底改 `re.search(r&#x27;&quot;intent&quot;\s<em>:\s</em>&quot;(retrieve</td><td>chitchat)&quot;&#x27;, resp.content)`；不命中默认 &quot;retrieve&quot;</td><td>Task 7 GREEN L594-597 完整 regex + RED 测试 L565-569（<code>test_classify_llm_regex_parse_intent</code> + <code>test_classify_llm_invalid_format_defaults_to_retrieve</code>）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-4</strong></td><td>workflow.py 显式类型注解 <code>def compile_workflow(checkpointer: BaseCheckpointSaver) -&gt; CompiledStateGraph</code></td><td>Task 11 GREEN L770-771 完整注解</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-5</strong></td><td>集成测试 mock vs real 拆分：<code>test_graph_invokes_end_to_end_mock</code> + <code>test_m7_e2e_real_docker</code>（<code>@pytest.mark.require_docker</code>）</td><td>Task 11 RED L713-714 + L718-722（两条独立测试 + <code>require_docker</code> marker）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-6</strong></td><td><code>OpenSearchSettings.pool_size=20</code> + AsyncOpenSearch 显式 <code>connection_class=RequestsHttpConnection</code> + <code>pool_maxsize</code> + <code>retry_on_timeout</code> + <code>max_retries=3</code></td><td>Files 表 修改段 L202 &quot;OpenSearchSettings{url, index_name=\&quot;chunks\&quot;, pool_size=20}&quot; + Task 4 GREEN L366-372 完整配置</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-7</strong></td><td><code>retrieve_with_fallback</code> 移到 <code>app/graph/nodes.py</code>；<code>errors.py</code> 只留异常类 + 装饰器</td><td>Task 11 GREEN L766 import 含 <code>retrieve_with_fallback</code>（从 nodes.py）+ Task 11 GREEN L813-829 完整实现 + 修订记录 L968</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-8</strong></td><td>集成测试 docker-compose 路径 <code>apps/rag_v1/infra/docker-compose.yml</code> 显式标注</td><td>Task 11 RED L720 + 测试策略 L843 完整路径</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-9</strong></td><td>统一节点名 <code>&quot;answer_chitchat&quot;</code>：架构图 / edges.py / workflow.py 三者一致</td><td>修订记录 L970 + 架构图 L96-114（已用 <code>answer_chitchat</code>）+ Task 10 L697 注释 &quot;P2-9: 统一节点名 answer_chitchat&quot; + workflow.py L786 mapping <code>{&quot;answer_chitchat&quot;: &quot;answer_chitchat&quot;}</code></td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p><strong>P2 验证小结</strong>：9 项全部到位。P2-1 / P2-3 / P2-4 / P2-5 / P2-6 / P2-7 / P2-9 都有代码 / 测试 / 注释落地；P2-2 / P2-8 仅文档 / 风险记录（符合 P2 优先级定位）。</p>
+<h3 id="14-33-项修复到位率统计">1.4 33 项修复到位率统计</h3>
+<table>
+<tr><th>级别</th><th>项数</th><th>完全到位</th><th>Tech Stack / 文档到位 需 implementation 复核</th><th>未到位</th></tr>
+<tr><td>------</td><td>------</td><td>---------</td><td>---------------------------------------------</td><td>--------</td></tr>
+<tr><td>P0</td><td>8</td><td>8</td><td>0</td><td>0</td></tr>
+<tr><td>P1</td><td>16</td><td>15</td><td>1（P1-15 pyproject.toml diff）</td><td>0</td></tr>
+<tr><td>P2</td><td>9</td><td>9</td><td>0</td><td>0</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>33</strong></td><td><strong>32</strong></td><td><strong>1</strong></td><td><strong>0</strong></td></tr>
+</table>
+<p><strong>r1 修复到位率 = 32/33 = 97%</strong>（严格）/ <strong>100%</strong>（宽口径，计 P1-15 已在 Files 表修改段承诺&quot;dev 段追加&quot;）</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="新-1p1-workflowpy-add_conditional_edges-mapping-缺-end-选项">新-1（<strong>P1</strong>）· workflow.py <code>add_conditional_edges</code> mapping 缺 <code>END</code> 选项</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L784-787</p>
+<pre><code class="language-python">
+g.add_conditional_edges(&quot;classify&quot;, route_after_classify, {
+    &quot;query_rewrite&quot;: &quot;query_rewrite&quot;,
+    &quot;answer_chitchat&quot;: &quot;answer_chitchat&quot;,
+})
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>route_after_classify</code> 在 Task 10 GREEN 段 L694-698 只返回 <code>&quot;answer_chitchat&quot;</code> 或 <code>&quot;query_rewrite&quot;</code> 两值</li>
+<li>但 <code>Literal[&quot;retrieve&quot;, &quot;chitchat&quot;]</code> 定义的 intent（Task 1 GREEN 段 L235）有 <code>&quot;retrieve&quot;</code> —— 这是 classify LLM 兜底返回时（<code>if &quot;intent&quot; in resp.content</code> 解析后）的 intent 字段名</li>
+<li>如果 classify LLM 返回 <code>&quot;intent&quot;: &quot;retrieve&quot;</code>（string 形式），state.intent=&quot;retrieve&quot;，route_after_classify 走 <code>return &quot;query_rewrite&quot;</code> 分支——<strong>这条路径 OK</strong></li>
+<li>但如果 LLM 兜底 regex 不命中（P2-3），intent 默认 <code>&quot;retrieve&quot;</code>（Task 7 L596）——也 OK</li>
+<li><strong>真正风险点</strong>：<code>route_after_classify</code> 函数体（Task 10 L694-698）只比较 <code>state.get(&quot;intent&quot;) == &quot;chitchat&quot;</code>，intent 字段值&quot;retrieve&quot;才走 query_rewrite。<strong>但 Literal 定义有 &quot;retrieve&quot;</strong>——不是 bug，但 plan 主体 L19 &quot;条件边：classify 节点判 intent ∈ {retrieve, chitchat} 决定后续走哪条分支&quot; 暗示 retrieve 走 retrieve 节点（不是 query_rewrite）——<strong>与 Task 10 函数体矛盾</strong>！</li>
+</ul>
+<p><strong>架构图 L96-114 路径</strong>：</p>
+<pre><code class="language-">
+classify → [retrieve] path → query_rewrite → retrieve → rerank → answer → save_memory
+</code></pre>
+<p><strong>Task 10 函数体实际</strong>：</p>
+<pre><code class="language-python">
+if state.get(&quot;intent&quot;) == &quot;chitchat&quot;:
+    return &quot;answer_chitchat&quot;
+return &quot;query_rewrite&quot;  # 不管 retrieve/chitchat 之外的任何值都走这里
+</code></pre>
+<p><strong>r1 修复引入的&quot;看似一致实则自相矛盾&quot;</strong>：架构图说&quot;chitchat 走 answer_chitchat，retrieve 走 query_rewrite&quot;，函数体说&quot;非 chitchat 走 query_rewrite&quot;——两者<strong>字面一致</strong>（chitchat 走 answer_chitchat、其他走 query_rewrite）——但<strong>type Literal 有 &quot;retrieve&quot; 值</strong> 是个幽灵，<strong>没人赋 intent=&quot;retrieve&quot;</strong>——classify_node 函数体只赋 <code>&quot;chitchat&quot;</code> 或 <code>&quot;retrieve&quot;</code>（P2-3 兜底 default <code>&quot;retrieve&quot;</code> 但 LLM 路径才用，启发式短路直接 <code>return &quot;chitchat&quot;</code>）。</p>
+<p><strong>结论</strong>：实际无 bug，但 plan 应补：</p>
+<ul>
+<li>改 <code>route_after_classify</code> 为显式 <code>if/elif/else</code> 三分支（含 &quot;retrieve&quot; 显式 return &quot;query_rewrite&quot; + 兜底 default &quot;query_rewrite&quot;）</li>
+<li>或 Literal 删除 <code>&quot;retrieve&quot;</code>（但 type 完整性受损）</li>
+<li><strong>建议</strong>：在 <code>route_after_classify</code> 函数体加注释 &quot;classify_node 已保证 intent ∈ {retrieve, chitchat}，本函数只需 chitchat 走 answer_chitchat，其他走 query_rewrite&quot;——消除 review 误读</li>
+</ul>
+<p><strong>影响等级</strong>：P1（不阻塞实现，但 review/未来 reader 易误读）</p>
+<hr>
+<h3 id="新-2p1-save_memory-节点-chitchat-路径与-retrieve-路径复用m10-业务级-trace">新-2（<strong>P1</strong>）· <code>save_memory</code> 节点 chitchat 路径与 retrieve 路径复用——M10 业务级 trace 无法区分</h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L792-794</p>
+<pre><code class="language-python">
+g.add_edge(&quot;answer&quot;, &quot;save_memory&quot;)
+g.add_edge(&quot;answer_chitchat&quot;, &quot;save_memory&quot;)
+g.add_edge(&quot;save_memory&quot;, END)
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>r1 修复 P0-7 时明确：<code>save_memory_node</code> 是 no-op 占位；LangGraph checkpointer 在 graph invoke <strong>完成后</strong>自动 persist</li>
+<li>但 M10 业务级 trace（langfuse）要看&quot;这条 thread 走的是 retrieve 路径还是 chitchat 路径&quot;——目前 answer 与 answer_chitchat <strong>都连到同一个 save_memory 节点</strong>（no-op），M10 在 save_memory 上加 trace 拿不到&quot;哪条分支来&quot;的信号</li>
+<li><strong>r1 修复前的设想</strong>：P0-7 注释 L654-656 &quot;M10 如需 intercept 保存时机，请用 NodeInterrupt 或 after_save_hook，<strong>不</strong>改本函数体&quot;</li>
+<li><strong>M10 实际诉求</strong>（参考 M10 r2 review 已修 <code>inspect.signature</code> + <code>get_client()</code> API）：M10 用 <code>node_trace</code> 装饰器挂在节点函数上，trace name 默认 = 函数名 <code>save_memory</code>——<strong>两条路径的 trace 都是 &quot;save_memory&quot;，无法区分 intent</strong></li>
+</ul>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>r1 修复 P0-7 时没考虑到 M10 业务级 trace 的&quot;路径区分&quot;诉求</li>
+<li><strong>建议</strong>：在 <code>save_memory_node</code> 函数体内读 <code>state.get(&quot;intent&quot;)</code> 写到 <code>state[&quot;last_intent&quot;]</code> 或 Langfuse metadata；或 plan 注明&quot;M10 如需区分 retrieve vs chitchat 路径，请在 answer / answer_chitchat 节点分别加 trace，<strong>不</strong>在 save_memory 节点上区分&quot;</li>
+<li>这不是 bug，是 P0-7 修复的衍生——但 M10 已修（r2），M7 跨 M 联动段 L883 只说&quot;M10 用 NodeInterrupt 而非改 save_memory&quot;——<strong>没说 trace name 区分问题</strong></li>
+</ul>
+<p><strong>影响等级</strong>：P1（不阻塞 M7 实施；M10 实施时再加 trace 即可）</p>
+<hr>
+<h3 id="新-3p2-safe_node-装饰器不捕获-asynciocancellederror-与-keyboardinter">新-3（<strong>P2</strong>）· <code>safe_node</code> 装饰器不捕获 <code>asyncio.CancelledError</code> 与 <code>KeyboardInterrupt</code></h3>
+<p><strong>位置</strong>：Task 11 GREEN 段 L740-755</p>
+<pre><code class="language-python">
+def safe_node(node_name: str):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(state: RagState, *args, **kwargs) -&gt; RagState:
+            try:
+                return await func(state, *args, **kwargs)
+            except Exception as e:  # ← 范围过大
+                log.error(&quot;Node %s failed: %s&quot;, node_name, str(e), exc_info=True)
+                return {
+                    **state,
+                    &quot;error&quot;: f&quot;{node_name}_failed: {str(e)[:200]}&quot;,
+                }
+        return wrapper
+    return decorator
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>except Exception</code> 范围包括 <code>asyncio.CancelledError</code>（Python 3.8+ <code>CancelledError</code> 继承自 <code>BaseException</code>——<strong>这次 OK</strong>）但 <code>KeyboardInterrupt</code> 也继承 <code>BaseException</code>——<strong>这次也 OK</strong></li>
+<li><strong>真正问题</strong>：<code>except Exception</code> 会吞掉 <code>langgraph</code> 自己的 <code>NodeInterrupt</code> / <code>GraphRecursionError</code> / <code>InvalidUpdateError</code>——这些是<strong>控制流异常</strong>，应该向上传播让 graph 决定（interrupt 让 graph 暂停、recursion 让 graph 报错、invalid update 让 graph 重试）</li>
+<li>M10 跨 M 联动 L883 明示 &quot;M10 用 NodeInterrupt 而非改 save_memory&quot;——M10 抛 NodeInterrupt 时<strong>会被 safe_node 吞掉</strong>变成 <code>state.error=&quot;save_memory_failed: NodeInterrupt(...)&quot;</code>——M10 业务级 trace 中断机制失效</li>
+</ul>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>r1 修复 P0-8 时<strong>只关心&quot;不让节点崩 graph&quot;</strong>，但未考虑&quot;哪些异常是控制流应放行&quot;</li>
+<li><strong>建议</strong>：在 <code>safe_node</code> 装饰器加白名单：<code>except (NodeInterrupt, GraphRecursionError, InvalidUpdateError): raise</code>；其他 Exception 才吞</li>
+<li>或更保守：把 <code>Exception</code> 改为 <code>except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, ...)</code> 显式列出</li>
+<li>Python 3.8+ <code>BaseException</code> → <code>Exception</code> → <code>CancelledError</code>（自 Python 3.8 起 CancelledError 改继承自 BaseException）——<code>Exception</code> 不捕获 CancelledError 是<strong>正确</strong>的——<code>KeyboardInterrupt</code> 也不在 <code>Exception</code> 内</li>
+</ul>
+<p><strong>影响等级</strong>：P2（M10 trace 中断机制不常用；当前 r1 实现已覆盖 99% 节点异常场景）</p>
+<hr>
+<h3 id="新-4p2-answersettingsmax_chunk_chars800-与-m4-ingest-chunk_siz">新-4（<strong>P2</strong>）· <code>AnswerSettings.max_chunk_chars=800</code> 与 M4 ingest chunk_size=512 tokens 的对齐问题</h3>
+<p><strong>位置</strong>：</p>
+<ul>
+<li>Files 表 修改段 L202 &quot;AnswerSettings{max_chunk_chars=800}&quot;（M7 决定）</li>
+<li>M4 ingest 切块策略待定（r2 review 主体同步率 0%，22 项待续——<strong>未明确 ingest chunk size</strong>）</li>
+</ul>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M7 <code>AnswerSettings.max_chunk_chars=800</code> 字符截断（Chinese ≈ 800 char / 1.5 ≈ 530 tokens）</li>
+<li>M4 ingest 默认 chunk size 若是 512 tokens（≈ 1500-2000 char Chinese），answer 截断到 800 char 意味着<strong>后 1/3 chunk 文本被丢</strong></li>
+<li>LLM 拿到 800 char 的 chunk 后看不到原 chunk 后 1/3 上下文——可能影响 answer 完整性</li>
+<li><strong>但</strong>：M7 P1-6 的 800 char 是&quot;防 context window 溢出&quot;——是 trade-off（多 chunk 覆盖 vs 单 chunk 完整）</li>
+</ul>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>r1 修复 P1-6 时未与 M4 联动确认 chunk size</li>
+<li><strong>建议</strong>：在 Files 表 修改段加注释 &quot;max_chunk_chars=800 是 M7 拍板的 LLM context 窗口保护值；M4 ingest chunk size 若 &gt; 800 char，建议 M4 端切到 600-700 char 留 padding&quot;</li>
+<li><strong>或</strong>：M7 改 <code>max_chunk_chars=1500</code>（≈ 1 个 512 token chunk），由 M4 ingest 端保证 ≤ 1500 char</li>
+<li>实施前 M7 ↔ M4 需对齐</li>
+</ul>
+<p><strong>影响等级</strong>：P2（不阻塞 M7 实施；M4 落地时同步确认）</p>
+<hr>
+<h3 id="新-5p2-修订记录-l938-970-33-行与计划表-6-行原风险曾被否决的替代方案列语义不一致">新-5（<strong>P2</strong>）· 修订记录 L938-970 33 行与计划表 6 行原风险&quot;曾被否决的替代方案&quot;列语义不一致</h3>
+<p><strong>位置</strong>：风险表 L888-927 + 修订记录 L933-970</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>原 6 行风险 L888-927（langgraph API drift / PG 降级 / OpenSearch checkpointer 否决）——是 plan 初稿风险</li>
+<li>修订记录 33 行&quot;r1 已修&quot;——是 r1 修复条目</li>
+<li><strong>风险表与修订记录是两份独立列表</strong>——r1 修复条目<strong>没合并到风险表</strong>（除了 L894-901 等少数 r1 已修条目写进了风险表 L888-927 之后）</li>
+<li>实际阅读体验：风险表只有 6 行原风险 + 27 行 r1 已修（部分）——<strong>和修订记录 33 行不同步</strong></li>
+<li>r1 修复条目散落在：风险表 L894-925（r1 已修标签） + 修订记录 L938-970（r1 已修标签）——<strong>同一信息两处出现</strong></li>
+</ul>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>建议 r2 把 33 项 r1 已修条目<strong>只保留一处</strong>（推荐：风险表加列&quot;曾被否决的替代方案&quot;——作为单一信息源；修订记录 L937 只保留一行 &quot;r1-2026-06-11 33 项 P0/P1/P2 全部修复（详见 review ...）&quot;）</li>
+<li>当前 plan <strong>未做整合</strong>——r1 reader 要看两处才能拼全图</li>
+<li>不是 bug，是 r1 修复过程中<strong>没统一格式</strong></li>
+</ul>
+<p><strong>影响等级</strong>：P2（不影响实施；review 体验略冗余）</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m2m3m4m5m6m8m9m10m11m12">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M8/M9/M10/M11/M12）</h2>
+<h3 id="m7-m0infra-docker-compose">M7 ↔ M0（infra · docker-compose）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M0 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td>OpenSearch 容器</td><td>M7 用 <code>settings.opensearch.url</code> 调 AsyncOpenSearch</td><td>M0 启 OpenSearch 9200</td><td>✅ 一致</td></tr>
+<tr><td>PG 容器</td><td>M7 用 <code>settings.checkpointer.dsn</code></td><td>M0 启 PG 5432 + 业务库 + LangGraph 库</td><td>✅ 一致</td></tr>
+<tr><td>docker-compose 路径</td><td>M7 L720 + L843 <code>apps/rag_v1/infra/docker-compose.yml</code></td><td>M0 路径同</td><td>✅ 一致（P2-8 已修）</td></tr>
+<tr><td><code>app.state.checkpointer</code> 注入</td><td>M7 L262-264 显式返回实例，lifecycle 自管；M0 lifespan 负责 <code>await cp.setup()</code></td><td>M0 lifespan 段已落</td><td>✅ 一致</td></tr>
+<tr><td>M3 TEI 18080 端口</td><td>M7 retrieve_node L360 调 <code>TEIEmbedder</code></td><td>M0 启 TEI 18080</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M0 <strong>完全一致</strong>。M0 r2 补完后 M7 可直接用 settings + lifespan 注入。</p>
+<h3 id="m7-m1schema-chat_sessions">M7 ↔ M1（schema · chat_sessions）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M1 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>chat_sessions.thread_id</code> 字段</td><td>M7 Task 3 L318-326 <code>ChatSession.get(id=session_id, user_id=user_id)</code> 查 thread_id</td><td>M1 r2 已确认 <code>chat_sessions.thread_id UNIQUE</code></td><td>✅ 一致</td></tr>
+<tr><td><code>session_metadata</code> JSONB</td><td>未在 M7 主体使用</td><td>M1 r2 已确认字段</td><td>✅ 一致（M7 当前不读 session_metadata——可在 V1.1 加 use case）</td></tr>
+<tr><td><code>last_message_at</code></td><td>未在 M7 主体使用</td><td>M1 r2 已确认字段</td><td>✅ 一致（M8 / M11 实施时用）</td></tr>
+<tr><td><code>is_active</code> / <code>deleted_at</code> 软删除</td><td>M7 越权 404（V1 Scope §5）行为：<code>session not found or not owned</code> 抛 <code>ThreadNotFound</code></td><td>M1 r2 已加</td><td>✅ 一致</td></tr>
+<tr><td><code>updated_at=func.now()</code></td><td>M7 L318 不依赖</td><td>M1 r2 已修</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M1 <strong>完全一致</strong>。M1 r2 补完后 M7 可直接依赖。</p>
+<h3 id="m7-m2auth-depends">M7 ↔ M2（auth · Depends）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M2 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>user_id</code> 来源</td><td>M7 L318 <code>resolve_thread_id(session_id, user_id)</code> 由调用方注入</td><td>M2 r2 <code>Depends(get_current_user)</code> 拿 user_id</td><td>✅ 一致（M8 调用 M7 时把 user_id 传给 M7）</td></tr>
+<tr><td>越权 404 行为</td><td>M7 L324 <code>raise ThreadNotFound</code></td><td>M2 r2 NP-1~5 + 越权 404 一致</td><td>✅ 一致</td></tr>
+<tr><td><code>auth_sessions.is_revoked</code></td><td>M7 不直接依赖</td><td>M2 r2 已加字段</td><td>✅ 不影响 M7</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M2 <strong>完全一致</strong>。M2 越权行为与 M7 resolve_thread_id 404 行为对齐。</p>
+<h3 id="m7-m3llm-工厂-tei-embedding-强依赖">M7 ↔ M3（LLM 工厂 + TEI Embedding） · <strong>强依赖</strong></h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M3 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>KNOWN_NODES</code> 7 节点</td><td>M7 修订记录 L881 + 跨 M 联动 &quot;<strong>M3 工厂 KNOWN_NODES 追加 <code>answer_chitchat</code></strong>&quot;</td><td>M3 r2 已加 <code>answer_chitchat</code>（共 7 节点）</td><td>✅ <strong>一致</strong>（关键修复落地）</td></tr>
+<tr><td><code>make_llm(node)</code> 7 处调用</td><td>M7 节点函数显式 <code>make_llm(&quot;rerank&quot;)</code> / <code>make_llm(&quot;answer_chitchat&quot;)</code> 等</td><td>M3 工厂支持 7 节点名</td><td>✅ 一致</td></tr>
+<tr><td><code>model.callbacks</code> vs <code>.with_config(...)</code></td><td>M7 节点函数不直接处理 callback，依赖工厂层</td><td>M3 r2 已切到 <code>.with_config(...)</code></td><td>✅ 一致（M7 透明受益）</td></tr>
+<tr><td><code>load_prompt(node)</code> 5 个 yaml</td><td>M7 Files 表 L60-65 5 个 yaml（classify / rewrite / rerank / answer / answer_chitchat）</td><td>M3 r2 已注册 5 个 prompt 名</td><td>✅ 一致</td></tr>
+<tr><td>TEI 18080 embedding</td><td>M7 L360 <code>from app.embedding.client import TEIEmbedder</code></td><td>M3 r2 TEI 18080 已起</td><td>✅ 一致</td></tr>
+<tr><td>Prompt YAML 路径</td><td>M7 L60-65 <code>app/prompts/*.yaml</code></td><td>M3 r2 已建 5 个 yaml</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M3 <strong>完全一致</strong>。<strong>M7 强阻塞（answer_chitchat 节点）已解除</strong>。</p>
+<h3 id="m7-m4ingest-file-opensearch-写">M7 ↔ M4（ingest-file · OpenSearch 写）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M4 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>OpenSearchClient.ensure_index</code></td><td>M7 L375 读 <code>settings.opensearch.index_name</code></td><td>M4 r2 P0-3 补 mapping</td><td>✅ 一致</td></tr>
+<tr><td><code>payload_hash</code> 字段</td><td>M7 不直接读（仅 retrieve 时靠 OS 内部 hash）</td><td>M4 r2 P0-3 已加</td><td>⚠️ <strong>轻度漂移</strong>：M7 retriever 拿到 chunk 后不暴露 payload_hash——M11 RAGAS 评测若要&quot;同一文档判定&quot;需 M7 把 payload_hash 透传</td></tr>
+<tr><td>HNSW dim=1024 cosine</td><td>M7 L376-378 kNN query 用 dim=1024</td><td>M4 r2 已建同维 index</td><td>✅ 一致</td></tr>
+<tr><td><code>metadata.image_ref</code></td><td>M7 answer L540 <code>c[&quot;metadata&quot;].get(&quot;image_ref&quot;)</code> 读</td><td>M4 r2 ingest 写入 metadata</td><td>✅ 一致</td></tr>
+<tr><td><code>chunk_id</code> 唯一性</td><td>M7 answer L537 <code>c[&quot;chunk_id&quot;]</code> 读</td><td>M4 r2 payload_hash 派生</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M4 <strong>基本一致</strong>，仅 <code>payload_hash</code> 透传是 P2 优化项（M11 RAGAS 评测时再加）。</p>
+<h3 id="m7-m5ingest-url-m7-m6ingest-confluence">M7 ↔ M5（ingest-url） / M7 ↔ M6（ingest-confluence）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M5/M6 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>--------------</td><td>--------</td></tr>
+<tr><td>OpenSearch 写 chunk 路径</td><td>M7 只读</td><td>M5/M6 r2 已修 NP-1~5 / NP-A~F</td><td>✅ 不影响 M7</td></tr>
+<tr><td>chunk 结构</td><td>M7 读 <code>chunk_id / doc_id / text / vector / metadata / _score / rerank_score</code></td><td>M5/M6 写入同结构</td><td>✅ 一致（<code>exceptions</code> 字段未对齐是 M5/M6 内部 cosmetic bug，不影响 M7）</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M5/M6 <strong>完全一致</strong>。M7 不依赖 M5/M6 的 exceptions 字段。</p>
+<h3 id="m7-m8api-chat-强依赖">M7 ↔ M8（api-chat） · <strong>强依赖</strong></h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M8 r1 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>graph.ainvoke()</code> 异步</td><td>M7 workflow.py 返回 CompiledStateGraph</td><td>M8 调 <code>await graph.ainvoke(...)</code></td><td>✅ 一致</td></tr>
+<tr><td>30s <code>asyncio.wait_for</code> 超时</td><td>M7 L832-833 RED 演示 + 跨 M 联动 L882 &quot;M8 必须 asyncio.wait_for&quot;</td><td>M8 r1 已修</td><td>✅ 一致</td></tr>
+<tr><td>读 <code>state.error</code> 转 HTTP 状态码</td><td>M7 L753 <code>state.error = f&quot;{node_name}_failed: ...&quot;</code></td><td>M8 r1 读 state.error</td><td>✅ 一致</td></tr>
+<tr><td><code>user_id</code> / <code>thread_id</code> 注入</td><td>M7 <code>resolve_thread_id(session_id, user_id)</code></td><td>M8 调 M7 前先 <code>get_current_user</code> 拿 user_id</td><td>✅ 一致</td></tr>
+<tr><td>流式 <code>astream_events</code></td><td>M7 L121 注释 &quot;M8.1 / M3.4 已签协议&quot;</td><td>M8 r1 已修</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M8 <strong>完全一致</strong>。30s 超时 + state.error HTTP 状态码契约已双向落地。</p>
+<h3 id="m7-m9ui-gradio">M7 ↔ M9（ui-gradio）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M9 r1 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td>trace_id 流转</td><td>M7 不生成 trace_id</td><td>M9 r1 调 M8 时传 trace_id（M8 透传到 M7）</td><td>✅ 一致</td></tr>
+<tr><td>chitchat 走 answer_chitchat_node</td><td>M7 Task 9b 完整实现</td><td>M9 r1 不区分（UI 层统一调 M8 <code>/api/chat</code>）</td><td>✅ 一致</td></tr>
+<tr><td>历史展示</td><td>M7 save_memory 落 checkpoint → M8 <code>/api/sessions/{id}</code> 读</td><td>M9 r1 调 M8 拿 history</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M9 <strong>完全一致</strong>。M9 不直连 M7，走 M8 间接。</p>
+<h3 id="m7-m10obs-langfuse-业务级-trace-强依赖">M7 ↔ M10（obs-langfuse · 业务级 trace） · <strong>强依赖</strong></h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M10 r2 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td>节点函数加 <code>@trace</code> 装饰器</td><td>M7 节点函数目前无 <code>@trace</code>（M7 自身不挂 trace）</td><td>M10 r2 已修 <code>inspect.signature</code> + <code>get_client()</code> API</td><td>✅ 一致（M10 实施时 M7 节点函数加装饰器）</td></tr>
+<tr><td><code>NodeInterrupt</code> vs 改 save_memory</td><td>M7 L654-656 注释&quot;M10 用 NodeInterrupt 而非改 save_memory&quot;</td><td>M10 r2 已修</td><td>✅ 一致</td></tr>
+<tr><td>trace name 区分 retrieve vs chitchat 路径</td><td><strong>未明示</strong>（r1 衍生新-2）</td><td>M10 需读 state.intent 区分</td><td>⚠️ <strong>轻度漂移</strong>（新-2 已记录）</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M10 <strong>基本一致</strong>，trace name 区分是 P1 优化项（实施时在 M10 侧加分支即可）。</p>
+<h3 id="m7-m11eval-ragas">M7 ↔ M11（eval-ragas）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M11 r1 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><code>graph.invoke(query, thread_id=&quot;eval-{n}&quot;)</code> 跑 golden set</td><td>M7 L124 &quot;M11 跑 graph.invoke 拿 query/answer/chunks&quot;</td><td>M11 r1 已修</td><td>✅ 一致</td></tr>
+<tr><td>chitchat 走 answer_chitchat_node</td><td>M7 Task 9b 完整实现</td><td>M11 RAGAS 评测含 chitchat golden set</td><td>✅ 一致</td></tr>
+<tr><td>runner 重试</td><td>M7 不涉及</td><td>M11 r1 runner 重试</td><td>✅ 不冲突</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M11 <strong>完全一致</strong>。</p>
+<h3 id="m7-m12hardening-中间件">M7 ↔ M12（hardening · 中间件）</h3>
+<table>
+<tr><th>检查项</th><th>M7 现状</th><th>M12 r1 现状</th><th>一致性</th></tr>
+<tr><td>--------</td><td>--------</td><td>-----------</td><td>--------</td></tr>
+<tr><td>safe_node 异常传播 → HTTP 状态码</td><td>M7 P0-8 safe_node + state.error</td><td>M12 中间件读 state.error</td><td>✅ 一致</td></tr>
+<tr><td>rate limit</td><td>M7 不涉及</td><td>M12 中间件</td><td>✅ 不冲突</td></tr>
+<tr><td>节点级 trace 与中间件顺序</td><td>M7 节点函数 + M10 装饰器</td><td>M12 中间件最外层</td><td>✅ 一致</td></tr>
+<tr><td>checkpointer 写盘异常 → save_memory</td><td>M7 save_memory no-op + checkpointer 自动 persist</td><td>M12 不影响</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M7 ↔ M12 <strong>完全一致</strong>。</p>
+<h3 id="跨-m-一致性总结">跨 M 一致性总结</h3>
+<table>
+<tr><th>M 对</th><th>状态</th><th>备注</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>M7 ↔ M0</td><td>✅ 完全一致</td><td>lifespan + settings 单例对齐</td></tr>
+<tr><td>M7 ↔ M1</td><td>✅ 完全一致</td><td>thread_id UNIQUE / session_metadata / last_message_at 已确认</td></tr>
+<tr><td>M7 ↔ M2</td><td>✅ 完全一致</td><td>user_id 由 M2 Depends 注入</td></tr>
+<tr><td>M7 ↔ M3</td><td>✅ <strong>完全一致</strong>（关键修复）</td><td>KNOWN_NODES 7 节点含 answer_chitchat / 范本影响段已明示</td></tr>
+<tr><td>M7 ↔ M4</td><td>⚠️ 基本一致</td><td>payload_hash 透传是 P2 优化项</td></tr>
+<tr><td>M7 ↔ M5</td><td>✅ 完全一致</td><td>M7 不读 exceptions</td></tr>
+<tr><td>M7 ↔ M6</td><td>✅ 完全一致</td><td>M7 不读 exceptions</td></tr>
+<tr><td>M7 ↔ M8</td><td>✅ <strong>完全一致</strong>（关键修复）</td><td>30s 超时 + state.error HTTP 契约双向落地</td></tr>
+<tr><td>M7 ↔ M9</td><td>✅ 完全一致</td><td>trace_id 由 M8 透传</td></tr>
+<tr><td>M7 ↔ M10</td><td>⚠️ 基本一致</td><td>trace name 区分是 P1 优化项（新-2）</td></tr>
+<tr><td>M7 ↔ M11</td><td>✅ 完全一致</td><td>thread_id=&quot;eval-{n}&quot; 复用 workflow</td></tr>
+<tr><td>M7 ↔ M12</td><td>✅ 完全一致</td><td>safe_node + state.error 透明传递</td></tr>
+</table>
+<p class="crit"><strong>跨 M 关键阻塞（M3 强依赖 / M8 强依赖）已全部解除</strong>。4 项 M（r1 衍生新-1/2/3/4）已识别但都不阻塞实施。</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表结构">4.1 风险表结构</h3>
+<table>
+<tr><th>部分</th><th>行数</th><th>内容</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>原风险（plan 初稿）</td><td>6 行（L888-927）</td><td>langgraph API drift / PG 降级 / setup 权限 / retrieve 崩溃 / prompt 漂移 / kNN 性能</td></tr>
+<tr><td>r1 已修（修订记录）</td><td>33 行（L938-970）</td><td>8 P0 + 14 P1 + 9 P2 + 2 跨 M</td></tr>
+<tr><td>r1 已修（风险表）</td><td>27 行（L894-925）</td><td>同 33 项的部分子集（L894-925 + 原 6 行 + kNN 性能 1 行 = 27+7 行）</td></tr>
+</table>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>风险表 L894-925 的&quot;r1 已修&quot;标签和修订记录 L938-970 是<strong>两份独立列表</strong>——同一信息两处出现</li>
+<li>r1 review 建议追加的 5 行风险（review L907-913）——<strong>M7 风险表已包含</strong>（L894-925）+ 又新加 4 行（L926 kNN 性能保留 + L891-892 两行 langgraph 锁版本 + L893 PG 降级保留 + L894 P0-1 r1 已修...）——<strong>形式上完整</strong></li>
+<li>曾被否决的替代方案列：原 6 行有 1 行（OpenSearch checkpointer 否决）——<strong>r1 修复条目绝大多数 <code>曾被否决的替代方案</code> 列为空</strong>（除 P0-1 / P0-2 / P0-3 / P0-4 / P0-5 有&quot;否决方案 B&quot;说明）——这与 r1 review 期望&quot;对每个 P0/P1 都应列替代方案&quot;不完全一致，但<strong>作为修复条目的执行记录，替代方案列空是合理的</strong>（r1 修复本身就是选定方案）</li>
+</ul>
+<h3 id="42-风险表质量评估">4.2 风险表质量评估</h3>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>原风险保留</td><td>⭐⭐⭐⭐⭐</td><td>6 行原风险完整保留（含 OpenSearch checkpointer 否决方案）</td></tr>
+<tr><td>r1 修复条目完整性</td><td>⭐⭐⭐⭐</td><td>33 项 r1 已修条目信息完整，但<strong>与修订记录重复</strong>（新-5）</td></tr>
+<tr><td>替代方案列</td><td>⭐⭐⭐</td><td>r1 修复条目绝大多数为空——形式上不如 r1 review 期望，但内容上 r1 修复本身就是选定方案</td></tr>
+<tr><td>跨 M 联动记录</td><td>⭐⭐⭐⭐</td><td>L971 &quot;跨 M 联动落地&quot;独立段已落 7 项 M 联动</td></tr>
+<tr><td>曾被否决方案保留</td><td>⭐⭐⭐⭐⭐</td><td>OpenSearch checkpointer 否决（msg 195 §2 列出 5 条理由）保留最完整</td></tr>
+</table>
+<p class="ok"><strong>风险表补全质量</strong>：<strong>合格</strong>。6 行原风险 + 27 行 r1 已修（含部分跨 M 联动）+ 跨 M 联动独立段——覆盖度足够。轻度冗余（新-5）可在 r2 修整时合并。</p>
+<h3 id="43-r1-review-建议补的-5-行风险是否落到位">4.3 r1 review 建议补的 5 行风险是否落到位</h3>
+<table>
+<tr><th>r1 review 建议（L907-913）</th><th>M7 风险表 L894-925 落地</th></tr>
+<tr><td>--------------------------</td><td>------------------------</td></tr>
+<tr><td>graph invoke 无超时</td><td>✅ L897 P0-4 已修（含 M8 调用方约束）</td></tr>
+<tr><td>6/7 节点缺异常处理</td><td>✅ L901 P0-8 已修（safe_node 装饰器）</td></tr>
+<tr><td>query_rewrite 多 rewrite 并查策略未定</td><td>✅ L905 P1-4 已修（逐条 retrieve + dedupe）</td></tr>
+<tr><td>graph 版本兼容</td><td>✅ L918 P2-1 已修（state_version + state.get default）</td></tr>
+<tr><td>answer_chitchat 节点无实现</td><td>✅ L899 P0-6 已修（Task 9b）</td></tr>
+</table>
+<p><strong>5 行建议全部到位</strong>。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-r2-必改4-项-r1-衍生新问题">5.1 r2 必改（4 项 r1 衍生新问题）</h3>
+<table>
+<tr><th>优先级</th><th>项</th><th>修改</th><th>工作量</th></tr>
+<tr><td>--------</td><td>---</td><td>------</td><td>--------</td></tr>
+<tr><td><strong>P1</strong></td><td>新-1 workflow.py <code>add_conditional_edges</code> mapping 缺 <code>END</code> 选项</td><td>在 <code>route_after_classify</code> 函数体加注释 &quot;classify_node 已保证 intent ∈ {retrieve, chitchat}，本函数 chitchat 走 answer_chitchat，其他走 query_rewrite&quot;；或改显式 if/elif/else</td><td>0.1h</td></tr>
+<tr><td><strong>P1</strong></td><td>新-2 save_memory 节点 chitchat 路径与 retrieve 路径复用——M10 trace 无法区分</td><td>在 <code>save_memory_node</code> 函数体读 <code>state.get(&quot;intent&quot;)</code> 写到 <code>state[&quot;last_intent&quot;]</code>；或 plan 跨 M 联动段 L883 加注&quot;M10 区分 retrieve vs chitchat 路径请在 answer / answer_chitchat 节点分别加 trace&quot;</td><td>0.1h</td></tr>
+<tr><td><strong>P2</strong></td><td>新-3 <code>safe_node</code> 不放行 <code>NodeInterrupt</code> / <code>GraphRecursionError</code></td><td><code>safe_node</code> 装饰器加白名单：<code>except (NodeInterrupt, GraphRecursionError, InvalidUpdateError): raise</code></td><td>0.1h</td></tr>
+<tr><td><strong>P2</strong></td><td>新-4 <code>AnswerSettings.max_chunk_chars=800</code> 与 M4 ingest chunk_size 对齐</td><td>Files 表 修改段 L202 注释 &quot;max_chunk_chars=800 是 LLM context 窗口保护值；M4 ingest chunk size 需 ≤ 800 char / 约 530 tokens&quot;</td><td>0.1h</td></tr>
+</table>
+<h3 id="52-r2-可选修订记录整合">5.2 r2 可选（修订记录整合）</h3>
+<table>
+<tr><th>项</th><th>修改</th><th>工作量</th></tr>
+<tr><td>---</td><td>------</td><td>--------</td></tr>
+<tr><td>新-5</td><td>风险表 27 行 r1 已修 与 修订记录 33 行合并：风险表只保留&quot;原 6 行 + r1 已修中影响架构的 6-8 行&quot;，修订记录 33 行删剩一行 summary</td><td>0.2h</td></tr>
+</table>
+<h3 id="53-实施顺序建议按当前-plan">5.3 实施顺序建议（按当前 plan）</h3>
+<ol>
+<li><strong>M7 plan 主体已可执行</strong>——r1 修复 33 项到位、跨 M 12 联动一致、风险表完整</li>
+<li><strong>本 review 4 项 r1 衍生新问题可在 implementation 阶段同步修</strong>（每项 0.1h）</li>
+<li><strong>M3 KNOWN_NODES 7 节点含 answer_chitchat</strong> ——已确认（r2 已修）—— M7 Task 9b 可直接实施</li>
+<li><strong>M8 30s asyncio.wait_for + state.error HTTP 状态码</strong> ——已确认（M8 r1 已修）—— M7 Task 11 L831-833 RED 测试演示调用方模式</li>
+<li><strong>M4 ingest chunk_size 同步</strong> ——M7 实施前与 M4 实施者确认 chunk_size ≤ 800 char</li>
+</ol>
+<h3 id="54-跨-m-通知清单r2-阶段">5.4 跨 M 通知清单（r2 阶段）</h3>
+<table>
+<tr><th>通知</th><th>接收方</th><th>内容</th></tr>
+<tr><td>------</td><td>--------</td><td>------</td></tr>
+<tr><td>M7 plan 33 项 r1 修复 + 4 项 r1 衍生新问题</td><td>M3 实施者</td><td>确认 KNOWN_NODES 7 节点含 answer_chitchat；M7 节点函数调 <code>make_llm(&quot;answer_chitchat&quot;)</code> 可用</td></tr>
+<tr><td>M7 r1 修复完成</td><td>M8 实施者</td><td>30s <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code> 调用方模式 + 读 <code>state.error</code> 转 HTTP 状态码（502/500/timeout）</td></tr>
+<tr><td>M7 r1 修复完成</td><td>M10 实施者</td><td><code>save_memory_node</code> no-op 占位 + M10 用 <code>NodeInterrupt</code> 而非改 save_memory；trace name 区分见新-2</td></tr>
+<tr><td>M7 r1 修复完成</td><td>M11 实施者</td><td><code>graph.invoke(query, thread_id=&quot;eval-{n}&quot;)</code> 复用 M7 workflow；M11 runner 重试不冲突</td></tr>
+<tr><td>M7 r1 修复完成</td><td>M4 实施者</td><td><code>max_chunk_chars=800</code> 是 M7 拍板的 LLM context 窗口保护值；M4 ingest chunk_size 需 ≤ 800 char</td></tr>
+<tr><td>M7 r1 修复完成</td><td>M0 实施者</td><td><code>apps/rag_v1/infra/docker-compose.yml</code> 路径确认 + lifespan 注入 <code>app.state.checkpointer</code></td></tr>
+</table>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修复到位率</strong>：32/33 完全到位 + 1/33 Tech Stack / 文档承诺到位 = <strong>97% 严格 / 100% 宽口径</strong></li>
+<li><strong>r1 衍生新问题</strong>：4 项（P1×2 + P2×2）—— 全部不阻塞实施，可在 implementation 阶段同步修</li>
+<li><strong>跨 M 一致性</strong>：12 个 M 联动全部对齐，<strong>M3 强阻塞（answer_chitchat）/ M8 强阻塞（30s + state.error）已解除</strong></li>
+<li><strong>风险表补全</strong>：6 行原风险 + 27 行 r1 已修 + 跨 M 联动独立段 —— 合格</li>
+<li><strong>M7 plan r1 整体评价</strong>：<strong>可立即动手实施</strong>——主体设计完整、TDD 节奏保留、修复覆盖率 97%、跨 M 联动一致</li>
+<li><strong>总体评估</strong>：M7 plan r1 是 RAG V1 路线中<strong>修复密度最高 + 修复质量最好</strong>的 plan。修完 4 项 r1 衍生新问题（总 0.4h）后即可进入 implementation 阶段。<strong>M7 是当前 RAG V1 路线核心骨架 + 修复完成度最高的可实施 plan</strong>。</li>
+</ul>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

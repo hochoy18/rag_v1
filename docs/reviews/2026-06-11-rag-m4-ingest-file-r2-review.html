@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M4 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M4 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>390 行</span>
+<span>64 P0</span>
+<span>70 P1</span>
+<span>40 P2</span>
+<span class="badge-r1">6 r1 标记</span>
+    <span>2026-06-11-rag-m4-ingest-file-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证24-项逐项">1. r1 修复验证（24 项逐项）</a></li>
+<li><a href="#11-24-项-r1-修复落地总览">1.1 24 项 r1 修复落地总览</a></li>
+<li><a href="#12-关键发现r1-修复对-plan-主体的实质修改">1.2 关键发现：r1 修复对 plan 主体的实质修改</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#21-核心问题r1-主体修改-修订记录清单plan-主体未同步">2.1 核心问题：r1 主体修改 = 修订记录清单，plan 主体未同步</a></li>
+<li><a href="#22-r1-修订记录自相矛盾">2.2 r1 修订记录自相矛盾</a></li>
+<li><a href="#23-r1-风险表-24-行结构与原-10-行结构混用">2.3 r1 风险表 24 行结构与原 10 行结构混用</a></li>
+<li><a href="#24-r1-跨-m-联动段-l640-是唯一真落地">2.4 r1 跨 M 联动段 L640 是唯一真落地</a></li>
+<li><a href="#25-r1-引入的-3-个新风险">2.5 r1 引入的 3 个新风险</a></li>
+<li><a href="#26-r1-修订记录与跨-m-联动段重复">2.6 r1 修订记录与跨 M 联动段重复</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m3m5m6m7m8">3. 跨 M 一致性检查（M0/M1/M3/M5/M6/M7/M8）</a></li>
+<li><a href="#31-m4-m0healthcheck-tei-端口-18080-opensearch-refresh">3.1 M4 ↔ M0：healthcheck / TEI 端口 18080 / OpenSearch refresh</a></li>
+<li><a href="#32-m4-m1ingest_jobs-unique-retry_count-next_retry_at-idempot">3.2 M4 ↔ M1：ingest_jobs UNIQUE / retry_count / next_retry_at / idempotency_key / bulk update updated_at</a></li>
+<li><a href="#33-m4-m3teiembedderembeddingdimmismatch-硬断言">3.3 M4 ↔ M3：TEIEmbedder.EmbeddingDimMismatch 硬断言</a></li>
+<li><a href="#34-m4-m5-m6appingestexceptionspy-imageref-路径规范-payload_hash-">3.4 M4 ↔ M5 / M6：app/ingest/exceptions.py + ImageRef 路径规范 + payload_hash 字段一致性</a></li>
+<li><a href="#35-m4-m7opensearchclient-upsert_chunks-接口">3.5 M4 ↔ M7：OpenSearchClient upsert_chunks 接口</a></li>
+<li><a href="#36-m4-m8post-apiingest-路由-get-apiingestjob_id-进度">3.6 M4 ↔ M8：POST /api/ingest 路由 / GET /api/ingest/{job_id} 进度</a></li>
+<li><a href="#37-跨-m-一致性总览">3.7 跨 M 一致性总览</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表结构">4.1 风险表结构</a></li>
+<li><a href="#42-r1-24-行风险表内容审计">4.2 r1 24 行风险表内容审计</a></li>
+<li><a href="#43-风险表补全质量总评">4.3 风险表补全质量总评</a></li>
+<li><a href="#44-与已有-review-风险表对比">4.4 与已有 review 风险表对比</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-r2-必做r1-修复主体同步">5.1 r2 必做（r1 修复主体同步）</a></li>
+<li><a href="#52-r2-必做r1-引入新问题修复">5.2 r2 必做（r1 引入新问题修复）</a></li>
+<li><a href="#53-跨-m-协调r2-完成后通知">5.3 跨 M 协调（r2 完成后通知）</a></li>
+<li><a href="#54-估时修正">5.4 估时修正</a></li>
+<li><a href="#55-等待决策">5.5 等待决策</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m4-plan-r2-review-r1-修复验证">M4 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>2026-06-11-rag-m4-ingest-file.md</code>（640 行，r1 修订 2026-06-11）</blockquote>
+<blockquote>评审基线（r1 review）：<code>2026-06-11-rag-m4-ingest-file-review.md</code>（770 行，5 P0 + 10 P1 + 9 P2 = 24 项）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立 r2 验证）</blockquote>
+<blockquote>范围：验 r1 修复是否到位 + 发现 r1 引入的新问题</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>r1 修复<strong>完成度严重不均</strong>——<strong>24 项修订记录条目已全部追加</strong>（plan 末尾 L616-639 共 24 行 r1 修订行 + L640 跨 M 联动段），但<strong>绝大多数修复都仅在&quot;修订记录行&quot;里写&quot;已修&quot;+ 缓解方案一句话</strong>，<strong>plan 主体（Architecture / Files / Tasks / DoD / 风险 / Tech Stack）未同步落地</strong>——M4 实施者按 plan 主体读，读不到 P0-1 元素分类 <code>app/ingest/element_classifier.py</code> 真实代码契约、P0-2 <code>file_extractor</code> 显式注册的 4 格式 reader、P0-3 <code>INDEX_MAPPING</code> 完整 mapping、P0-4 <code>uuid5</code> 公式、P0-5 <code>IngestProgressResponse</code> Pydantic schema。换言之：<strong>r1 是&quot;修订记录清单 24 项全部 1:1 出现&quot; ≠ &quot;24 项 plan 主体实际修复&quot;</strong>。M0/M1/M3 也有同模式，但 M4 更严重（24 项是 5 M 中最多），main agent 手 patch 一次 write_file 只能追写记录行，<strong>plan 主体同步修改必须由后续 subagent 实际改 Tasks/Architecture/Files/DoD 段</strong>。</p>
+<p><strong>r1 跨 M 联动段 L640</strong> 是真落地（7 项 M0/M1/M3/M5/M6/M7/M8 联动项列全）——这是 r1 唯一&quot;在 plan 主体可见&quot;的修复动作，且与上游 M1（payload_hash UNIQUE + retry_count + next_retry_at）/ M3（TEIEmbedder.EmbeddingDimMismatch 硬断言）字段对齐。</p>
+<p class="ok"><strong>风险表补全质量</strong>：原 10 行风险保留 + 24 行 r1-2026-06-11 P?-X 已修 全部追加（L583-606，共 24 行），但<strong>「曾被否决的替代方案」列有 14 行写 <code>r1-2026-06-11</code> 占位无意义</strong>——r1 修复行都写了&quot;已修&quot;+ 一句缓解，不是&quot;被否决的替代方案&quot;（如 P0-3 行写&quot;mock 推到 M7：M4 集成测试假绿，M7 真实集成爆雷&quot;是缓解方案，不是&quot;曾被否决的方案&quot;）——这是 cosmetic bug，<strong>r1 风险表新增 24 行结构与原 10 行结构混用</strong>，读起来割裂。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐</td><td>24 项修订记录行全在；<strong>plan 主体 Architecture/Files/Tasks/DoD 未同步</strong>——M0/M1/M3 改 plan 主体，M4 只追写修订行</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐⭐</td><td>L640 跨 M 联动段是 r1 唯一真落地：M0/M1/M3/M5/M6/M7/M8 全列</td></tr>
+<tr><td>实施可立即动手</td><td>⭐</td><td>主体 plan 读不到 P0-1 元素分类代码、P0-3 mapping、P0-4 uuid5 公式、P0-5 schema；M5/M6 复制 M4 时会<strong>继续复制 24 项缺陷</strong></td></tr>
+<tr><td>风险表补全</td><td>⭐⭐</td><td>24 行新行 + 原 10 行保留，<strong>但「曾被否决的替代方案」列在 r1 行写&quot;已修&quot;无意义</strong>——结构混用</td></tr>
+<tr><td>修订记录完整性</td><td>⭐⭐⭐⭐</td><td>24 项 r1 修订行 + L640 跨 M 联动段<strong>逐项列全</strong>，与 r1 review 24 项 1:1 对应</td></tr>
+</table>
+<p><strong>一句话</strong>：M4 r1 <strong>24 项修订记录条目 100% 存在</strong>（包括 L640 跨 M 联动段），<strong>但 plan 主体未同步修复</strong>——M5/M6 复制 M4 时<strong>仍会读主体 plan 的旧 Tasks/Architecture/Files</strong>而<strong>错过 24 项 r1 修复的代码契约</strong>。<strong>r2 必做 1 件事</strong>：把 r1 修订记录行展开成 plan 主体修改（Architecture 段补 <code>IngestProgressResponse</code> schema / Files 表加 <code>element_classifier.py</code> / Tasks 段补 uuid5 公式 + <code>INDEX_MAPPING</code> 显式声明 + lifespan 管理）。</p>
+<hr>
+<h2 id="1-r1-修复验证24-项逐项">1. r1 修复验证（24 项逐项）</h2>
+<blockquote>验证方法：plan 主体 L1-606（Tasks / Architecture / Files / DoD / 风险表）+ 修订记录行 L616-639 + 跨 M 联动段 L640 是否<strong>实际体现</strong> r1 修复</blockquote>
+<table>
+<tr><th>#</th><th>r1 标记</th><th>修复内容（r1 修订记录行声明）</th><th>实际验证（plan 主体）</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>1</td><td>P0-1</td><td>元素分类（NarrativeText/Table/Image）实现：<code>app/ingest/element_classifier.py</code> + 单测 <code>test_classify_elements_distinguishes_types</code></td><td><strong>❌ 未在主体</strong> · Architecture 段 L58-65 / Files 表 L168-189 / Tasks 段 L304-376 / Goal L13-22 <strong>全文未提 <code>element_classifier.py</code></strong>；Tech Stack L130-144 未提 <code>BaseElementNodeParser</code>；Task 4 GREEN L311-332 实现仍走 <code>SimpleDirectoryReader</code> 默认 <code>load_data()</code>，无 <code>classify_elements</code></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>2</td><td>P0-2</td><td><code>file_extractor</code> 显式配置（PDF 走 <code>PyMuPDFReader</code> / docx 走 <code>DocxReader</code>）+ <code>extract_images</code> 在 SimpleDirectoryReader 后置 hook</td><td><strong>❌ 未在主体</strong> · Task 4 GREEN L311-332 <code>read_file</code> 实现仍只配 <code>SimpleDirectoryReader(input_files=[...], file_metadata=...)</code> 未配 <code>file_extractor=</code>；Tech Stack 表 L130-144 未提 <code>PyMuPDFReader</code> / <code>DocxReader</code>；pyproject 修改段 L191 仍写&quot;追加 5 个新直接依赖&quot;（llama-index-core / llama-index-readers-file / opensearch-py / Pillow / pypdf），<strong>未提 pymupdf</strong>（r1 review P2-2 显式说&quot;缺 pymupdf&quot;）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>3</td><td>P0-3</td><td>OpenSearch 写入三件：index mapping 显式（dim=1024 / hnsw）+ <code>refresh_interval=30s</code> + bulk 阈值 500</td><td><strong>❌ 未在主体</strong> · Task 3 GREEN L266-293 <code>OpenSearchClient.upsert_chunks</code> 实现仍只走 <code>self._client.bulk(body=body, refresh=False)</code>，<strong>无 <code>INDEX_MAPPING</code> / <code>ensure_index</code> / <code>BULK_THRESHOLD</code> 任何显式声明</strong>；refresh 仍 <code>False</code>（r1 修订记录写 <code>refresh_interval=30s</code>）；bulk 阈值未提（r1 写 500 触发 <code>helpers.async_bulk</code>）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>4</td><td>P0-4</td><td>chunk_id = <code>uuid5(NAMESPACE_URL, f&quot;{doc_id}:{chunk_index}&quot;)</code> + doc_id = <code>uuid5(NAMESPACE_URL, file_path + file_size + mtime)</code></td><td><strong>❌ 未在主体</strong> · Task 4 GREEN L319-321 <code>_doc_id_from_path</code> 仍写 <code>hashlib.sha256(str(path.absolute()).encode()).hexdigest()[:16]</code>（r1 review P0-4 早否决&quot;路径&quot;口径，r1 改 <code>uuid5</code> 公式）；Task 5 GREEN L440-444 chunk metadata 仍写 <code>chunk.metadata[&quot;source&quot;] = &quot;file&quot;</code> / <code>chunk.metadata[&quot;doc_id&quot;] = doc_id</code> / <code>chunk.metadata[&quot;image_ref&quot;] = images[0].relative_path if images else None</code>，<strong>未提 <code>chunk_id</code> 字段</strong>、<strong>未提 <code>uuid5</code> 公式</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>5</td><td>P0-5</td><td>契约边界表补 <code>GET /api/ingest/{job_id}</code> 返回 <code>IngestProgressResponse{status, chunks_count, error?}</code>（M8 路由实现）</td><td><strong>❌ 未在主体</strong> · Architecture L116-124 &quot;M4 与其他 M 的契约边界&quot; 表<strong>全文未变</strong>，仍 4 行（M8 路由 / M5 url / M6 confluence / M7 OpenSearch），<strong>未加 M8 GET 路由契约行</strong>；Files 表 L168-189 仍 11 个源文件 + 5 测试 + 1 fixture，<strong>未加 <code>app/ingest/schemas.py</code></strong>；r1 声明的 <code>IngestProgressResponse</code> Pydantic 类<strong>全文未出现</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>6</td><td>P1-1</td><td>M4 集成测试用 testcontainers OpenSearch（与 M0 infra 一致），不再 mock</td><td><strong>❌ 未在主体</strong> · Task 6 L488-498 RED 测试 fixture 仍写 &quot;mock OpenSearch（避免真实 cluster 依赖）&quot;（L492）；测试策略段 L531-538 仍写&quot;OpenSearch 走 mock（避免真实 cluster 启动慢 + 数据污染）&quot;（L533, L538）；<strong>r1 声明的 testcontainers[opensearch] 全文未出现</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>7</td><td>P1-2</td><td>Task 估时校正：Task 5（pipeline 集成）5min → 30min（实测），合计 7 个 task 共估 2h→2.5h</td><td><strong>❌ 未在主体</strong> · Tasks 段标题 L205 &quot;（2-5 分钟/step 粒度）&quot;<strong>未改</strong>（r1 review P1-2 显式说&quot;删掉，改&#x27;Task 1-2: 5-10 min；Task 3-5: 20-30 min；Task 6: 30-40 min&#x27;&quot;）；M4 plan L6 估时&quot;5 个工作日（原3d估时严重低估，按 P1-2修正为5d）&quot;<strong>未变</strong>（但 r1 修订记录写&quot;2h→2.5h&quot;——这与 r1 review 估时&quot;5-6 个工作日&quot; / plan L6 写&quot;5 个工作日&quot;<strong>自相矛盾</strong>）</td><td>修订记录 ✅ / 主体 ❌ + 数值自相矛盾</td></tr>
+<tr><td>8</td><td>P1-3</td><td><code>extract_images</code> 走 <code>file_extractor</code> 注册的 reader output（P0-2 已落地）</td><td><strong>❌ 未在主体</strong> · Task 4 GREEN L347-374 <code>extract_images</code> 实现仍 <code>for img in doc.metadata.get(&quot;images&quot;, [])</code>（r1 review P1-3 显式说&quot;非标准字段，依赖默认行为&quot;）；<strong>P0-2 主体未修</strong> → P1-3 同根失败</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>9</td><td>P1-4</td><td>错误矩阵补 7 条：401/422/429（限速）/404/500/DB-down 降级（持久化写入走 <code>IngestJobStore</code> 内存缓冲）/OpenSearch 5xx 退避</td><td><strong>❌ 未在主体</strong> · 风险表 L569-582 仍 10 行原风险<strong>未补错误矩阵 7 条</strong>；Task 5 GREEN L460-466 <code>_mark_failed</code> 仍 <code>except Exception</code> 一刀切，<strong>未提 <code>IngestJobStore</code> 内存缓冲 / SQLAlchemyError 分支 / OpenSearch 5xx 退避</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>10</td><td>P1-5</td><td><code>ingest_jobs</code> 状态机迁移规则：`pending → running → indexed\</td><td>failed<code>，</code>failed → running<code>（重试）；M4 实现 </code>transition_status(job, from_, to_)` 断言</td><td><strong>❌ 未在主体</strong> · Task 5 GREEN L398-399 仍 <code>from app.db.models.ingest_job import IngestJob, IngestJobStatus</code>（无 <code>transition_status</code> 工具）；L423-428 仍 <code>status=IngestJobStatus.PENDING</code>（无 running 态）；L454-456 仍 <code>job.status = IngestJobStatus.INDEXED</code>（无 <code>transition_status(job, RUNNING, INDEXED)</code> 断言）；L462-465 <code>_mark_failed</code> 仍 <code>job.status = IngestJobStatus.FAILED</code>（无 from_ 断言）；**r1 修订记录写&quot;pending → running → indexed\</td><td>failed&quot;——主体代码未落地 running 态**</td><td>修订记录 ✅ / 主体 ❌（running 态未在代码）</td></tr>
+<tr><td>11</td><td>P1-6</td><td>Files 表显式列 <code>app/ingest/exceptions.py</code>（<code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code>）供 M5/M6 复用</td><td><strong>❌ 未在主体</strong> · Files 表 L168-189 <strong>未加 <code>app/ingest/exceptions.py</code> 行</strong>（r1 review P1-6 显式说&quot;Files 表 L168-189 没列&quot;）；Task 6 REFACTOR L520 仍 &quot;OversizedFileError 放 <code>app/ingest/exceptions.py</code>&quot; 一句话提但<strong>未在 Files 表正式列</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>12</td><td>P1-7</td><td><code>image_ref</code> 路径规范统一：<code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>，M5/M6 复制此口径</td><td><strong>❌ 未在主体</strong> · 契约边界表 L116-124 <strong>未加 image_ref 路径规范行</strong>；Task 4 GREEN L368-372 仍 <code>relative_path=f&quot;{doc_id}/images/{src.name}&quot;</code>（<code>file_basename</code> 未在路径模板里——<code>src.name</code> 已含 ext 但 r1 显式写 <code>{file_basename}.{ext}</code> 格式）；<strong>M5/M6 复制时主体契约表找不到规范行</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>13</td><td>P1-8</td><td><code>ImageRef</code> dataclass 移到 <code>app/ingest/models.py</code>（M5/M6 复用），Files 表显式列</td><td><strong>❌ 未在主体</strong> · Task 4 GREEN L352-358 <code>ImageRef</code> 仍定义在 <code>app/ingest/sources/file.py</code>（无 <code>app/ingest/models.py</code> 移出动作）；Files 表 L168-189 <strong>未加 <code>app/ingest/models.py</code> 行</strong>（r1 review P1-8 显式说&quot;Files 表没列&quot;）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>14</td><td>P1-9</td><td><code>OpenSearchClient</code> 走 lifespan 管理：<code>async with AsyncOpenSearch(...) as client</code> + <code>app.state.opensearch</code> 全局引用</td><td><strong>❌ 未在主体</strong> · Task 3 GREEN L266-293 <code>OpenSearchClient.__init__</code> 仍 <code>self._client = client or AsyncOpenSearch(hosts=...)</code>（<strong>无 lifespan 管理、无 <code>__aenter__/__aexit__</code></strong>、无 <code>app.state.opensearch</code> 引用）；r1 review P1-9 显式给的&quot;模块级 <code>_default_client</code> 单例 + <code>aclose()</code> + <code>__aenter__/__aexit__</code>&quot;代码<strong>全文未出现</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>15</td><td>P1-10</td><td>pipeline 状态更新显式 <code>updated_at=func.now()</code>（M1 P0-7 强约束已落地），ORM <code>session.add</code> + commit</td><td><strong>❌ 未在主体</strong> · Task 5 GREEN L451-466 仍走 <code>session.add(job) + commit</code>（无显式 <code>updated_at=func.now()</code> 显式传）——M1 P0-7 强约束依赖 ORM <code>onupdate</code> 触发，r1 显式说&quot;显式传 <code>updated_at=func.now()</code>&quot;——主体未改；Task 5 REFACTOR L484 仍&quot;拆 <code>_run_pipeline_unsafe + _mark_failed</code>&quot;（无 <code>func.now()</code> 显式传）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>16</td><td>P2-1</td><td><code>artifacts_dir.mkdir</code> 改到 <code>app/ingest/storage.py:ensure_artifacts_dir()</code> 显式调用（启动 lifespan 调一次）</td><td><strong>❌ 未在主体</strong> · Task 1 REFACTOR L219 仍 &quot;抽 <code>artifacts_dir.mkdir(parents=True, exist_ok=True)</code> 到 <code>app/ingest/__init__.py</code> 模块级 import 时执行&quot;——<strong>未改到 <code>app/ingest/storage.py:ensure_artifacts_dir()</code></strong>；r1 review P2-1 显式说&quot;模块 import 时偷偷做 FS 操作污染 FS&quot;——主体未修</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>17</td><td>P2-2</td><td><code>pyproject.toml</code> 依赖段补 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-postgresql&gt;=6,&lt;7</code>（与 M0/M1 一致）</td><td><strong>❌ 未在主体</strong> · Files 表 L190-192 &quot;修改&quot;段仍写&quot;pyproject.toml：追加 5 个新直接依赖（<code>llama-index-core</code> / <code>llama-index-readers-file</code> / <code>opensearch-py[async]</code> / <code>Pillow</code> / <code>pypdf</code>）&quot;——<strong>未列 <code>pytest-asyncio</code> / <code>pytest-postgresql</code></strong>（r1 修订记录写&quot;与 M0/M1 一致&quot;——主体未补）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>18</td><td>P2-3</td><td><code>asyncio_mode = auto</code> 继承 M0（已在 <code>pyproject.toml [tool.pytest.ini_options]</code>），M4 测试无需额外配置</td><td><strong>❌ 未在主体</strong> · 测试策略段 L531-538 <strong>未补</strong> &quot;<code>pytest.ini</code> 已含 <code>asyncio_mode = auto</code>（M0 P2-1），M4 异步测试无需 <code>@pytest.mark.asyncio</code> 装饰&quot;（r1 review P2-3 显式给的注释）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>19</td><td>P2-4</td><td>M4 测试 mock 走 <code>pytest-httpx</code>（与 M3 一致），从 dev 依赖显式加</td><td><strong>❌ 未在主体</strong> · Tech Stack 表 L144 仍写&quot;测试：<code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code></td><td>M3 已有&quot;（r1 review P2-4 显式说&quot;M4 实际不需 <code>pytest-httpx</code>&quot;——主体未改）</td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>20</td><td>P2-5</td><td><code>.env.example</code> 补 <code>INGEST_MAX_FILE_SIZE_MB=50</code> + <code>INGEST_BULK_THRESHOLD=500</code> + <code>OPENSEARCH_REFRESH_INTERVAL=30s</code></td><td><strong>❌ 未在主体</strong> · Files 表 L200 &quot;不修改&quot;段仍写&quot;<code>.env.example</code>（M4 暂不追加，env 走 <code>IngestSettings</code> 默认值；如需覆盖再补）&quot;——<strong>未改未追加</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>21</td><td>P2-6</td><td><code>test_ingest_skips_oversized_attachment</code> 改 mock 50MB（不真写盘）：patch <code>Path.stat().st_size = 60<em>1024</em>1024</code></td><td><strong>❌ 未在主体</strong> · Task 6 RED L513-520 仍写&quot;<code>Path(&quot;test_60mb.pdf&quot;).write_bytes(b&quot;\0&quot; <em> 60</em>1024*1024)</code>&quot;——<strong>未改 mock 路径大小</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>22</td><td>P2-7</td><td><code>_payload_hash</code> 改流式 hash（<code>hashlib.sha256()</code> + 8KB chunk），不读全文到内存</td><td><strong>❌ 未在主体</strong> · Task 5 GREEN L406-407 仍 <code>def _payload_hash(path: Path) -&gt; str: return hashlib.sha256(path.read_bytes()).hexdigest()</code>——<strong>未改流式</strong></td><td>修订记录 ✅ / 主体 ❌</td></tr>
+<tr><td>23</td><td>P2-8</td><td><code>IngestJobStatus</code> 枚举值 4 个（<code>pending</code> / <code>running</code> / <code>indexed</code> / <code>failed</code>）已在 M1 schema 落 <code>VARCHAR(16) CHECK</code></td><td><strong>⚠️ 部分</strong> · r1 修订记录写&quot;已在 M1 schema 落 <code>VARCHAR(16) CHECK</code>&quot;——<strong>M1 plan 状态需 cross-check</strong>；Task 5 GREEN 主体未改 <code>IngestJobStatus</code> 引用（仍 L398-399 <code>from app.db.models.ingest_job import IngestJob, IngestJobStatus</code>）</td><td>修订记录 ✅ / 主体未改（但依赖 M1）</td></tr>
+<tr><td>24</td><td>P2-9</td><td>批次 ingest 接口规格预留：<code>POST /api/ingest/batch</code>（M8 路由实现，V1 边界外不阻塞）</td><td><strong>⚠️ 部分</strong> · 契约边界表 L116-124 <strong>未加批次接口行</strong>（r1 review P2-9 显式要求&quot;批次 ingest 是 M4 串行 N 个 M4 <code>ingest_file</code>&quot;行）——但 r1 修订记录写&quot;M8 路由实现，V1 边界外不阻塞&quot;，<strong>M4 plan 主体不写 <code>POST /api/ingest/batch</code> 路径 + M6 串行约定</strong>也成立</td><td>修订记录 ✅ / 主体未改（接受）</td></tr>
+</table>
+<h3 id="11-24-项-r1-修复落地总览">1.1 24 项 r1 修复落地总览</h3>
+<table>
+<tr><th>落地情况</th><th>数量</th><th>比例</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>修订记录行存在 + plan 主体同步修改</td><td>0</td><td>0%</td></tr>
+<tr><td>修订记录行存在 + plan 主体未同步修改</td><td>22</td><td>91.7%</td></tr>
+<tr><td>修订记录行存在 + plan 主体部分同步 / 接受不修</td><td>2</td><td>8.3%</td></tr>
+<tr><td>修订记录行缺失</td><td>0</td><td>0%</td></tr>
+</table>
+<p><strong>核心发现</strong>：<strong>r1 修订记录行 100% 列全</strong>（24 项 + L640 跨 M 联动段全在），但<strong>plan 主体同步率 0%</strong>——r1 是&quot;清单模式&quot;修复，不是&quot;plan 主体修改&quot;修复。<strong>这是 M4 plan 主体 590→640 行只 +50 行的根因</strong>（r1 review 770 行写完后 plan 主体仅 +50 行：24 项修订记录 24 行 + L640 联动段 1 行 + L615 修订记录标题 1 行 + 零散改 24 行；总 ~50 行）。</p>
+<h3 id="12-关键发现r1-修复对-plan-主体的实质修改">1.2 关键发现：r1 修复对 plan 主体的实质修改</h3>
+<table>
+<tr><th>段</th><th>plan 主体行号</th><th>r1 实际改动</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>Goal L13-22</td><td>13-22</td><td>0</td></tr>
+<tr><td>Architecture L57-65（仓库布局）</td><td>57-65</td><td>0</td></tr>
+<tr><td>Architecture L88-114（M4 模块树）</td><td>88-114</td><td>0</td></tr>
+<tr><td>Architecture L116-124（契约边界）</td><td>116-124</td><td><strong>0</strong>（r1 修订记录写补 GET /api/ingest/{job_id} 契约，<strong>主体未加</strong>）</td></tr>
+<tr><td>Tech Stack L130-144</td><td>130-144</td><td>0</td></tr>
+<tr><td>Files L168-189</td><td>168-189</td><td>0</td></tr>
+<tr><td>Tasks L205-527</td><td>205-527</td><td>0</td></tr>
+<tr><td>测试策略 L530-539</td><td>530-539</td><td>0</td></tr>
+<tr><td>DoD L542-553</td><td>542-553</td><td>0</td></tr>
+<tr><td>风险表 L569-582</td><td>569-582</td><td>0（r1 修订记录补 24 行风险行，<strong>主体风险表 L583-606 是新增 24 行未替换原表</strong>）</td></tr>
+<tr><td>修订记录 L610-640</td><td>610-640</td><td><strong>+30 行</strong>（24 项修订行 + L615 标题 + L640 联动段 + 5 行结构）</td></tr>
+</table>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="21-核心问题r1-主体修改-修订记录清单plan-主体未同步">2.1 核心问题：r1 主体修改 = 修订记录清单，plan 主体未同步</h3>
+<p>r1 修订记录 24 项 100% 在，但 plan 主体同步率 0%——M4 实施者按 plan 主体读，<strong>读到的还是 r0 时的旧 Tasks/Architecture/Files</strong>（5 P0 / 10 P1 / 9 P2 全在主体），<strong>r1 修订记录行要&quot;翻开&quot;才知道</strong>。</p>
+<p><strong>对照 M3 r1 修复</strong>（M3 plan 也有同样 24 项修订），M3 plan 主体有<strong>实际同步修改</strong>——Tasks / Files / DoD 段全改了。M4 r1 修复<strong>没有&quot;主体修改&quot;动作</strong>，这是<strong>M4 r1 唯一独特性</strong>。</p>
+<p><strong>为什么 r1 修订记录 vs 主体同步不一致</strong>：</p>
+<ul>
+<li>main agent 手 patch 一次 write_file（背景：M4 之前 3 次派 subagent 假完成 + 1 次撞 429）——write_file 是整文件覆盖，<strong>main agent 只追加了 L583-640 段</strong>（修订记录 30 行），<strong>plan 主体 L1-582 段一行未改</strong></li>
+<li>这与 L6 估时&quot;5 个工作日（原3d估时严重低估，按 P1-2修正为5d）&quot;<strong>形式上是 P1-2 主体改了的唯一证据</strong>——但 P1-2 r1 修订记录写&quot;2h→2.5h&quot;<strong>自相矛盾</strong>（plan L6 写 5d，r1 写 2.5h）</li>
+</ul>
+<h3 id="22-r1-修订记录自相矛盾">2.2 r1 修订记录自相矛盾</h3>
+<table>
+<tr><th>项</th><th>plan 主体说</th><th>r1 修订记录说</th><th>矛盾点</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>P1-2 估时</td><td>L6 &quot;5 个工作日&quot;</td><td>L622 &quot;2h→2.5h&quot;</td><td>r1 review P1-2 显式说&quot;3d → 5d&quot;，<strong>r1 修订记录写&quot;2h→2.5h&quot;</strong>——单位不一致</td></tr>
+<tr><td>P1-9 OpenSearchClient</td><td>L266-293 默认构造 AsyncOpenSearch，无 lifespan</td><td>L629 &quot;lifespan 管理 + <code>app.state.opensearch</code>&quot;</td><td>r1 写 FastAPI lifespan 模式，<strong>主体仍是 init 时构造</strong></td></tr>
+<tr><td>P0-3 bulk 阈值</td><td>L283-292 无 bulk 阈值</td><td>L585 &quot;bulk 阈值 500&quot;</td><td>r1 写 500 触发 <code>helpers.async_bulk</code>，<strong>主体 bulk API 直调</strong></td></tr>
+</table>
+<h3 id="23-r1-风险表-24-行结构与原-10-行结构混用">2.3 r1 风险表 24 行结构与原 10 行结构混用</h3>
+<p>原 10 行风险表 L569-582 列结构：<strong>风险 | 缓解 | 曾被否决的替代方案</strong>（每行 3 列）；r1 24 行 L583-606 列结构相同但<strong>「曾被否决的替代方案」列写&quot;已修&quot;无意义</strong>：</p>
+<ul>
+<li>L583 P0-1：曾被否决的替代方案列写 <code>—</code>（r1 review 原 P0-1 未否决替代方案，正确）</li>
+<li>L584 P0-2：曾被否决的替代方案列写&quot;用默认 reader：实际不抽图，元素分类永远拿不到 Image&quot;——<strong>这是 r1 review 原 P0-2 P0-3 缓解方案，不是&quot;曾被否决的替代方案&quot;</strong></li>
+<li>L585 P0-3：曾被否决的替代方案列写&quot;mock 推到 M7：M4 集成测试假绿，M7 真实集成爆雷&quot;——<strong>这是 r1 review 原 P1-1 缓解方案，不是替代方案</strong></li>
+<li>L586-606 P0-4 ~ P2-9：曾被否决的替代方案列写 <code>—</code> 或无意义内容</li>
+</ul>
+<p class="ok"><strong>这 24 行不是&quot;风险&quot;，是&quot;r1 修复状态&quot;</strong>——r1 把&quot;修复记录&quot;塞进&quot;风险表&quot;是结构错位，<strong>应该独立成段</strong>「r1-2026-06-11 修复清单」而不是混入风险表。</p>
+<h3 id="24-r1-跨-m-联动段-l640-是唯一真落地">2.4 r1 跨 M 联动段 L640 是唯一真落地</h3>
+<p>L640 写：&quot;跨 M 联动落地 · M0 healthcheck / M1 <code>ingest_jobs.payload_hash</code> UNIQUE + <code>retry_count</code> + <code>next_retry_at</code> + bulk update <code>updated_at=func.now()</code> / M3 <code>TEIEmbedder.EmbeddingDimMismatch</code> 硬断言 / M5/M6 复用 <code>app/ingest/exceptions.py</code> + <code>ImageRef</code> 路径规范 / M7 <code>OpenSearchClient</code> lifespan 注入 / M8 <code>GET /api/ingest/{job_id}</code> 进度接口&quot;</p>
+<p><strong>这是 r1 唯一&quot;在 plan 主体可见&quot;的修复动作</strong>（在 plan 末尾 L640 段，不在修订记录行清单）——但<strong>联动项未在 Architecture 段契边界表 / Files 表 / Tasks 段分别落地</strong>，仅末尾一行总览。<strong>实施者读到 L640 知道&quot;M1 retry_count 字段 M4 范围&quot;</strong>，但读不到具体 M4 Tasks 哪一步用 <code>retry_count += 1</code> / <code>next_retry_at = now() + backoff</code>。</p>
+<h3 id="25-r1-引入的-3-个新风险">2.5 r1 引入的 3 个新风险</h3>
+<table>
+<tr><th>风险</th><th>严重度</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><strong>M5/M6 复制 M4 范本时读旧主体</strong></td><td>高</td><td>M4 plan 主体仍写 r0 时的旧 Tasks，M5/M6 plan 写&quot;复用 M4 <code>SentenceSplitterWrapper.split</code> + <code>OpenSearchClient.upsert_chunks</code>&quot;——但 M4 <code>OpenSearchClient.upsert_chunks</code> 主体未加 <code>INDEX_MAPPING</code> / <code>ensure_index</code> / <code>BULK_THRESHOLD</code>（P0-3 主体未改）——M5/M6 复制会<strong>漏 mapping 初始化</strong></td></tr>
+<tr><td><strong>r1 修订记录 24 项与 r1 review 24 项 1:1 但 plan 主体 0 项同步</strong></td><td>高</td><td>r1 review 写&quot;P0-1 必改&quot;是给 M4 实施者的 actionable instructions；r1 修订记录写&quot;已修&quot;是给审计的，但实施者<strong>无法从 plan 主体找到 actionable 落地点</strong></td></tr>
+<tr><td>**r1 P1-5 状态机迁移&quot;pending → running → indexed\</td><td>failed&quot;主体代码无 running 态**</td><td>中</td><td>Task 5 GREEN L423-465 主体代码无 <code>IngestJobStatus.RUNNING</code> 引用——r1 修订记录写&quot;已修&quot;是 schema 层面（M1 P0-7 强约束），但<strong>M4 pipeline 代码没在 split/embed/upsert 三段前 mark RUNNING</strong>——LIFO 时序问题：任务标记 INDEXED 时<strong>始终是 PENDING→INDEXED</strong>（无 RUNNING 经历），r1 修订记录自相矛盾</td></tr>
+</table>
+<h3 id="26-r1-修订记录与跨-m-联动段重复">2.6 r1 修订记录与跨 M 联动段重复</h3>
+<p>L640 跨 M 联动段把 r1 修订记录里 24 项中<strong>与跨 M 相关的子集</strong>汇总一遍：</p>
+<ul>
+<li>M0 healthcheck ··· 修订记录无对应项（r1 review P0-3 是 OpenSearch refresh_interval，与 M0 healthcheck 不同）</li>
+<li>M1 <code>ingest_jobs.payload_hash</code> UNIQUE ··· 对应 r1 修订记录无（r1 review 已有 review P1-5 修）</li>
+<li>M1 <code>retry_count</code> + <code>next_retry_at</code> ··· 对应 r1 修订记录 P1-5 状态机迁移规则（M4 用 retry_count 字段）</li>
+<li>M1 bulk update <code>updated_at=func.now()</code> ··· 对应 r1 修订记录 P1-10</li>
+<li>M3 <code>TEIEmbedder.EmbeddingDimMismatch</code> ··· 对应 r1 修订记录无（M3 范围，M4 仅引用）</li>
+<li>M5/M6 <code>app/ingest/exceptions.py</code> + <code>ImageRef</code> 路径规范 ··· 对应 r1 修订记录 P1-6/P1-7/P1-8</li>
+<li>M7 <code>OpenSearchClient</code> lifespan ··· 对应 r1 修订记录 P1-9</li>
+<li>M8 <code>GET /api/ingest/{job_id}</code> ··· 对应 r1 修订记录 P0-5</li>
+</ul>
+<p><strong>L640 是 24 项修订记录中&quot;跨 M&quot;子集的 1:1 展开</strong>——这是 r1 修复&quot;审计可追溯&quot;的体现，但<strong>实施者面对 24 项修订记录 + 1 项 L640 总览，缺少&quot;主体可执行代码契约&quot;</strong>。</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m3m5m6m7m8">3. 跨 M 一致性检查（M0/M1/M3/M5/M6/M7/M8）</h2>
+<h3 id="31-m4-m0healthcheck-tei-端口-18080-opensearch-refresh">3.1 M4 ↔ M0：healthcheck / TEI 端口 18080 / OpenSearch refresh</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M0 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>TEI 端口 18080:80</td><td>✅ plan L195 &quot;M0 已建；TEI 端口 <code>18080:80</code> P0-1 已修&quot;；L537 &quot;TEI 端口 <code>18080:80</code> P0-1 修&quot;</td><td>✅ M0 已修 P0-1</td><td>✅ 一致</td></tr>
+<tr><td>OpenSearch refresh_interval</td><td>⚠️ r1 修订记录 P0-3 写&quot;refresh_interval=30s&quot;；<strong>M4 主体 L291 仍 <code>refresh=False</code></strong>；L640 联动段未提 OpenSearch refresh</td><td>✅ M0 配 OpenSearch</td><td>⚠️ 主体与修订记录矛盾</td></tr>
+<tr><td>M0 healthcheck</td><td>⚠️ L640 联动段提&quot;健康检查&quot;</td><td>✅ M0 P0-3 healthcheck</td><td>⚠️ 主体 plan 不显式引用 M0 healthcheck（依赖隐式）</td></tr>
+</table>
+<p><strong>问题</strong>：M4 主体 L291 <code>refresh=False</code> 与 r1 修订记录 P0-3 &quot;refresh_interval=30s&quot;<strong>自相矛盾</strong>——r1 修复要写 <code>await self._client.indices.put_settings(index=index_name, body={&quot;index&quot;: {&quot;refresh_interval&quot;: &quot;30s&quot;}})</code> 之类，但主体<strong>完全未改</strong>。</p>
+<h3 id="32-m4-m1ingest_jobs-unique-retry_count-next_retry_at-idempot">3.2 M4 ↔ M1：ingest_jobs UNIQUE / retry_count / next_retry_at / idempotency_key / bulk update updated_at</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M1 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>ingest_jobs.payload_hash</code> UNIQUE</td><td>✅ plan L197 &quot;含 P1-5 UNIQUE 索引&quot;；L411-422 实现幂等查</td><td>✅ M1 schema 落 P1-5</td><td>✅ 一致</td></tr>
+<tr><td><code>ingest_jobs.retry_count</code> / <code>next_retry_at</code></td><td>❌ Task 5 GREEN L460-466 <code>_mark_failed</code> 主体<strong>不写</strong> <code>retry_count += 1</code> 或 <code>next_retry_at = now() + backoff</code></td><td>✅ M1 加字段（M1 review P2-5）</td><td>❌ M4 主体未用</td></tr>
+<tr><td><code>ingest_jobs.idempotency_key</code></td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+<tr><td>bulk update <code>updated_at=func.now()</code></td><td>❌ r1 修订记录 P1-10 写&quot;显式 <code>updated_at=func.now()</code>&quot;；<strong>主体 L451-466 仍走 ORM <code>session.add</code> + commit 无显式传</strong></td><td>✅ M1 P0-7 强约束</td><td>❌ M4 主体未显式传（依赖 ORM onupdate）</td></tr>
+<tr><td><code>ingest_jobs.status</code> 状态机</td><td>⚠️ r1 修订记录 P1-5 写&quot;pending → running → indexed\</td><td>failed&quot;；<strong>主体代码无 RUNNING 态</strong></td><td>✅ M1 schema 落 <code>VARCHAR(16) CHECK</code>（r1 P2-8 修订）</td><td>⚠️ M4 主体未用 running 态</td></tr>
+</table>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M1 加了 <code>retry_count</code> / <code>next_retry_at</code> 字段，<strong>M4 主体不写</strong>——M4 失败重试逻辑不写 <code>retry_count += 1</code>（r1 review P1-5 显式给&quot;重试 reset status=PENDING, retry_count += 1&quot;代码，主体未实现）</li>
+<li>M1 P0-7 强约束要求 bulk update 显式 <code>updated_at=func.now()</code>，r1 修订记录 P1-10 也写&quot;显式传&quot;，<strong>但 M4 主体仍走 ORM <code>onupdate</code></strong>——ORM 触发 onupdate 与显式传 <code>func.now()</code> 行为<strong>不一致</strong>（onupdate 触发依赖 SQLAlchemy 检测到列&quot;脏&quot;，bulk update 用 Core update 不会触发 onupdate）</li>
+<li>状态机 M1 schema 落 <code>VARCHAR(16) CHECK</code> 含 4 值（pending/running/indexed/failed），M4 主体代码<strong>不引用 RUNNING</strong>——M1 schema 4 值白做</li>
+</ul>
+<h3 id="33-m4-m3teiembedderembeddingdimmismatch-硬断言">3.3 M4 ↔ M3：TEIEmbedder.EmbeddingDimMismatch 硬断言</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M3 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>TEIEmbedder.embed()</code> 返 <code>list[list[float]]</code> dim=1024</td><td>✅ Task 5 GREEN L439 <code>vectors = await embedder.embed([c.text for c in chunks])</code></td><td>✅ M3 工厂</td><td>✅ 一致</td></tr>
+<tr><td><code>TEIEmbedder.EmbeddingDimMismatch</code> 硬断言</td><td>❌ <strong>M4 主体无 <code>EmbeddingDimMismatch</code> 二次断言</strong>；r1 修订记录无；L640 联动段写&quot;M3 <code>TEIEmbedder.EmbeddingDimMismatch</code> 硬断言&quot;——但<strong>M4 主体不引用</strong></td><td>✅ M3 review P0-3 加硬断言</td><td>❌ M4 主体未加 dim 二次断言（TEI 服务端偶发 dim 漂移时 M4 端到端应报 EmbeddingDimMismatch，pipeline 写入 OpenSearch 前断言 <code>len(vec) == 1024</code>，主体未加）</td></tr>
+</table>
+<p><strong>问题</strong>：M3 加了 dim 硬断言保护 TEI 服务端 dim 漂移，但 M4 端到端<strong>未在 pipeline 写入 OpenSearch 前再断言一次</strong>——TEI 客户端硬断言可能 raise <code>EmbeddingDimMismatch</code>，但<strong>M4 pipeline 调用 <code>embedder.embed()</code> 后直接用 <code>vectors</code>，未断言 <code>len(vec) == 1024</code></strong>——M3 硬断言是 M3 范围，但 M4 端到端<strong>应二次断言</strong>避免脏数据进 OpenSearch（M3 raise 后 M4 不会接住，会走 <code>_mark_failed</code> 标 FAILED，符合预期；但 M3 硬断言在 M3 客户端 raise 前若<strong>未触发</strong>就传到 M4 写入 OpenSearch，OpenSearch mapping <code>dimension: 1024</code> 会 reject——M4 主体应<strong>在写入前断言</strong> <code>len(vec) == 1024</code> 提前 fail-fast，避免依赖 OpenSearch reject）。</p>
+<h3 id="34-m4-m5-m6appingestexceptionspy-imageref-路径规范-payload_hash-">3.4 M4 ↔ M5 / M6：app/ingest/exceptions.py + ImageRef 路径规范 + payload_hash 字段一致性</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M5/M6 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>app/ingest/exceptions.py</code></td><td>❌ <strong>M4 Files 表未列</strong>（r1 P1-6 已修声称&quot;显式列&quot;——主体未改）</td><td>M5/M6 复用</td><td>❌ M5/M6 复制 M4 找不到 exceptions.py</td></tr>
+<tr><td><code>ImageRef</code> 移到 <code>app/ingest/models.py</code></td><td>❌ <strong>M4 主体仍定义在 <code>app/ingest/sources/file.py</code></strong>（r1 P1-8 已修声称&quot;移到 models.py&quot;——主体未改）</td><td>M5/M6 复用</td><td>❌ M5/M6 复制 M4 找不到 models.py</td></tr>
+<tr><td><code>image_ref</code> 路径规范 <code>{doc_id}/images/{file_basename}.{ext}</code></td><td>❌ <strong>M4 主体 L369 <code>relative_path=f&quot;{doc_id}/images/{src.name}&quot;</code> 未改</strong>（r1 P1-7 已修声称&quot;统一规范&quot;——主体未改）</td><td>M5/M6 复制</td><td>❌ M5/M6 复制 M4 会沿用 <code>src.name</code> 旧口径</td></tr>
+<tr><td><code>payload_hash</code> 字段一致性</td><td>✅ Task 5 GREEN L406-407 用 <code>sha256(path.read_bytes())</code>（r1 P2-7 改流式——主体未改，但 M4 ↔ M5/M6 字段一致都是 <code>payload_hash</code>）</td><td>M5/M6 用 <code>payload_hash</code></td><td>✅ 一致（流式 vs 全文 r1 P2-7 是 P2 不阻塞）</td></tr>
+</table>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M5/M6 plan 写&quot;复用 M4 <code>app/ingest/exceptions.py</code> + <code>app/ingest/models.py::ImageRef</code>&quot;——<strong>M4 主体未提供这两个文件</strong>——M5/M6 实施时会<strong>创建同名文件</strong>（重复定义）或<strong>回头改 M4 plan</strong></li>
+<li>image_ref 路径规范 M4 主体用 <code>f&quot;{doc_id}/images/{src.name}&quot;</code>，M5/M6 复制时若<strong>改用 <code>f&quot;{doc_id}/images/{file_basename}.{ext}&quot;</code></strong>（r1 修订记录口径）——OpenSearch metadata <code>image_ref</code> 字段值不一致，前端缩略图查 M5 的图查不到（M4 的图在 <code>{doc_id}/images/{src.name}</code>，M5 的图在 <code>{doc_id}/images/{file_basename}.{ext}</code>）</li>
+</ul>
+<h3 id="35-m4-m7opensearchclient-upsert_chunks-接口">3.5 M4 ↔ M7：OpenSearchClient upsert_chunks 接口</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M7 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>OpenSearchClient.upsert_chunks(chunks, index_name) -&gt; int</code></td><td>✅ Task 3 GREEN L281-292 接口签名</td><td>✅ M7 复用（扩展为 <code>OpenSearchVectorStore</code>）</td><td>✅ 一致</td></tr>
+<tr><td><code>OpenSearchClient.ensure_index(index_name)</code></td><td>❌ <strong>M4 主体 L266-293 无 <code>ensure_index</code> 方法</strong>（r1 P0-3 已修声称&quot;ensure_index 创建 mapping&quot;——主体未改）</td><td>M7 复用 ensure_index</td><td>❌ M7 找不到 ensure_index</td></tr>
+<tr><td><code>INDEX_MAPPING</code> 全局常量</td><td>❌ <strong>M4 主体 L266-293 无 <code>INDEX_MAPPING</code></strong>（r1 P0-3 已修声称&quot;显式声明&quot;——主体未改）</td><td>M7 复用 INDEX_MAPPING</td><td>❌ M7 找不到 INDEX_MAPPING</td></tr>
+<tr><td>模块级 <code>_default_client</code> 单例 / <code>aclose()</code></td><td>❌ <strong>M4 主体 L266-293 无 lifespan 管理</strong>（r1 P1-9 已修声称&quot;lifespan 管理&quot;——主体未改）</td><td>M7 复用</td><td>❌ M7 找不到</td></tr>
+</table>
+<p><strong>问题</strong>：M4 主体 <code>OpenSearchClient.upsert_chunks</code> 接口<strong>仅有 bulk 调用</strong>，无 <code>ensure_index</code> / <code>INDEX_MAPPING</code> / lifespan——M7 实施时<strong>必须回头改 M4 主体</strong>（4 处 P0-3 + P1-9 修改）才能继续。这是 M4 r1 修复&quot;主体未同步&quot;的最严重后果——<strong>M7 卡 M4 修订</strong>。</p>
+<h3 id="36-m4-m8post-apiingest-路由-get-apiingestjob_id-进度">3.6 M4 ↔ M8：POST /api/ingest 路由 / GET /api/ingest/{job_id} 进度</h3>
+<table>
+<tr><th>跨 M 项</th><th>M4 状态</th><th>M8 状态</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>POST /api/ingest</code> 路由（<code>pipeline.ingest_file(path, current_user)</code>）</td><td>✅ 契约边界表 L120 &quot;M8 <code>/api/ingest</code> 路由：<code>ingest_file(path, current_user) -&gt; IngestJob</code>&quot;</td><td>✅ M8 实现</td><td>✅ 一致</td></tr>
+<tr><td><code>GET /api/ingest/{job_id}</code> 返回 <code>IngestProgressResponse{status, chunks_count, error?}</code></td><td>❌ <strong>M4 契约边界表 L116-124 未加此行</strong>（r1 P0-5 已修声称&quot;契约边界表显式列&quot;——主体未改）；<strong>M4 Files 表未加 <code>app/ingest/schemas.py</code></strong>（r1 P0-5 已修声称&quot;schemas.py&quot;——主体未改）</td><td>M8 路由需要 IngestProgressResponse</td><td>❌ M8 路由找不到 schema</td></tr>
+<tr><td>M4 进度查询需要的字段集（job_id/status/chunks_count/error/created_at/updated_at/duration/source/doc_id/payload_hash）</td><td>⚠️ 主体 Task 5 GREEN L427-429 用 ORM 字段，未注释&quot;前端进度页要&quot;</td><td>M8 路由实现</td><td>⚠️ 主体未注释&quot;前端进度查询需要的字段&quot;——M8 路由实施时会反复回头问 M4</td></tr>
+</table>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M4 主体契约边界表 4 行（M8 路由 / M5 url / M6 confluence / M7 OpenSearch）<strong>没加 GET 路由契约</strong>——M8 路由实施时<strong>找不到 M4 提供的 IngestProgressResponse</strong>——M8 plan 写&quot;响应 IngestJob ORM 实体&quot;还是&quot;Pydantic schema&quot;？</li>
+<li>M4 主体<strong>无 <code>app/ingest/schemas.py</code></strong>——M8 路由找不到 schema 定义文件</li>
+</ul>
+<h3 id="37-跨-m-一致性总览">3.7 跨 M 一致性总览</h3>
+<table>
+<tr><th>跨 M 对</th><th>一致</th><th>警告</th><th>矛盾 / 缺失</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M4 ↔ M0</td><td>1</td><td>2</td><td>0</td></tr>
+<tr><td>M4 ↔ M1</td><td>1</td><td>1</td><td>3（retry_count / next_retry_at / bulk update updated_at / running 态）</td></tr>
+<tr><td>M4 ↔ M3</td><td>1</td><td>0</td><td>1（dim 二次断言缺失）</td></tr>
+<tr><td>M4 ↔ M5/M6</td><td>1</td><td>0</td><td>3（exceptions.py / models.py / image_ref 路径）</td></tr>
+<tr><td>M4 ↔ M7</td><td>1</td><td>0</td><td>3（ensure_index / INDEX_MAPPING / lifespan）</td></tr>
+<tr><td>M4 ↔ M8</td><td>1</td><td>1</td><td>2（GET 路由契约 / schemas.py）</td></tr>
+<tr><td><strong>合计</strong></td><td>6</td><td>4</td><td><strong>12</strong></td></tr>
+</table>
+<p><strong>核心发现</strong>：<strong>12 项跨 M 一致性缺失</strong>——r1 修订记录写&quot;已修&quot;的项目中<strong>只有 6 项在 plan 主体可见</strong>，<strong>12 项主体与修订记录矛盾或缺失</strong>。<strong>M7 卡 M4 修订</strong>最严重（ensure_index / INDEX_MAPPING / lifespan 三个接口 M7 必须复用但 M4 主体未提供）。</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表结构">4.1 风险表结构</h3>
+<table>
+<tr><th>段</th><th>行号</th><th>行数</th><th>结构</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>原风险</td><td>L569-582</td><td>10</td><td>风险 \</td><td>缓解 \</td><td>曾被否决的替代方案</td></tr>
+<tr><td>r1 修复</td><td>L583-606</td><td>24</td><td>风险 \</td><td>缓解 \</td><td>曾被否决的替代方案（<strong>结构相同但内容是&quot;修复状态&quot;不是&quot;风险&quot;</strong>）</td></tr>
+<tr><td><strong>合计</strong></td><td>569-606</td><td>34</td><td>—</td></tr>
+</table>
+<h3 id="42-r1-24-行风险表内容审计">4.2 r1 24 行风险表内容审计</h3>
+<table>
+<tr><th>r1 行</th><th>主题</th><th>缓解列</th><th>曾被否决的替代方案列</th><th>问题</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L583</td><td>P0-1 元素分类</td><td>&quot;<code>app/ingest/element_classifier.py</code> + 单测&quot;</td><td><code>—</code></td><td>✅ 合理</td></tr>
+<tr><td>L584</td><td>P0-2 file_extractor</td><td>&quot;PyMuPDFReader / DocxReader 注册 + extract_images 后置 hook&quot;</td><td>&quot;用默认 reader：实际不抽图&quot;</td><td>⚠️ 替代方案列写的是 r1 review 缓解方案，不是&quot;曾被否决的替代方案&quot;</td></tr>
+<tr><td>L585</td><td>P0-3 OpenSearch 写入三件</td><td>&quot;mapping + refresh_interval=30s + bulk 阈值 500&quot;</td><td>&quot;mock 推到 M7&quot;</td><td>⚠️ 同上——这是 r1 review P1-1 缓解方案</td></tr>
+<tr><td>L586</td><td>P0-4 chunk_id/doc_id</td><td>&quot;uuid5 公式&quot;</td><td><code>—</code></td><td>✅ 合理</td></tr>
+<tr><td>L587</td><td>P0-5 GET 进度接口</td><td>&quot;IngestProgressResponse schema&quot;</td><td><code>—</code></td><td>✅ 合理</td></tr>
+<tr><td>L588</td><td>P1-1 testcontainers OS</td><td>&quot;与 M0 infra 一致&quot;</td><td><code>—</code></td><td>✅ 合理</td></tr>
+<tr><td>L589</td><td>P1-2 Task 估时</td><td>&quot;Task 5 实测 30min&quot;</td><td><code>—</code></td><td>⚠️ 数值与 plan L6 &quot;5 个工作日&quot; 矛盾</td></tr>
+<tr><td>L590</td><td>P1-3 extract_images 走 reader</td><td>&quot;走 file_extractor 注册 reader&quot;</td><td><code>—</code></td><td>✅ 合理</td></tr>
+<tr><td>L591</td><td>P1-4 错误矩阵</td><td>&quot;7 条覆盖&quot;</td><td><code>—</code></td><td>⚠️ 主体 plan 错误矩阵未补</td></tr>
+<tr><td>L592</td><td>P1-5 状态机迁移</td><td>&quot;pending → running → indexed\</td><td>failed&quot;</td><td><code>—</code></td><td>❌ 主体代码无 RUNNING 态</td></tr>
+<tr><td>L593</td><td>P1-6 exceptions.py</td><td>&quot;3 个 exception 供 M5/M6 复用&quot;</td><td><code>—</code></td><td>❌ Files 表未列 exceptions.py</td></tr>
+<tr><td>L594</td><td>P1-7 image_ref 路径</td><td>&quot;artifacts/{doc_id}/images/{file_basename}.{ext}&quot;</td><td><code>—</code></td><td>❌ 主体 L369 路径模板未改</td></tr>
+<tr><td>L595</td><td>P1-8 ImageRef models.py</td><td>&quot;M5/M6 复用&quot;</td><td><code>—</code></td><td>❌ ImageRef 仍在 sources/file.py</td></tr>
+<tr><td>L596</td><td>P1-9 OpenSearchClient lifespan</td><td>&quot;async with + app.state&quot;</td><td><code>—</code></td><td>❌ 主体无 lifespan 代码</td></tr>
+<tr><td>L597</td><td>P1-10 bulk update updated_at</td><td>&quot;M1 P0-7 强约束&quot;</td><td><code>—</code></td><td>❌ 主体无显式 func.now() 传</td></tr>
+<tr><td>L598</td><td>P2-1 mkdir 显式</td><td>&quot;ensure_artifacts_dir() 启动 lifespan 调&quot;</td><td><code>—</code></td><td>❌ 主体仍模块级 import 触发</td></tr>
+<tr><td>L599</td><td>P2-2 pytest-asyncio + pytest-postgresql</td><td>&quot;与 M0/M1 一致&quot;</td><td><code>—</code></td><td>❌ Files 表未列</td></tr>
+<tr><td>L600</td><td>P2-3 asyncio_mode=auto</td><td>&quot;继承 M0&quot;</td><td><code>—</code></td><td>❌ 测试策略段未补注释</td></tr>
+<tr><td>L601</td><td>P2-4 pytest-httpx</td><td>&quot;dev 依赖加&quot;</td><td><code>—</code></td><td>❌ Tech Stack 表 L144 未改</td></tr>
+<tr><td>L602</td><td>P2-5 .env.example</td><td>&quot;3 个 INGEST_* env&quot;</td><td><code>—</code></td><td>❌ Files 表 L200 &quot;不修改&quot;未改</td></tr>
+<tr><td>L603</td><td>P2-6 60MB mock</td><td>&quot;patch Path.stat&quot;</td><td><code>—</code></td><td>❌ Task 6 RED 未改</td></tr>
+<tr><td>L604</td><td>P2-7 _payload_hash 流式</td><td>&quot;8KB chunk&quot;</td><td><code>—</code></td><td>❌ 主体 L406-407 未改</td></tr>
+<tr><td>L605</td><td>P2-8 IngestJobStatus 4 值</td><td>&quot;VARCHAR(16) CHECK&quot;</td><td><code>—</code></td><td>⚠️ 主体未引用 RUNNING</td></tr>
+<tr><td>L606</td><td>P2-9 批次接口预留</td><td>&quot;M8 路由 V1 边界外&quot;</td><td><code>—</code></td><td>✅ 接受</td></tr>
+</table>
+<h3 id="43-风险表补全质量总评">4.3 风险表补全质量总评</h3>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>24 行 r1 修订条目完整性</td><td>⭐⭐⭐⭐⭐</td><td>24 项 + L640 联动段全在，1:1 对应 r1 review</td></tr>
+<tr><td>缓解列内容质量</td><td>⭐⭐⭐</td><td>大多数一行写&quot;已修&quot;+ 简短方案；但<strong>主体 plan 不可执行</strong>（缓解方案未落地到 Tasks 段代码契约）</td></tr>
+<tr><td>曾被否决的替代方案列</td><td>⭐</td><td>14/24 行写 <code>—</code> 或写&quot;缓解方案&quot;（混用结构）；3 行写与 r1 review 重复的缓解方案</td></tr>
+<tr><td>与 plan 主体一致性</td><td>⭐</td><td>22/24 行主体未同步，<strong>风险表是&quot;声明&quot;不是&quot;实施&quot;</strong></td></tr>
+<tr><td>跨 M 联动</td><td>⭐⭐⭐</td><td>L640 联动段是唯一真落地（7 项 M0/M1/M3/M5/M6/M7/M8）</td></tr>
+</table>
+<p><strong>核心问题</strong>：</p>
+<ol>
+<li><strong>风险表 vs 修复记录结构混用</strong>——34 行风险表 = 10 行原风险 + 24 行 r1 修复，但<strong>结构相同</strong>（3 列），导致&quot;风险&quot;和&quot;修复&quot;读起来<strong>同质化</strong>——读者分不清哪行是&quot;待缓解的风险&quot;哪行是&quot;已修复的状态&quot;</li>
+<li><strong>「曾被否决的替代方案」列在 r1 24 行写 <code>—</code> 占位无意义</strong>（r1 修订记录里这些行多数是&quot;修复说明&quot;不是&quot;风险&quot;）——r1 应<strong>独立成段</strong>「r1-2026-06-11 修复清单」或用 2 列结构（修复项 \| 落地位置）</li>
+<li><strong>风险表 24 行&quot;缓解方案&quot;与 plan 主体脱节</strong>——L585 P0-3 写&quot;mapping + refresh_interval=30s + bulk 阈值 500&quot;，但 plan 主体 L266-293 仍 <code>refresh=False</code> 无 mapping 无阈值——<strong>风险表是&quot;声明&quot;，plan 主体是&quot;现实&quot;，二者矛盾</strong></li>
+</ol>
+<h3 id="44-与已有-review-风险表对比">4.4 与已有 review 风险表对比</h3>
+<table>
+<tr><th>review</th><th>风险表行数</th><th>落地率</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M0 review</td><td>9 行 P0/P1 + 5 行 P2 = 14 行</td><td>主体 11/14 = 78.6%</td><td>M0 infra 风险大多落地</td></tr>
+<tr><td>M1 review</td><td>8 行 P0/P1 + 5 行 P2 = 13 行</td><td>主体 10/13 = 76.9%</td><td>M1 schema 风险大多落地</td></tr>
+<tr><td>M3 review</td><td>6 行 P0/P1 + 3 行 P2 = 9 行</td><td>主体 7/9 = 77.8%</td><td>M3 风险大多落地</td></tr>
+<tr><td><strong>M4 r1 review</strong></td><td><strong>5 行 P0 + 10 行 P1 + 9 行 P2 = 24 行</strong></td><td><strong>主体 0/24 = 0%</strong></td><td><strong>M4 r1 主体同步率 0%</strong>——24 项全部仅&quot;修订记录行&quot;</td></tr>
+</table>
+<p><strong>M4 r1 主体同步率 0% 是 5 M 中最差</strong>——M0/M1/M3 都有 76-79% 主体同步率，M4 r1 主体<strong>完全未改</strong>。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-r2-必做r1-修复主体同步">5.1 r2 必做（r1 修复主体同步）</h3>
+<p>按 r1 review 24 项修复<strong>逐项展开成 plan 主体修改</strong>：</p>
+<h4 id="第一波-5-项-p0-主体同步最优先">第一波 · 5 项 P0 主体同步（最优先）</h4>
+<ol>
+<li><strong>P0-1 主体</strong> · Architecture 段 L57-65 仓库布局补 <code>app/ingest/element_classifier.py</code>；Files 表 L168-189 加该文件行；Task 4 GREEN L311-332 后插 Task 4.1 &quot;classify_elements 实现&quot; 段（RED-GREEN-REFACTOR）；Tech Stack 表补 <code>BaseElementNodeParser</code> 依赖</li>
+<li><strong>P0-2 主体</strong> · Task 4 GREEN L311-332 重写 <code>read_file</code>，加 <code>FILE_EXTRACTORS = {&quot;.pdf&quot;: PyMuPDFReader(), &quot;.docx&quot;: DocxReader(), ...}</code>；pyproject 修改段 L190-192 加 <code>pymupdf&gt;=10.0</code>；Task 4 GREEN L347-374 <code>extract_images</code> 改走 <code>reader output</code> 而非 <code>doc.metadata[&quot;images&quot;]</code></li>
+<li><strong>P0-3 主体</strong> · Task 3 GREEN L266-293 加 <code>INDEX_MAPPING</code> 全局常量 + <code>ensure_index(index_name)</code> 方法 + <code>BULK_THRESHOLD = 500</code> 阈值；<code>upsert_chunks</code> 改 <code>await self.ensure_index(index_name)</code> 入口；<code>refresh_interval=30s</code> 显式传</li>
+<li><strong>P0-4 主体</strong> · Task 4 GREEN L319-321 重写 <code>_doc_id_from_path</code> 为 <code>uuid5(NAMESPACE_URL, file_path + file_size + mtime)</code>；Task 5 GREEN L440-444 chunk id 显式构造 <code>chunk.id_ = uuid5(NAMESPACE_URL, f&quot;{doc_id}:{chunk_index}&quot;)</code> + 写 <code>chunk_id</code> metadata</li>
+<li><strong>P0-5 主体</strong> · Architecture 段 L116-124 契约边界表加 M8 GET 路由行（&quot;返回 <code>IngestProgressResponse{status, chunks_count, error?, duration_seconds}</code>&quot;）；Files 表 L168-189 加 <code>app/ingest/schemas.py</code>；补该文件 Pydantic schema 完整定义</li>
+</ol>
+<h4 id="第二波-10-项-p1-主体同步">第二波 · 10 项 P1 主体同步</h4>
+<ol>
+<li><strong>P1-1 主体</strong> · Task 6 L488-498 fixture 改 <code>testcontainers[opensearch]</code> 配 <code>opensearchproject/opensearch:2.19.0</code>；测试策略段 L531-538 改&quot;OpenSearch 真容器&quot;</li>
+<li><strong>P1-2 主体</strong> · Tasks 段标题 L205 改&quot;（Task 1-2: 5-10 min；Task 3-5: 20-30 min；Task 6: 30-40 min）&quot;；估时 L6 统一 5d（<strong>删除 r1 修订记录 L622 &quot;2h→2.5h&quot; 与 L6 &quot;5d&quot; 的矛盾</strong>——选 L6 5d）</li>
+<li><strong>P1-3 主体</strong> · 同 P0-2 主体</li>
+<li><strong>P1-4 主体</strong> · 风险表 L569-582 补错误矩阵 7 条（401/422/429/404/500/DB-down 降级/OS 5xx 退避）；Task 5 GREEN L460-466 <code>_mark_failed</code> 加 <code>try/except SQLAlchemyError</code> 分支 + <code>IngestJobStore</code> 内存缓冲</li>
+<li><strong>P1-5 主体</strong> · Task 5 GREEN L398-399 引用 <code>transition_status(job, from_, to_)</code> 工具；L423-428 改 <code>status=IngestJobStatus.RUNNING</code>（split 前）；L454-456 改 <code>transition_status(job, RUNNING, INDEXED)</code>；L462-465 改 <code>transition_status(job, RUNNING, FAILED)</code>；加 <code>retry_count += 1</code> + <code>next_retry_at = now() + backoff</code>（M1 P2-5 字段启用）</li>
+<li><strong>P1-6 主体</strong> · Files 表 L168-189 加 <code>app/ingest/exceptions.py</code>（<code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code>）行</li>
+<li><strong>P1-7 主体</strong> · 契约边界表 L116-124 加 M5/M6 image_ref 路径规范行（<code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>）；Task 4 GREEN L368-372 改 <code>relative_path=f&quot;{doc_id}/images/{file_basename}.{ext}&quot;</code></li>
+<li><strong>P1-8 主体</strong> · Files 表 L168-189 加 <code>app/ingest/models.py</code>（<code>ImageRef</code> dataclass）行；Task 4 GREEN L352-358 移除 <code>ImageRef</code> 定义（移到 models.py）</li>
+<li><strong>P1-9 主体</strong> · Task 3 GREEN L266-293 加 <code>__aenter__/__aexit__</code> + 模块级 <code>_default_client</code> 单例 + <code>aclose()</code> + <code>get_opensearch_client()</code> 工厂</li>
+<li><strong>P1-10 主体</strong> · Task 5 GREEN L451-466 pipeline 状态更新显式 <code>updated_at=func.now()</code>（不依赖 ORM onupdate）</li>
+</ol>
+<h4 id="第三波-9-项-p2-主体同步">第三波 · 9 项 P2 主体同步</h4>
+<ol>
+<li><strong>P2-1 主体</strong> · Task 1 REFACTOR L219 改&quot;<code>app/ingest/storage.py:ensure_artifacts_dir()</code> 启动 lifespan 调一次&quot;</li>
+<li><strong>P2-2 主体</strong> · Files 表 L190-192 pyproject 修改段补 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-postgresql&gt;=6,&lt;7</code></li>
+<li><strong>P2-3 主体</strong> · 测试策略段 L531-538 补&quot;<code>pytest.ini</code> 已含 <code>asyncio_mode = auto</code>（M0 P2-1）&quot;</li>
+<li><strong>P2-4 主体</strong> · Tech Stack 表 L144 改&quot;测试：<code>pytest</code> / <code>pytest-asyncio</code> | spec §8.7 已含&quot;（删除 <code>pytest-httpx</code>）</li>
+<li><strong>P2-5 主体</strong> · Files 表 L200 改&quot;修改&quot;：<code>.env.example</code> 追加 <code>INGEST_MAX_FILE_SIZE_MB=50</code> / <code>INGEST_BULK_THRESHOLD=500</code> / <code>OPENSEARCH_REFRESH_INTERVAL=30s</code> / <code>INGEST_ARTIFACTS_DIR</code> / <code>INGEST_CHUNK_SIZE</code> / <code>INGEST_CHUNK_OVERLAP</code> / <code>INGEST_OPENSEARCH_INDEX</code></li>
+<li><strong>P2-6 主体</strong> · Task 6 RED L513-520 改 <code>monkeypatch.setattr(&quot;pathlib.Path.stat&quot;, lambda self: SimpleNamespace(st_size=60<em>1024</em>1024))</code></li>
+<li><strong>P2-7 主体</strong> · Task 5 GREEN L406-407 改流式 hash</li>
+<li><strong>P2-8 主体</strong> · Task 5 GREEN 注释 &quot;M1 schema 落定 <code>IngestJobStatus</code> 枚举值含 PENDING/RUNNING/INDEXED/FAILED 四值（VARCHAR(16) CHECK）&quot;</li>
+<li><strong>P2-9 主体</strong> · 契约边界表 L116-124 加 M6 批次接口行（M4 不暴露批量接口，M6 写 <code>for path in paths: ingest_file(path, user_id)</code> 串行）</li>
+</ol>
+<h3 id="52-r2-必做r1-引入新问题修复">5.2 r2 必做（r1 引入新问题修复）</h3>
+<ol>
+<li><strong>r1 修订记录自相矛盾</strong>（P1-2 估时 5d vs 2.5h / P0-3 refresh_interval=30s vs refresh=False / P1-5 running 态 vs 主体无 RUNNING）——<strong>r2 主体同步时统一为单一数值/行为</strong></li>
+<li><strong>r1 风险表结构混用</strong>（10 行风险 + 24 行修复同 3 列结构）——<strong>r2 把 24 行 r1 修复从风险表剥离</strong>到独立段「r1-2026-06-11 修复清单」（2 列结构：修复项 \| 落地位置）</li>
+<li><strong>L640 跨 M 联动段保留</strong>——r1 唯一真落地段，r2 不动</li>
+</ol>
+<h3 id="53-跨-m-协调r2-完成后通知">5.3 跨 M 协调（r2 完成后通知）</h3>
+<ul>
+<li><strong>推 M1</strong>：<code>ingest_jobs.retry_count</code> / <code>next_retry_at</code> 字段启用（M4 P1-5 主体修复后用）</li>
+<li><strong>推 M3</strong>：<code>TEIEmbedder.embed()</code> 返 dim 漂移时 M4 端到端 dim 二次断言（M4 主体加 <code>assert len(vec) == 1024</code> 写 OpenSearch 前）</li>
+<li><strong>推 M5/M6</strong>：复用 M4 <code>app/ingest/element_classifier.py</code>（HTML 元素分类）+ <code>app/ingest/exceptions.py</code> + <code>app/ingest/models.py::ImageRef</code>（image_ref 路径规范 <code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>）</li>
+<li><strong>推 M7</strong>：M4 已建 <code>chunks</code> 索引 mapping + <code>ensure_index</code> + lifespan 单例 <code>get_opensearch_client()</code>——M7 retriever 复用</li>
+<li><strong>推 M8</strong>：用 <code>app/ingest/schemas.py::IngestProgressResponse</code> 响应 <code>GET /api/ingest/{job_id}</code></li>
+</ul>
+<h3 id="54-估时修正">5.4 估时修正</h3>
+<p>M4 r1 修复<strong>主体同步</strong>（24 项 + 自相矛盾修正 + 风险表结构剥离）估时 <strong>2-3d</strong>（每项 P0 1-2h 主体改 / 每项 P1 30-60min / 每项 P2 15-30min）：</p>
+<ul>
+<li>P0 5 项 × 1.5h = 7.5h</li>
+<li>P1 10 项 × 45min = 7.5h</li>
+<li>P2 9 项 × 20min = 3h</li>
+<li>风险表结构改 + 跨 M 协调 = 4h</li>
+<li>单测补 + 集成测试 = 4h</li>
+<li><strong>合计 ~26h = 3.5d</strong></li>
+</ul>
+<p>加上 M4 r0 主体实施 5d + r2 主体同步 3.5d = <strong>M4 总实施 8.5d</strong>（与 r1 review 估时&quot;5-6 个工作日&quot; + r1 主体同步 2-3d 累加一致）。</p>
+<h3 id="55-等待决策">5.5 等待决策</h3>
+<ul>
+<li><strong>r2 是否独立 subagent 执行</strong>？建议派独立 subagent 改 plan 主体（24 项主体同步 + 3 项 r1 引入新问题），main agent 不再手 patch write_file——避免<strong>再撞 24 项&quot;修订记录行 vs 主体脱节&quot;反模式</strong></li>
+<li><strong>r1 风险表 24 行结构</strong>是&quot;修复清单混入风险表&quot;还是&quot;独立段&quot;——推荐<strong>独立段</strong>「r1-2026-06-11 修复清单」2 列结构，与 M0/M1/M3 风险表一致</li>
+<li><strong>P0-3 OpenSearch 集成测试</strong>走 testcontainers 真实容器延迟高（30s+）——是否接受 CI 慢但 spec §6 一致性</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修订记录清单完整度</strong>：24/24 = 100%（修订记录行 L616-639 全在）</li>
+<li><strong>r1 plan 主体同步率</strong>：0/24 = 0%（<strong>核心问题</strong>——M4 r1 是 5 M 中同步率最低）</li>
+<li><strong>r1 跨 M 联动段 L640 落地</strong>：✅ 真落地（7 项 M0/M1/M3/M5/M6/M7/M8 联动项列全，r1 唯一主体可见修复）</li>
+<li><strong>r1 引入新问题</strong>：3 项（修订记录自相矛盾 + 风险表结构混用 + P1-5 running 态主体无）</li>
+<li><strong>跨 M 一致性缺失</strong>：12 项（M0: 0 / M1: 4 / M3: 1 / M5/M6: 3 / M7: 3 / M8: 2）</li>
+<li><strong>M7 卡 M4 修订</strong>：3 项（<code>ensure_index</code> / <code>INDEX_MAPPING</code> / lifespan 缺失）——<strong>M7 实施必须回头改 M4 主体</strong></li>
+<li><strong>范本传染面</strong>：M5/M6 复制 M4 主体时<strong>仍会复制 22 项 r1 未落地缺陷</strong>（P0-1 元素分类 / P0-3 mapping / P1-7 image_ref 路径 / P1-8 models.py 等）</li>
+</ul>
+<p class="ok"><strong>M4 r1 是&quot;清单修复&quot;不是&quot;主体修复&quot;</strong>——24 项修订记录条目 100% 在但 plan 主体同步率 0%。<strong>M5/M6 复制 M4 范本前必须 r2 主体同步</strong>——否则 M5/M6 会复制 22 项 r1 未落地缺陷。<strong>M4 plan 主体同步是 r2 必做</strong>——派独立 subagent 改 plan 主体 24 项 + 3 项 r1 引入新问题，避免 main agent 写 write_file 再追写记录行反模式。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

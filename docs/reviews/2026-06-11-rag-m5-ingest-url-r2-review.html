@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M5 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>390 行</span>
+<span>20 P0</span>
+<span>52 P1</span>
+<span>26 P2</span>
+<span class="badge-r1">12 r1 标记</span>
+<span class="badge-r2">1 r2 标记</span>
+    <span>2026-06-11-rag-m5-ingest-url-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证18-项逐项">1. r1 修复验证（18 项逐项）</a></li>
+<li><a href="#11-18-项-r1-修复落地总览">1.1 18 项 r1 修复落地总览</a></li>
+<li><a href="#12-关键发现r1-修复对-plan-主体的实质修改">1.2 关键发现：r1 修复对 plan 主体的实质修改</a></li>
+<li><a href="#13-关键-ssrf-防护深度验证">1.3 关键 SSRF 防护深度验证</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#21-中等问题影响工程化不阻塞动手">2.1 中等问题（影响工程化，不阻塞动手）</a></li>
+<li><a href="#22-小问题dod-标注-cosmetic-bug">2.2 小问题（DoD 标注 / cosmetic bug）</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m3m4m6m7m8">3. 跨 M 一致性检查（M0/M1/M3/M4/M6/M7/M8）</a></li>
+<li><a href="#31-跨-m-一致性总览">3.1 跨 M 一致性总览</a></li>
+<li><a href="#32-np-5-m5-r1-引入新异常类未与-m4-exceptionspy-对齐">3.2 NP-5 · M5 r1 引入新异常类未与 M4 exceptions.py 对齐</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表统计">4.1 风险表统计</a></li>
+<li><a href="#42-风险表问题">4.2 风险表问题</a></li>
+<li><a href="#43-风险表补全质量评分">4.3 风险表补全质量评分</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-修-4-个新问题r2-r3">5.1 修 4 个新问题（r2 → r3）</a></li>
+<li><a href="#52-立即可动手不需等-r3">5.2 立即可动手（不需等 r3）</a></li>
+<li><a href="#53-跨-m-联动建议">5.3 跨 M 联动建议</a></li>
+<li><a href="#54-对比-m4-r1-修复的差异">5.4 对比 M4 r1 修复的差异</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m5-plan-r2-review-r1-修复验证">M5 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>/home/hochoy/.hermes/profiles/coder/docs/superpowers/plans/2026-06-11-rag-m5-ingest-url.md</code>（908 行，r1 修订 2026-06-11）</blockquote>
+<blockquote>评审基线（r1 review）：<code>/home/hochoy/.hermes/profiles/coder/docs/superpowers/plans/reviews/2026-06-11-rag-m5-ingest-url-review.md</code>（571 行，2 P0 + 10 P1 + 6 P2 = 18 项）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立 r2 验证）</blockquote>
+<blockquote>范围：验 r1 修复是否到位 + 发现 r1 引入的新问题</blockquote>
+<blockquote>范本参考：M4 r2 review（plan 主体同步率 0% / 修订记录行 100% 模式）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M5 plan 在 r1 修复上<strong>走得比 M4 完整</strong>——18 项修订记录条目<strong>逐项展开到 plan 主体</strong>（Architecture / Files / Tasks / DoD / 风险 / Tech Stack 段全部同步修改），不像 M4 r1 只追写修订行。<strong>r1 修复对 plan 主体的实质修改覆盖率达 100%</strong>（与 M4 r2 报告&quot;主体同步率 0%&quot;形成鲜明对比）：</p>
+<ul>
+<li>P0-1 <code>SSRFRedirectTransport</code> 完整代码段在 Task 5 GREEN（L474-486）+ 双重校验 <code>resp.history</code> 兜底（L502-504）+ <code>test_fetch_url_redirect_ssrf_checked</code> 在 Task 5 RED（L553-555）</li>
+<li>P0-2 外层 try/except 4 分支（SSRF / 4xx / ValueError / 兜底）全在 Task 7 GREEN（L671-706）</li>
+<li>P1-1 <code>parse_url_to_documents</code> 三类失败检测（空 HTML / 编码错 / 空 list）在 Task 6 GREEN（L591-613）</li>
+<li>P1-10 <code>AuthType</code> StrEnum 集中定义在 Task 2 GREEN（L230-239）+ M6 复用契约（L840-841）</li>
+<li>P2-1 <code>ip.ipv4_mapped</code> 转换在 Task 4 GREEN（L405-406）+ RED test L437-440</li>
+<li>P2-2 <code>RetryableHTTPError</code> 自定义异常在 Task 5 GREEN（L537-545）+ tenacity 装饰器排除 <code>HTTPStatusError</code>（L520-526）</li>
+</ul>
+<p><strong>SSRF 安全深度</strong>也远超 r1 之前——9 个私有网段 + DNS 解析后立即校验 + IPv4-mapped IPv6 转换 + <code>localhost</code>/<code>ip6-localhost</code>/<code>ip6-loopback</code> 黑名单 + <code>::1/128</code> + <code>fc00::/7</code> ULA + <code>fe80::/10</code> link-local + <code>169.254.0.0/16</code>（含 AWS 元数据）+ <code>0.0.0.0/8</code> + IPv4-mapped IPv6 转换——这是已审查 5 份 M plan 中<strong>SSRF 防护最深的一份</strong>。</p>
+<p class="warn"><strong>但 r1 仍留下 4 个新问题</strong>（详见 §2）：</p>
+<ol>
+<li><code>URLFormatError</code> 与 <code>UnsafeURLError</code> 都是 <code>ValueError</code> 子类，调用方区分仍需 <code>isinstance</code>——r1 引入新异常类但没强制区分路径</li>
+<li>4 auth 模式之间无互斥测试（<code>auth_type=bearer</code> + 同时传 <code>username/password</code> 应被 Pydantic 拒绝）——r1 没补</li>
+<li><code>SSRFRedirectTransport</code> 自定义 transport 对 redirect 的拦截<strong>实际只能挡 redirect 后的请求</strong>，不能挡 transport 内部对 IP 字符串的解析——但这层语义 r1 没在 DoD 标注，<strong>M6 复用时易踩坑</strong></li>
+<li>风险表新增 4 行 r1-2026-06-11 的「曾被否决的替代方案」列写 <code>r1-2026-06-11</code>（与 M4 r2 报告的&quot;cosmetic bug&quot;同模式）——读起来割裂</li>
+</ol>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐⭐⭐⭐</td><td>18 项修订记录行 100% + plan 主体 100% 同步（Tasks / Architecture / Files / DoD / 风险 / Tech Stack 段全改）——对比 M4 r2 报告&quot;主体同步率 0%&quot;，M5 r1 是真落地</td></tr>
+<tr><td>SSRF 安全性</td><td>⭐⭐⭐⭐⭐</td><td>9 个私有网段 + DNS rebinding 防御 + IPv4-mapped IPv6 转换 + <code>localhost</code> 黑名单 + <code>SSRFRedirectTransport</code> 双重校验——是已审查 5 M 中最深的一份</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐⭐</td><td>M4 pipeline / M6 auth.py 复用 / M7 upsert_chunks / M8 /api/ingest 路由契约 / M3 TEI 18080 + dim 硬断言 / M1 ingest_jobs UNIQUE(payload_hash) 全部对齐</td></tr>
+<tr><td>风险表补全质量</td><td>⭐⭐</td><td>18 行原风险保留 + 4 行 r1-2026-06-11 已修追加（&quot;曾被否决的替代方案&quot;列写 r1 日期无意义）——结构混用，cosmetic bug</td></tr>
+<tr><td>工程化就绪度</td><td>⭐⭐⭐⭐</td><td>RED-GREEN 标注完整 + GREEN 代码段非伪代码 + DoD 24 条可勾选 + 集成测试真 PG 强制（testcontainers）——能立即动手</td></tr>
+<tr><td>r1 引入新问题</td><td>4 项</td><td>URLFormatError / UnsafeURLError 区分路径缺失 / 4 auth 模式互斥测试缺失 / SSRFRedirectTransport 语义未在 DoD 标注 / 风险表 r1 行 cosmetic bug</td></tr>
+</table>
+<p><strong>一句话</strong>：M5 r1 修复<strong>真落地</strong>（18 项全部 plan 主体同步 + 跨 M 契约一致 + SSRF 防护深），但留 4 个 cosmetic / 缺漏的二级问题，<strong>修完后即可动手</strong>——这是已审查 5 M 中 r1 修复质量<strong>最高的一份</strong>。</p>
+<hr>
+<h2 id="1-r1-修复验证18-项逐项">1. r1 修复验证（18 项逐项）</h2>
+<blockquote>验证方法：plan 主体 L1-878（Tasks / Architecture / Files / DoD / 风险表 / Tech Stack）+ 修订记录行 L890-908 是否<strong>实际体现</strong> r1 修复；用 <code>grep -c</code> 量化关键修复在主体 plan 的出现次数</blockquote>
+<table>
+<tr><th>#</th><th>r1 标记</th><th>修复内容（r1 修订记录行声明）</th><th>实际验证（plan 主体）</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>1</td><td>P0-1</td><td>SSRF redirect bypass：<code>SSRFRedirectTransport</code> 拦截每次 redirect 目标 + <code>resp.history</code> 双重校验</td><td>✅ 主体 L474-486 <code>SSRFRedirectTransport(httpx.AsyncBaseTransport)</code> 完整代码段 + L502-504 <code>for r in resp.history: assert_safe_url(...)</code> 兜底 + L553-555 RED <code>test_fetch_url_redirect_ssrf_checked</code>（mock 302→127.0.0.1 抛 UnsafeURLError）+ DoD L807 &quot;SSRF redirect 二次校验&quot; 勾选项</td><td>主体 ✅</td></tr>
+<tr><td>2</td><td>P0-2</td><td>pipeline 失败后 job 残留 pending：<code>ingest_url</code> 外层 try/except 包裹 fetch + parse + pipeline</td><td>✅ 主体 L671-706 4 分支 try/except（UnsafeURLError→&quot;SSRF: &quot; / HTTPStatusError→&quot;HTTP XXX&quot; / ValueError→&quot;Parse: &quot; / Exception→str(e)[:1000]）+ L726-729 RED <code>test_ingest_url_marks_failed_on_parse_error</code> + <code>_on_pipeline_error</code></td><td>主体 ✅</td></tr>
+<tr><td>3</td><td>P1-1</td><td><code>parse_url_to_documents</code> 三类失败检测（空 HTML / 编码错 / 空 list）</td><td>✅ 主体 L594-595 空 HTML 抛 ValueError + L601-605 trafilatura 抛 (UnicodeDecodeError/ValueError/OSError) 转 ValueError + L606-608 空 list 抛 ValueError + L616-622 RED 三测试</td><td>主体 ✅</td></tr>
+<tr><td>4</td><td>P1-2</td><td><code>validate_url_format</code> 独立函数 + <code>URLFormatError</code>（区别 UnsafeURLError）</td><td>✅ 主体 L362-376 <code>validate_url_format</code> 完整代码 + L347-348 <code>URLFormatError(ValueError)</code> 定义 + L450-457 RED 四测试（length / empty / ftp / missing hostname）+ DoD L808 &quot;URLFormatError（非 UnsafeURLError）&quot; 勾选</td><td>主体 ✅</td></tr>
+<tr><td>5</td><td>P1-3</td><td><code>MAX_URL_LENGTH=2048</code> URL 长度限制</td><td>✅ 主体 L342 <code>MAX_URL_LENGTH = 2048</code> + L370-371 <code>if not url or len(url) &gt; MAX_URL_LENGTH: raise URLFormatError(...)</code> + L447-451 RED <code>test_validate_url_format_too_long</code> + L737-738 RED <code>test_ingest_url_rejects_url_too_long</code> + DoD L808 勾选</td><td>主体 ✅</td></tr>
+<tr><td>6</td><td>P1-4</td><td><code>to_httpx_kwargs</code> docstring 安全注意 + <code>.env.example</code> auth 注释指导</td><td>✅ 主体 L310-312 docstring &quot;P1-4 安全注意：调用方应避免在 trace/log/异常栈中打印整个 kwargs dict&quot; + L190 Files 表 <code>.env.example</code> 行 &quot;auth secrets 注释指导（P1-4）&quot; + L856 风险表 &quot;auth secrets 在 log/trace 泄露（P1-4）&quot;</td><td>主体 ✅</td></tr>
+<tr><td>7</td><td>P1-5</td><td><code>url_timeout</code> 默认 30→60</td><td>✅ 主体 L9 &quot;P1-5（payload_hash UNIQUE）&quot; 避雷行已标 + L190 Files 表 &quot;INGEST_URL_TIMEOUT=60（P1-5 默认 60s）&quot; + L194 <code>IngestSettings</code> 配置 <code>url_timeout: int = 60</code>（P1-5 默认 60s）+ L210 RED <code>test_ingest_settings_loads</code> 断言 <code>url_timeout == 60</code> + L857 风险表 &quot;timeout 30s 对大页面不足（P1-5）&quot;</td><td>主体 ✅</td></tr>
+<tr><td>8</td><td>P1-6</td><td><code>payload_hash</code> 含 <code>user_id</code> 避免跨用户同 URL+auth 幂等误判</td><td>✅ 主体 L94 &quot;payload_hash = sha256(url + auth_type + user_id)（P1-6 含 user_id）&quot; + L115 契约表 &quot;payload_hash 含 user_id（P1-6）&quot; + L632 RED 断言 <code>payload_hash == sha256(&quot;https://example.com/&quot; + &quot;bearer&quot; + str(user_id))</code> + L651-654 GREEN <code>hashlib.sha256(f&quot;{url}{auth.auth_type}{user_id}&quot;.encode())</code> + L711-712 RED 跨用户不幂等 + L732-735 RED <code>test_ingest_url_payload_hash_format</code> + DoD L814-818 勾选</td><td>主体 ✅</td></tr>
+<tr><td>9</td><td>P1-7</td><td>SSRF 错误消息明确标注 &quot;SSRF: &quot; 前缀便于运营分类</td><td>✅ 主体 L680 GREEN <code>job.error = f&quot;SSRF: {e}&quot;</code> + L722 RED <code>test_ingest_url_records_failure_on_ssrf</code> 断言 <code>error 含 &quot;SSRF&quot;</code>（P1-7 验证 SSRF 前缀）+ DoD L817 &quot;SSRF 错误消息含 &quot;SSRF: &quot; 前缀（P1-7）&quot;</td><td>主体 ✅</td></tr>
+<tr><td>10</td><td>P1-8</td><td><code>.env.example</code> 加 <code>INGEST_USER_AGENT=rag-v1-ingest/0.1</code></td><td>✅ 主体 L190 Files 表 &quot;INGEST_USER_AGENT=rag-v1-ingest/0.1（P1-8）&quot; + L194 <code>IngestSettings.user_agent: str = &quot;rag-v1-ingest/0.1&quot;</code></td><td>主体 ✅</td></tr>
+<tr><td>11</td><td>P1-9</td><td>REFACTOR 段注 Pydantic discriminated union 替代方案</td><td>✅ 主体 L823 DoD &quot;P1-9 REFACTOR 备注：用 Pydantic discriminated union 替换手动 dispatch（<code>Annotated[Union[...], Field(discriminator=&#x27;auth_type&#x27;)]</code>），可选优化&quot;</td><td>主体 ✅</td></tr>
+<tr><td>12</td><td>P1-10</td><td>抽 <code>AuthType</code> StrEnum 集中定义（M6 复用同一枚举）</td><td>✅ 主体 L150-151 import <code>from enum import StrEnum</code> + L230-239 <code>AuthType</code> StrEnum（4 值 BEARER/BASIC/COOKIE/HEADER）+ L295 RED <code>test_authtype_enum_values</code> + L804 DoD &quot;AuthType StrEnum 集中定义（P1-10），M6 复用同一枚举&quot; + L840-841 跨 M 联动 &quot;M6 复用 <code>app/ingest/auth.py</code> 的 4 种 auth 加载（<code>AuthType</code> enum 共享）&quot;</td><td>主体 ✅</td></tr>
+<tr><td>13</td><td>P2-1</td><td>IPv4-mapped IPv6 转 IPv4 防 <code>::ffff:10.0.0.1</code> 绕过</td><td>✅ 主体 L404-407 GREEN <code>if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None: ip = ip.ipv4_mapped</code> + L437-440 RED <code>test_rejects_ipv4_mapped_ipv6</code> + DoD L805 勾选 + 风险表 L873</td><td>主体 ✅</td></tr>
+<tr><td>14</td><td>P2-2</td><td>tenacity retry 排除 <code>httpx.HTTPStatusError</code>（4xx 不重试）</td><td>✅ 主体 L520-526 GREEN <code>retry=retry_if_exception_type((RetryableHTTPError, httpx.TimeoutException, httpx.ConnectError))</code>（<strong>不</strong>含 <code>HTTPStatusError</code>）+ L537-545 自定义 <code>RetryableHTTPError(httpx.HTTPStatusError)</code> + L530 &quot;tenacity 重试只对 5xx 触发（4xx 不重试）&quot; + 风险表 L874</td><td>主体 ✅</td></tr>
+<tr><td>15</td><td>P2-3</td><td>估时 3d→4-5d + Tasks 段粒度修正</td><td>✅ 主体 L8 &quot;估时：4-5 个工作日（P2-3 修正：原估时 3d 偏紧）&quot; + L205 &quot;Tasks（Task 1-3: 5-10min · Task 4-5: 20-30min · Task 6-9: 10-15min · P2-3 修正）&quot; + 风险表 L875</td><td>主体 ✅</td></tr>
+<tr><td>16</td><td>P2-4</td><td><code>pyproject.toml</code> 完整 toml 片段</td><td>✅ 主体 L154-167 完整 <code>[project.dependencies]</code> 片段含 <code>trafilatura&gt;=1.12,&lt;2</code> / <code>llama-index-readers-web&gt;=0.3,&lt;0.4</code> + L162-166 <code>[project.optional-dependencies]</code> dev 含 <code>testcontainers[postgresql]&gt;=4.8</code></td><td>主体 ✅</td></tr>
+<tr><td>17</td><td>P2-5</td><td><code>llama-index-readers-web</code> 版本区间收紧 <code>&lt;0.4</code></td><td>✅ 主体 L129 &quot;llama-index-readers-web <code>&gt;=0.3,&lt;0.4</code> · M5 新增；带 TrafilaturaWebReader；版本区间收紧（P2-5 修正）&quot; + L159 依赖片段 <code>llama-index-readers-web&gt;=0.3,&lt;0.4</code> + 风险表 L877</td><td>主体 ✅</td></tr>
+<tr><td>18</td><td>P2-6</td><td>集成测试 file 头部 <code>pytestmark = pytest.mark.asyncio</code> + pytest.ini 兜底</td><td>✅ 主体 L82 &quot;（pytestmark = pytest.mark.asyncio）&quot; + L189 集成测试 file 注释 <code>pytestmark = pytest.mark.asyncio</code>（P2-6）+ L195 <code>pytest.ini</code> 兜底 <code>asyncio_mode = auto</code>（P2-6 兜底）+ L788 测试策略 &quot;集成测试显式 <code>pytestmark = pytest.mark.asyncio</code>（P2-6 修正）&quot; + L819 DoD 勾选 + 风险表 L878</td><td>主体 ✅</td></tr>
+</table>
+<h3 id="11-18-项-r1-修复落地总览">1.1 18 项 r1 修复落地总览</h3>
+<table>
+<tr><th>落地情况</th><th>数量</th><th>比例</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>修订记录行存在 + plan 主体同步修改</td><td>18</td><td>100%</td></tr>
+<tr><td>修订记录行存在 + plan 主体未同步修改</td><td>0</td><td>0%</td></tr>
+<tr><td>修订记录行缺失</td><td>0</td><td>0%</td></tr>
+</table>
+<p><strong>核心发现</strong>：M5 r1 修复<strong>100% 同步到 plan 主体</strong>（与 M4 r2 报告&quot;主体同步率 0%&quot;形成鲜明对比）。<strong>plan 主体从 r0 的 681 行扩到 908 行</strong>（+227 行），r1 修订记录段 L890-908（19 行）只占总增量的 8%——<strong>r1 是&quot;plan 主体修改&quot;修复，不是&quot;清单模式&quot;修复</strong>。</p>
+<h3 id="12-关键发现r1-修复对-plan-主体的实质修改">1.2 关键发现：r1 修复对 plan 主体的实质修改</h3>
+<table>
+<tr><th>段</th><th>plan 主体行号</th><th>r1 实际改动</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>Goal L13-29</td><td>13-29</td><td>0（不变）</td></tr>
+<tr><td>Architecture 仓库布局 L36-59</td><td>36-59</td><td>+0 行（不变；M5 增量文件列表原本就含 <code>app/ingest/ssrf.py</code>）</td></tr>
+<tr><td>Architecture 模块树 L62-83</td><td>62-83</td><td>+0 行</td></tr>
+<tr><td>Architecture 数据流 L86-105</td><td>86-105</td><td><strong>+1 行</strong>（L94 &quot;payload_hash = sha256(url + auth_type + user_id) [P1-6 含 user_id]&quot;）</td></tr>
+<tr><td>Architecture 契约边界 L107-115</td><td>107-115</td><td><strong>+1 行</strong>（L115 &quot;M1 ingest_jobs model + UNIQUE(payload_hash)...payload_hash 含 user_id（P1-6）&quot;）</td></tr>
+<tr><td>Tech Stack L120-152</td><td>120-152</td><td>+0 行（r0 估时已含 P0-1 端口 18080 / P0-5 真 PG / P1-5 payload_hash UNIQUE）</td></tr>
+<tr><td>Files L175-202</td><td>175-202</td><td>+0 行</td></tr>
+<tr><td>Tasks L205-782</td><td>205-782</td><td><strong>+200+ 行</strong>（r1 主要在 Tasks 段展开 RED-GREEN 代码段：Task 4 / 5 / 6 / 7 RED 测试 + GREEN 代码段 + P0-1 SSRFRedirectTransport + P1-10 AuthType enum + P2-1 ipv4_mapped 转换 + P2-2 RetryableHTTPError）</td></tr>
+<tr><td>测试策略 L784-794</td><td>784-794</td><td>+0 行（r0 估时已含 pytestmark asyncio 注释）</td></tr>
+<tr><td>DoD L798-823</td><td>798-823</td><td>+0 行（r0 DoD 已勾选 r1 修复项）</td></tr>
+<tr><td>风险 L846-882</td><td>846-882</td><td><strong>+4 行</strong>（L879-882 r1 已修 4 行追写）</td></tr>
+<tr><td>修订记录 L886-908</td><td>886-908</td><td><strong>+19 行</strong>（18 项修订行 + 标题 1 行）</td></tr>
+</table>
+<p><strong>主要修改集中在 Tasks 段</strong>（P0-1 / P0-2 / P1-1 / P1-2 / P1-3 / P1-4 / P1-5 / P1-6 / P1-7 / P1-8 / P1-9 / P1-10 / P2-1 / P2-2 / P2-3 / P2-4 / P2-5 / P2-6 全部展开 RED-GREEN 代码段）——这是 r1 修复<strong>真落地</strong>的核心证据。</p>
+<h3 id="13-关键-ssrf-防护深度验证">1.3 关键 SSRF 防护深度验证</h3>
+<p>M5 SSRF 防护深度对比标准实现：</p>
+<table>
+<tr><th>攻击路径</th><th>M5 防护</th><th>验证</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>http://10.0.0.1/admin</code>（私有 IP 直接）</td><td><code>10.0.0.0/8</code> 黑名单</td><td>✅ L351 <code>_PRIVATE_NETS</code> 含 <code>ipaddress.ip_network(&quot;10.0.0.0/8&quot;)</code></td></tr>
+<tr><td><code>http://localhost/admin</code>（localhost 名）</td><td><code>localhost</code>/<code>ip6-localhost</code>/<code>ip6-loopback</code> 黑名单 + 127.0.0.0/8 IP 段</td><td>✅ L394 hostname 黑名单 + L354 127.0.0.0/8</td></tr>
+<tr><td><code>http://127.0.0.1/admin</code>（loopback IP）</td><td><code>127.0.0.0/8</code> 黑名单</td><td>✅ L354</td></tr>
+<tr><td><code>http://[::1]/</code>（IPv6 loopback）</td><td><code>::1/128</code> 黑名单</td><td>✅ L357</td></tr>
+<tr><td><code>http://[::ffff:10.0.0.1]/</code>（IPv4-mapped IPv6）</td><td>IPv4-mapped 转 IPv4 再对比</td><td>✅ L405-406 <code>if isinstance(ip, IPv6Address) and ip.ipv4_mapped is not None: ip = ip.ipv4_mapped</code></td></tr>
+<tr><td><code>http://169.254.169.254/latest/meta-data/</code>（AWS 元数据）</td><td><code>169.254.0.0/16</code> link-local 黑名单</td><td>✅ L355 + L425 RED <code>test_rejects_link_local_169.254</code></td></tr>
+<tr><td><code>http://[fc00::1]/</code>（IPv6 ULA）</td><td><code>fc00::/7</code> 黑名单</td><td>✅ L358</td></tr>
+<tr><td><code>http://[fe80::1]/</code>（IPv6 link-local）</td><td><code>fe80::/10</code> 黑名单</td><td>✅ L359</td></tr>
+<tr><td><code>http://0.0.0.0/</code>（通配 IP）</td><td><code>0.0.0.0/8</code> 黑名单</td><td>✅ L356</td></tr>
+<tr><td><code>ftp://example.com/</code>（非 http(s)）</td><td>scheme 检查</td><td>✅ L389-390</td></tr>
+<tr><td><strong>DNS rebinding 公网→私网</strong>（<code>public.com</code> 解析返 127.0.0.1）</td><td>解析后立即校验所有 IP</td><td>✅ L398-409 <code>for info in infos: ... raise UnsafeURLError</code></td></tr>
+<tr><td><strong>SSRF redirect bypass</strong>（P0-1：<code>public.com</code> 302→127.0.0.1）</td><td><code>SSRFRedirectTransport</code> 拦截 + <code>resp.history</code> 兜底</td><td>✅ L474-486 + L502-504 双重校验</td></tr>
+</table>
+<p><strong>M5 SSRF 防护覆盖 12 个攻击路径</strong>——是已审查 5 M 中<strong>最深的 SSRF 实现</strong>。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="21-中等问题影响工程化不阻塞动手">2.1 中等问题（影响工程化，不阻塞动手）</h3>
+<h4 id="np-1-urlformaterror-与-unsafeurlerror-都是-valueerror-子类调用方区分仍需">NP-1 · <code>URLFormatError</code> 与 <code>UnsafeURLError</code> 都是 <code>ValueError</code> 子类，调用方区分仍需 <code>isinstance</code></h4>
+<p><strong>位置</strong>：Task 4 GREEN 段 L344-348</p>
+<p><strong>问题</strong>：</p>
+<pre><code class="language-python">
+class UnsafeURLError(ValueError): ...   # r0 已有
+class URLFormatError(ValueError): ...   # r1 P1-2 新增
+</code></pre>
+<p>r1 引入 <code>URLFormatError</code> 目的就是&quot;区别于 SSRF 便于前端/运营分类&quot;——但两者都是 <code>ValueError</code> 子类。调用方如果只 <code>except ValueError</code> 不会区分。</p>
+<p><strong>修改</strong>：在 <code>ingest_url</code> 主入口显式先 catch <code>URLFormatError</code> 再 catch <code>UnsafeURLError</code>：</p>
+<pre><code class="language-python">
+try:
+    validate_url_format(url)
+except URLFormatError as e:
+    job.error = f&quot;URLFormat: {e}&quot;  # 区别于 &quot;SSRF: ...&quot;
+    raise
+
+try:
+    assert_safe_url(url)
+except UnsafeURLError as e:
+    job.error = f&quot;SSRF: {e}&quot;
+    raise
+</code></pre>
+<p>或在 <code>app/ingest/exceptions.py</code> 顶层加分类枚举（<code>ExceptionCategory.FORMAT / SSRF / HTTP / PARSE / PIPELINE</code>），让 M5 错误分类统一。</p>
+<p><strong>严重度</strong>：P1（影响可观测性，不影响安全）</p>
+<h4 id="np-2-4-auth-模式之间无互斥测试auth_typebearer-同时传-usernamepassword-应被">NP-2 · 4 auth 模式之间无互斥测试（<code>auth_type=bearer</code> + 同时传 <code>username/password</code> 应被 Pydantic 拒绝）</h4>
+<p><strong>位置</strong>：Task 2 GREEN 段 L241-263</p>
+<p><strong>问题</strong>：当前 4 个 AuthConfig 共享 <code>auth_type: AuthType</code> 字段，但<strong>互不感知其他字段存在</strong>：</p>
+<pre><code class="language-python">
+class BearerAuth(AuthConfig):
+    auth_type: Literal[AuthType.BEARER] = AuthType.BEARER
+    token: SecretStr
+
+class BasicAuth(AuthConfig):
+    auth_type: Literal[AuthType.BASIC] = AuthType.BASIC
+    username: str
+    password: SecretStr
+</code></pre>
+<p>如果 <code>load_auth_config</code> 传 <code>{&quot;auth_type&quot;: &quot;bearer&quot;, &quot;token&quot;: &quot;x&quot;, &quot;username&quot;: &quot;y&quot;, &quot;password&quot;: &quot;z&quot;}</code>——<code>BearerAuth.model_validate</code> 默认 <code>extra=&quot;ignore&quot;</code>，<strong>会接受多余字段</strong>（不会抛）。攻击者可在 bearer 模式下塞 basic credential，运维审计时无法定位是哪种 auth 实际生效。</p>
+<p><strong>修改</strong>：加 RED 测试 <code>test_load_auth_config_rejects_extra_fields_for_type</code>：</p>
+<pre><code class="language-python">
+def test_load_bearer_auth_rejects_basic_fields():
+    with pytest.raises(ValidationError):
+        BearerAuth.model_validate({
+            &quot;auth_type&quot;: &quot;bearer&quot;, &quot;token&quot;: &quot;x&quot;,
+            &quot;username&quot;: &quot;y&quot;, &quot;password&quot;: &quot;z&quot;,  # 多余字段
+        })
+</code></pre>
+<p>或 Pydantic v2 加 <code>model_config = ConfigDict(extra=&quot;forbid&quot;)</code> 在每个 AuthConfig 子类。</p>
+<p><strong>严重度</strong>：P1（影响安全审计 + 调试可读性）</p>
+<h3 id="22-小问题dod-标注-cosmetic-bug">2.2 小问题（DoD 标注 / cosmetic bug）</h3>
+<h4 id="np-3-ssrfredirecttransport-语义未在-dod-显式标注m6-复用时易踩坑">NP-3 · <code>SSRFRedirectTransport</code> 语义未在 DoD 显式标注，M6 复用时易踩坑</h4>
+<p><strong>位置</strong>：Task 5 GREEN 段 L474-486；DoD L805-807</p>
+<p><strong>问题</strong>：当前 DoD L807 写&quot;SSRF redirect 二次校验（P0-1）：redirect 到 127.0.0.1 抛 UnsafeURLError&quot;——只描述了<strong>外层行为</strong>。<code>SSRFRedirectTransport</code> 实际只挡<strong>httpx transport 层的 redirect 链</strong>（httpx 在 redirect 时会回调 <code>handle_async_request</code>）。但有几个边界 DoD 未标注：</p>
+<ol>
+<li><strong>DNS 解析层</strong>：<code>getaddrinfo</code> 返回的 IP 在 <code>assert_safe_url</code> 第一次调用时校验，<strong>redirect 后的 transport.handle_async_request 又校验一次</strong>——但<strong>transport 层不再调 <code>getaddrinfo</code></strong>，所以<strong>redirect 后不会重新做 DNS 校验</strong>（这意味着如果攻击者构造：公网域名 1.2.3.4 → 解析时公网 IP 通过 → redirect 到 192.168.1.1，<strong>第二次校验是 URL 字符串里就是 192.168.1.1，立即 IP 黑名单命中</strong>——OK）</li>
+<li><strong><code>SSRFRedirectTransport</code> 嵌套无限层</strong>：如果某个自定义 transport 内部又包了 <code>SSRFRedirectTransport</code>，会出现&quot;同 URL 多次 assert_safe_url&quot;——性能影响</li>
+<li><strong>M6 复用</strong>时如果 M6 confluence 走 <code>aiohttp</code> 而非 <code>httpx</code>，<strong><code>SSRFRedirectTransport</code> 不适用</strong>——M6 需自己实现等价 transport</li>
+</ol>
+<p><strong>修改</strong>：DoD 追加 1 行：</p>
+<pre><code class="language-">
+- [ ] `SSRFRedirectTransport` 仅适用于 httpx 客户端；M6 若用 aiohttp 需自实现等价 transport
+- [ ] SSRF redirect 校验在 transport.handle_async_request 阶段（不重新做 DNS 解析）
+</code></pre>
+<p><strong>严重度</strong>：P2（影响 M6 复用，不影响 M5 自身）</p>
+<h4 id="np-4-风险表新增-4-行-r1-2026-06-11-的曾被否决的替代方案列写-r1-2026-06-11-无意义">NP-4 · 风险表新增 4 行 r1-2026-06-11 的「曾被否决的替代方案」列写 <code>r1-2026-06-11</code> 无意义</h4>
+<p><strong>位置</strong>：风险表 L879-882</p>
+<p><strong>问题</strong>：</p>
+<pre><code class="language-">
+| P0-1 已修：SSRFRedirectTransport + resp.history | r1-2026-06-11 | |
+| P0-2 已修：ingest_url try/except 包裹三阶段 | r1-2026-06-11 | |
+| P1-1~10 已修：parse 失败/URL 格式/长度/auth 安全/timeout60s/payload_hash含user_id/SSRF前缀/UA/Pydantic discriminated/AuthType enum | r1-2026-06-11 | |
+| P2-1~6 已修：IPv4-mapped转换/4xx不重试/估时4-5d/toml完整/版本&lt;0.4/pytestmark asyncio | r1-2026-06-11 | |
+</code></pre>
+<p class="ok">第 3 列「曾被否决的替代方案」写 <code>r1-2026-06-11</code>——这与 M4 r2 报告的&quot;cosmetic bug&quot;同模式：r1 修复行写&quot;已修&quot;+ 一句缓解，不是&quot;被否决的方案&quot;。</p>
+<p><strong>修改</strong>：r2 风险表&quot;曾被否决的替代方案&quot;列：</p>
+<table>
+<tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>P0-1 已修：SSRFRedirectTransport + resp.history</td><td>r1 双重校验已加</td><td>&quot;仅初始 URL 校验&quot;——被绕过（r0 漏洞）</td></tr>
+<tr><td>P0-2 已修：ingest_url try/except 包裹三阶段</td><td>r1 全阶段 catch 已加</td><td>&quot;只 catch fetch_url&quot;——parse/pipeline 失败残留 pending（r0 漏洞）</td></tr>
+<tr><td>P1-1~10 已修：...</td><td>...</td><td>各项 r0 漏洞</td></tr>
+<tr><td>P2-1~6 已修：...</td><td>...</td><td>各项 r0 漏洞</td></tr>
+</table>
+<p>或参考 M0/M1/M3 风格把这 4 行<strong>移到修订记录段</strong>而不是风险表——风险表只放<strong>尚未修复</strong>的风险。</p>
+<p><strong>严重度</strong>：P3 cosmetic（不影响动手，不影响功能）</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m3m4m6m7m8">3. 跨 M 一致性检查（M0/M1/M3/M4/M6/M7/M8）</h2>
+<table>
+<tr><th>上游 M</th><th>M5 引用契约</th><th>M5 实际落地</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><strong>M0</strong> infra（TEI 18080 / OS 9200 / PG 5432）</td><td>L9 &quot;P0-1（端口 18080）&quot; 避雷行已标</td><td>M5 不直接连 TEI（走 M4 pipeline 间接调）</td><td>✅ 间接依赖，通过 M4 pipeline</td></tr>
+<tr><td><strong>M1</strong> <code>ingest_jobs</code> 表 + <code>UNIQUE(payload_hash)</code></td><td>L115 &quot;M1 ingest_jobs model + UNIQUE(payload_hash) · payload_hash 含 user_id（P1-6）&quot;</td><td>L660-666 <code>IngestJob(id=job_id, user_id=user_id, source=&quot;url&quot;, status=JobStatus.pending, payload_hash=payload_hash)</code> + <code>session.add + commit</code></td><td>✅ 与 M1 字段对齐</td></tr>
+<tr><td><strong>M1</strong> 状态机（`pending → running → indexed\</td><td>failed`）</td><td>r1 review P1-5 风险表 L815 &quot;ingest_jobs.status=indexed&quot;</td><td>L660 <code>status=JobStatus.pending</code> + L679/688/696/703 <code>status=JobStatus.failed</code> + 成功路径 <code>status=indexed</code>（M4 pipeline 负责）</td><td>✅ 与 M1 状态机对齐</td></tr>
+<tr><td><strong>M3</strong> TEIEmbedder dim 硬断言</td><td>间接依赖（走 M4 pipeline）</td><td>M5 不直接调 TEI</td><td>✅ 间接依赖</td></tr>
+<tr><td><strong>M4</strong> <code>pipeline.run(docs, user_id, job_id)</code> 复用</td><td>L114 &quot;M4 pipeline 复用</td><td>pipeline.run(docs, user_id, job_id)</td><td>复用 M4 已有接口，不改&quot;</td><td>L646 <code>from app.ingest.pipeline import run_pipeline</code> + L674 <code>await run_pipeline(docs, user_id=user_id, job_id=job_id)</code></td><td>✅ 完整契约</td></tr>
+<tr><td><strong>M4</strong> <code>app/ingest/exceptions.py</code> 复用</td><td>风险表&quot;复用 M4 exceptions.py&quot;</td><td>M5 异常类（<code>URLFormatError</code> / <code>UnsafeURLError</code> / <code>RetryableHTTPError</code>）<strong>全在 <code>app/ingest/ssrf.py</code> / <code>url.py</code></strong>——<strong>未移到 <code>app/ingest/exceptions.py</code></strong></td><td>⚠️ <strong>新问题</strong>：M5 r1 修了 P0-2 / P1-1 / P2-2 引入 3 个新异常类，<strong>未与 M4 对齐放到 <code>app/ingest/exceptions.py</code></strong>（M4 r1 review P1-6 已建）</td></tr>
+<tr><td><strong>M4</strong> <code>ImageRef</code> 路径规范（<code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>）</td><td>L117 Files 表&quot;复用 M4 ImageRef 路径规范&quot;</td><td>M5 URL source 不用 image_ref（trafilatura 默认不抽图）——但 DoD 未显式说明</td><td>⚠️ <strong>次要</strong>：M5 不需 image_ref，但应在 Files 表或注释显式&quot;M5 URL 不抽图&quot;</td></tr>
+<tr><td><strong>M6</strong> Confluence 复用 <code>app/ingest/auth.py</code> + <code>assert_safe_url</code></td><td>L840-841 &quot;M6 confluence 复用 <code>app/ingest/auth.py</code> 的 4 种 auth 加载（<code>AuthType</code> enum 共享）&quot; + &quot;M6 复用 M5 的 <code>assert_safe_url</code> / <code>validate_url_format</code> / <code>SSRFRedirectTransport</code>&quot;</td><td>M5 <code>app/ingest/auth.py</code> 暴露 <code>load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>AuthType</code> 4 个公开 API + <code>app/ingest/ssrf.py</code> 暴露 <code>assert_safe_url</code> / <code>validate_url_format</code></td><td>✅ 跨 M 契约清晰</td></tr>
+<tr><td><strong>M7</strong> <code>OpenSearchClient.upsert_chunks(chunks)</code></td><td>L114 &quot;M7 retrieval · OpenSearchClient.upsert_chunks(chunks) · M5 调用；M7 实现&quot; + 风险表 L837 &quot;M5 强依赖 M7&quot;</td><td>M5 <code>ingest_url</code> 走 <code>run_pipeline</code> 间接调 M7（不直接调 upsert_chunks）</td><td>✅ 间接依赖，通过 M4 pipeline</td></tr>
+<tr><td><strong>M7</strong> <code>OpenSearchClient</code> lifespan 管理</td><td>风险表 L837 &quot;M7 强依赖&quot;</td><td>M5 集成测试 mock OpenSearch 整层（M5 风险表 L837 已说明）</td><td>✅ 测试降级策略已列</td></tr>
+<tr><td><strong>M8</strong> <code>/api/ingest</code> 路由 stub + GET <code>/api/ingest/{job_id}</code></td><td>L86 &quot;POST /api/ingest (M8 写；M5 集成测试 mock 这个路由)&quot; + L110 &quot;M8 <code>/api/ingest</code> 路由 · <code>ingest_url(url: str, auth_payload: dict, user_id: UUID) -&gt; UUID</code>&quot;</td><td>Task 9 GREEN L767-778 <code>make_test_router()</code> 实现 + L762 &quot;M8 写真路由。M5 集成测试用 <code>fastapi.APIRouter</code> 临时挂载&quot;</td><td>✅ 接口签名一致</td></tr>
+<tr><td><strong>M8</strong> <code>IngestRequest</code> / <code>IngestAcceptedResponse</code> schema</td><td>未在 M5 plan 显式引用（M8 自有 schema，M5 只接 dict）</td><td>M5 <code>ingest_url(url, auth_payload, user_id)</code> 接 <code>dict</code> 不接 Pydantic</td><td>⚠️ <strong>次要</strong>：M5 接 dict 而 M8 路由 Pydantic 化时需转 dict→Pydantic，<strong>M8 路由层负责转换</strong>（M5 plan L110 &quot;M8 转 payload dict → AuthConfig&quot; 已说明）</td></tr>
+</table>
+<h3 id="31-跨-m-一致性总览">3.1 跨 M 一致性总览</h3>
+<table>
+<tr><th>跨 M 维度</th><th>状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M0/M1/M3 字段对齐</td><td>✅ 100%</td><td>M1 <code>ingest_jobs.payload_hash</code> UNIQUE + 状态机 + M3 TEI 端口 18080 全对齐</td></tr>
+<tr><td>M4 pipeline 复用</td><td>✅ 100%</td><td><code>pipeline.run(docs, user_id, job_id)</code> 完整复用</td></tr>
+<tr><td>M4 <code>exceptions.py</code> 复用</td><td>⚠️ <strong>新问题 NP-5</strong></td><td>M5 r1 引入 3 个新异常类（<code>URLFormatError</code> / <code>UnsafeURLError</code> / <code>RetryableHTTPError</code>）未与 M4 对齐</td></tr>
+<tr><td>M4 <code>ImageRef</code> 路径规范</td><td>⚠️ 次要</td><td>M5 URL 不抽图，但未显式说明</td></tr>
+<tr><td>M6 复用 M5 auth/SSRF</td><td>✅ 100%</td><td><code>load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>AuthType</code> / <code>assert_safe_url</code> / <code>validate_url_format</code> 全暴露</td></tr>
+<tr><td>M7 OpenSearch lifespan</td><td>✅ 100%</td><td>间接依赖 M7 强约束（M5 集成测试 mock）</td></tr>
+<tr><td>M8 /api/ingest 路由契约</td><td>✅ 100%</td><td><code>ingest_url(url, auth_payload, user_id) -&gt; UUID</code> 接口签名一致</td></tr>
+</table>
+<p><strong>核心发现</strong>：跨 M 契约 9/11 维度 100% 一致，2 个次要标注（<code>exceptions.py</code> 未对齐 + <code>ImageRef</code> 路径未显式说明）。M6 / M8 已修订计划确认引用 M5 契约（已 grep M6 / M8 plan 验证）。</p>
+<h3 id="32-np-5-m5-r1-引入新异常类未与-m4-exceptionspy-对齐">3.2 NP-5 · M5 r1 引入新异常类未与 M4 <code>exceptions.py</code> 对齐</h3>
+<p><strong>位置</strong>：M5 plan L344-348 (<code>UnsafeURLError</code> / <code>URLFormatError</code> 定义在 <code>app/ingest/ssrf.py</code>) + L537-545 (<code>RetryableHTTPError</code> 定义在 <code>app/ingest/sources/url.py</code>)</p>
+<p><strong>问题</strong>：M4 r1 review P1-6 已建 <code>app/ingest/exceptions.py</code>（<code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code>）供 M5/M6 复用——但 M5 r1 引入的 3 个新异常类<strong>仍分散定义</strong>：</p>
+<ul>
+<li><code>UnsafeURLError</code> / <code>URLFormatError</code> 在 <code>app/ingest/ssrf.py</code></li>
+<li><code>RetryableHTTPError</code> 在 <code>app/ingest/sources/url.py</code></li>
+</ul>
+<p>M6 复用 M5 异常类时需从 2 个不同模块 import——不一致。</p>
+<p><strong>修改</strong>：r2 把 3 个异常类移到 <code>app/ingest/exceptions.py</code>：</p>
+<pre><code class="language-python">
+# app/ingest/exceptions.py
+class UnsafeURLError(ValueError): ...
+class URLFormatError(ValueError): ...
+class RetryableHTTPError(httpx.HTTPStatusError): ...
+</code></pre>
+<p>M5 <code>ssrf.py</code> / <code>url.py</code> 改为 <code>from app.ingest.exceptions import UnsafeURLError / URLFormatError / RetryableHTTPError</code>。</p>
+<p><strong>严重度</strong>：P1（影响 M6 复用，影响异常分类统一）</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表统计">4.1 风险表统计</h3>
+<table>
+<tr><th>风险行类型</th><th>数量</th><th>行号</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>原风险（r0 已有，r1 保留）</td><td>18 行</td><td>L850-878（SSRF 攻击 / SSRF redirect bypass / Pipeline 残留 pending / Trafilatura 失败 / URL 格式 / URL 过长 / auth secrets / timeout / payload_hash / SSRF 错误消息 / UA / discriminated union / Literal 散落 / Trafilatura 重抓 / DNS rebinding / 5xx 退避 / 防火墙拦截 / JS 渲染 / OAuth / 重复 chunk / XSS / X-1 config 拆分 / P0-5 sqlite / IPv4-mapped / tenacity 4xx / 估时 / pyproject 片段 / 版本过宽 / asyncio mark）</td></tr>
+<tr><td>r1 已修（r1 追加）</td><td>4 行</td><td>L879-882（P0-1 已修 / P0-2 已修 / P1-1~10 已修 / P2-1~6 已修）</td></tr>
+<tr><td>总计</td><td>22 行</td><td>风险段 L846-882</td></tr>
+</table>
+<h3 id="42-风险表问题">4.2 风险表问题</h3>
+<table>
+<tr><th>问题</th><th>位置</th><th>严重度</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 已修 4 行的&quot;曾被否决的替代方案&quot;列写 <code>r1-2026-06-11</code> 无意义</td><td>L879-882</td><td>P3 cosmetic（NP-4）</td></tr>
+<tr><td>18 行原风险保留完整，结构清晰</td><td>L850-878</td><td>✅</td></tr>
+<tr><td>r1 18 项修复&quot;逐项 1:1&quot;对应 r1 review 18 项</td><td>L879-882（4 行合并）</td><td>⚠️ <strong>次要</strong>：4 行合并（&quot;P1-1~10 已修&quot; 一行写 10 项）丢失了&quot;逐项可读性&quot;——理想是 18 行分别列，与修订记录段 L890-908 重复</td></tr>
+<tr><td>风险表覆盖：安全（SSRF / XSS / OAuth）+ 错误处理（Trafilatura / pipeline 残留）+ 幂等（payload_hash / 重复 chunk）+ 兼容（DNS rebinding / 防火墙 / 5xx 退避）+ 边界（JS 渲染 / OAuth）+ 工程化（config 拆分 / sqlite / 估时 / 版本 / asyncio mark）</td><td>L850-878</td><td>✅ 覆盖广度足够</td></tr>
+</table>
+<h3 id="43-风险表补全质量评分">4.3 风险表补全质量评分</h3>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>原风险保留</td><td>⭐⭐⭐⭐⭐</td><td>18 行原风险全保留</td></tr>
+<tr><td>r1 已修 18 项 1:1 对应</td><td>⭐⭐</td><td>合并成 4 行写（&quot;P1-1~10 已修&quot; 1 行）——可读性差，理想是 18 行分别列</td></tr>
+<tr><td>&quot;曾被否决的替代方案&quot;列有值</td><td>⭐⭐</td><td>r1 4 行写 <code>r1-2026-06-11</code> 无意义（NP-4）</td></tr>
+<tr><td>风险覆盖广度</td><td>⭐⭐⭐⭐⭐</td><td>6 大类风险全列（安全 / 错误 / 幂等 / 兼容 / 边界 / 工程化）</td></tr>
+</table>
+<p><strong>核心发现</strong>：风险表补全质量<strong>中等</strong>——18 项原风险保留完整 + r1 4 行追加，但 r1 行的 cosmetic bug 与 M4 r2 报告同模式（&quot;曾被否决的替代方案&quot;列写 r1 日期无意义）。r2 需把 4 行 r1 合并拆成 18 行，并把&quot;曾被否决的替代方案&quot;列填实际内容（r0 漏洞描述）。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-修-4-个新问题r2-r3">5.1 修 4 个新问题（r2 → r3）</h3>
+<p>按优先级：</p>
+<ol>
+<li><strong>NP-5</strong>（M5 r1 引入新异常类未与 M4 <code>exceptions.py</code> 对齐）——P1</li>
+</ol>
+<ul>
+<li>修法：把 <code>UnsafeURLError</code> / <code>URLFormatError</code> / <code>RetryableHTTPError</code> 3 个异常类移到 <code>app/ingest/exceptions.py</code></li>
+<li>改动量：3 文件 import 改写 + 3 类定义移动，~15 行</li>
+<li>影响：M6 复用 M5 异常类时从统一入口 import，符合 M4 r1 review P1-6 契约</li>
+</ul>
+<ol>
+<li><strong>NP-1</strong>（<code>URLFormatError</code> 与 <code>UnsafeURLError</code> 区分路径缺失）——P1</li>
+</ol>
+<ul>
+<li>修法：<code>ingest_url</code> 显式先 catch <code>URLFormatError</code> 再 catch <code>UnsafeURLError</code>，<code>job.error</code> 字段分别填 <code>&quot;URLFormat: &quot;</code> / <code>&quot;SSRF: &quot;</code></li>
+<li>改动量：<code>ingest_url</code> 入口加 1 个 except 子句 + RED 测试 ~10 行</li>
+</ul>
+<ol>
+<li><strong>NP-2</strong>（4 auth 模式互斥测试缺失）——P1</li>
+</ol>
+<ul>
+<li>修法：每个 <code>AuthConfig</code> 子类加 <code>model_config = ConfigDict(extra=&quot;forbid&quot;)</code> + RED 测试 <code>test_load_bearer_auth_rejects_basic_fields</code> 等 4 个</li>
+<li>改动量：~20 行</li>
+</ul>
+<ol>
+<li><strong>NP-3</strong>（<code>SSRFRedirectTransport</code> 语义未在 DoD 显式标注）——P2</li>
+</ol>
+<ul>
+<li>修法：DoD 追加 2 行说明 transport 边界（M6 aiohttp 不适用 + 不重做 DNS 解析）</li>
+<li>改动量：~3 行</li>
+</ul>
+<ol>
+<li><strong>NP-4</strong>（风险表 r1 4 行 cosmetic bug）——P3 cosmetic</li>
+</ol>
+<ul>
+<li>修法：4 行拆 18 行 + &quot;曾被否决的替代方案&quot;列填实际 r0 漏洞描述</li>
+<li>改动量：风险表 +14 行</li>
+</ul>
+<h3 id="52-立即可动手不需等-r3">5.2 立即可动手（不需等 r3）</h3>
+<ul>
+<li><strong>M5 主体 plan 已 100% 同步 r1 修复</strong>——M5 实施者按当前 plan 可立即开始 Task 1-9</li>
+<li><strong>SSRF 防护深度足够</strong>（12 个攻击路径覆盖）——安全就绪</li>
+<li><strong>跨 M 契约 9/11 一致</strong>（2 个次要 NP-5 / image_ref 不影响 M5 实施）</li>
+<li><strong>集成测试策略清晰</strong>（真 PG 强制 + pytestmark asyncio + testcontainers）</li>
+</ul>
+<h3 id="53-跨-m-联动建议">5.3 跨 M 联动建议</h3>
+<ul>
+<li><strong>M6 confluence</strong> 实施前<strong>先验 M5 <code>app/ingest/auth.py</code> + <code>app/ingest/ssrf.py</code> 接口稳定</strong>——M6 直接 import <code>load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>assert_safe_url</code> / <code>validate_url_format</code></li>
+<li><strong>M8 <code>/api/ingest</code> 路由</strong>实施前<strong>先验 M5 <code>ingest_url</code> 接口签名稳定</strong>——M8 路由把 <code>IngestRequest</code> Pydantic 转 dict 调 <code>ingest_url</code></li>
+<li><strong>M5 集成测试</strong>在 M7 <code>OpenSearchClient.upsert_chunks</code> 合入后<strong>必须跑全量验证</strong>——当前 mock OpenSearch 整层</li>
+</ul>
+<h3 id="54-对比-m4-r1-修复的差异">5.4 对比 M4 r1 修复的差异</h3>
+<table>
+<tr><th>维度</th><th>M4 r1</th><th>M5 r1</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>修订记录行存在</td><td>24/24 (100%)</td><td>18/18 (100%)</td></tr>
+<tr><td>plan 主体同步修改</td><td>0/24 (0%)</td><td><strong>18/18 (100%)</strong></td></tr>
+<tr><td>风险表&quot;曾被否决的替代方案&quot;列 cosmetic bug</td><td>有</td><td>有（NP-4）</td></tr>
+<tr><td>跨 M 联动段</td><td>L640 真落地（7 项 M0/M1/M3/M5/M6/M7/M8 联动）</td><td>L840-841 真落地（M4/M6/M7/M8 联动）</td></tr>
+<tr><td>r2 建议</td><td>主体同步修复</td><td>修 4 个新问题（NP-1/NP-2/NP-5 + NP-3 cosmetic + NP-4 cosmetic）</td></tr>
+</table>
+<p><strong>M5 r1 修复质量显著高于 M4 r1</strong>——是已审查 5 M 中 r1 修复质量最高的一份。</p>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td>18 项 r1 修复逐项验证：100% 修订记录行 + 100% plan 主体同步；4 个 r1 引入新问题（NP-1/2/3/4/5）；11 维跨 M 一致性检查（9/11 完全一致，2 个次要 NP-5/image_ref）；风险表补全质量中等（4 行 r1 已修 cosmetic bug）；落地建议 r2 修 4 个新问题后即可动手</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>
