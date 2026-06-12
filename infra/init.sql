@@ -1,22 +1,35 @@
--- RAG V1 init.sql —— Postgres 初始化（M0 P1-2 修复版）
--- dev only —— 生产环境走 secret manager / Vault
--- 文件名 01-init.sql，挂载到 /docker-entrypoint-initdb.d/
+-- RAG V1 init.sql -- Postgres initialization
+-- Source: M0 plan 2026-06-10-rag-m0-infra.md Task 2 (P1-2 + r3 implementation P0 fix)
+-- dev only -- production uses secret manager / Vault
+-- Filename 01-init.sql, mounted to /docker-entrypoint-initdb.d/
 
--- r1 修复 P1-2：dev-only 占位（不依赖 ${POSTGRES_PASSWORD} 变量插值——initdb 阶段 env 不可用）
--- r1 修复 P1-2：IF NOT EXISTS 包裹（防止重启 compose 失败）
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rag_app') THEN
+-- r1 fix P1-2: dev-only plaintext password (no env variable interpolation --
+--   env is not available at initdb stage; P1-2 r1 explicitly chose this).
+-- r1 fix P1-2: role IF NOT EXISTS wrapper (prevent restart failure)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'rag_app') THEN
     CREATE ROLE rag_app WITH LOGIN PASSWORD 'rag_app_password';
   END IF;
-END
-$$;
+END $$;
 
--- r1 修复 P1-2：CREATE DATABASE IF NOT EXISTS（PostgreSQL 9.5+ 不支持 IF NOT EXISTS for CREATE DATABASE，
--- 改用 pg_database 系统表检查）
-SELECT 'CREATE DATABASE rag OWNER rag_app'
-WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'rag')\gexec
+-- r3 implementation P0: CREATE DATABASE IF NOT EXISTS wrapper
+-- PostgreSQL does not support CREATE DATABASE IF NOT EXISTS syntax.
+-- Use DO block with EXECUTE dynamic SQL.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'rag') THEN
+    EXECUTE 'CREATE DATABASE rag OWNER rag_app';
+  END IF;
+END $$;
 
--- 授权
+-- r3 implementation P0: independent langfuse database (avoid sharing with rag)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'langfuse') THEN
+    EXECUTE 'CREATE DATABASE langfuse OWNER rag_app';
+  END IF;
+END $$;
+
+-- Authorization
 GRANT ALL PRIVILEGES ON DATABASE rag TO rag_app;
-ALTER USER rag_app CREATEDB;  -- M11 eval test 需要建临时 DB
+GRANT ALL PRIVILEGES ON DATABASE langfuse TO rag_app;
+
+ALTER USER rag_app CREATEDB;  -- M11 eval test needs to create temp DB

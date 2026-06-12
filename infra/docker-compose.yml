@@ -102,10 +102,13 @@ services:
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgresql://rag_app:***@postgres:5432/rag
+      DATABASE_URL: postgresql://rag_app:***@postgres:5432/langfuse
       NEXTAUTH_SECRET: dev-only-please-change-in-production
       NEXTAUTH_URL: http://localhost:3000
       SALT: dev-only-please-change-in-production
+      # r3 implementation P0: langfuse 2.x 关键 env (P0-17)
+      LANGFUSE_LOG_LEVEL: INFO
+      LANGFUSE_TELEMETRY: "off"  # 关掉 Langfuse 自身 telemetry (生产保留)
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/public/health || exit 1"]
       interval: 10s
