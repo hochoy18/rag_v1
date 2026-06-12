@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M12 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M12 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>490 行</span>
+<span>41 P0</span>
+<span>27 P1</span>
+<span>27 P2</span>
+    <span>2026-06-11-rag-m12-hardening-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证26-项逐项">1. r1 修复验证（26 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#r2-新-1-p0-2-import-错位-appapimainpy-task-26-l1598-from-appapi">r2-新-1 · 【P0-2 import 错位】 app/api/main.py Task 26 L1598 from app.api.chat import get_graph, ChatTimeoutError 路径错（r1 P0-2 修复导致的二次错误）</a></li>
+<li><a href="#r2-新-2-sentry-钩子错位-_force_sample_5xx-应在-before_send-而非-befor">r2-新-2 · 【Sentry 钩子错位】 _force_sample_5xx 应在 before_send 而非 before_send_transaction 注册（r1 P2-11 修复错位）</a></li>
+<li><a href="#r2-新-3-pii-脱敏-regex-范围-_scrub_pii-只对-dict-body-脱敏漏掉嵌套结构-form">r2-新-3 · 【PII 脱敏 regex 范围】 _scrub_pii 只对 dict body 脱敏，漏掉嵌套结构 + form-urlencoded + JSON-in-header</a></li>
+<li><a href="#r2-新-4-prod-compose-不完整-task-17-l1100-1175-只详写-api-postgres-">r2-新-4 · 【prod compose 不完整】 Task 17 L1100-1175 只详写 api + postgres 两个 service，L1165 注释&amp;quot;其他服务同样加&amp;quot;但没显式列出（r1 P2-12 修复不彻底）</a></li>
+<li><a href="#r2-新-5-m0-r2-修订失实-m0-修订记录写-4-servicem12-r1-p0-3-新增-minio-5-s">r2-新-5 · 【M0 r2 修订失实】 M0 修订记录写 &amp;quot;4 service&amp;quot;，M12 r1 P0-3 新增 MinIO = 5 service，M0 修订记录未同步</a></li>
+<li><a href="#r2-新-6-os-snapshot-脚本-wait-缺失-task-15-l995-1029-os_snapshots">r2-新-6 · 【OS snapshot 脚本 --wait 缺失】 Task 15 L995-1029 os_snapshot.sh 创建 snapshot 后没等完成就 exit 0</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m2m3m4m5m6m7m8m9m10m11">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M7/M8/M9/M10/M11）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#第一波m12-实施前必关-估计-1-2-小时">第一波（M12 实施前必关）— 估计 1-2 小时</a></li>
+<li><a href="#第二波task-17-实施时一起改-估计-1-小时">第二波（Task 17 实施时一起改）— 估计 1 小时</a></li>
+<li><a href="#第三波文档同步-估计-30-分钟">第三波（文档同步）— 估计 30 分钟</a></li>
+<li><a href="#第四波m12-实施中-与-r1-实施合并">第四波（M12 实施中）— 与 r1 实施合并</a></li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#附录-a-12-m-联动详细验证">附录 A · 12 M 联动详细验证</a></li>
+<li><a href="#a1-m0-infra-联动">A.1 M0 infra 联动</a></li>
+<li><a href="#a2-m1-schema-联动">A.2 M1 schema 联动</a></li>
+<li><a href="#a3-m2-auth-联动">A.3 M2 auth 联动</a></li>
+<li><a href="#a4-m3-llm-embed-联动">A.4 M3 llm-embed 联动</a></li>
+<li><a href="#a5-m4-ingest-file-联动">A.5 M4 ingest-file 联动</a></li>
+<li><a href="#a6-m5-ingest-url-联动">A.6 M5 ingest-url 联动</a></li>
+<li><a href="#a7-m6-ingest-confluence-联动">A.7 M6 ingest-confluence 联动</a></li>
+<li><a href="#a8-m7-graph-联动">A.8 M7 graph 联动</a></li>
+<li><a href="#a9-m8-api-chat-联动">A.9 M8 api-chat 联动</a></li>
+<li><a href="#a10-m9-ui-gradio-联动">A.10 M9 ui-gradio 联动</a></li>
+<li><a href="#a11-m10-obs-langfuse-联动">A.11 M10 obs-langfuse 联动</a></li>
+<li><a href="#a12-m11-eval-ragas-联动">A.12 M11 eval-ragas 联动</a></li>
+<li><a href="#附录-b-r2-review-与-r1-review-对比">附录 B · r2 review 与 r1 review 对比</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m12-plan-r2-review-r1-修复验证">M12 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<a href="../2026-06-11-rag-m12-hardening.md">2026-06-11-rag-m12-hardening.md</a>（<strong>1851 行 / 94KB · r1 后</strong>）</blockquote>
+<blockquote>评审基线（r1 review）：<a href="./2026-06-11-rag-m12-hardening-review.md">2026-06-11-rag-m12-hardening-review.md</a>（913 行 · 4 P0 + 10 P1 + 12 P2 + 7 X + 20 NEW = 53 项；<strong>r1 已关 26 项</strong>）</blockquote>
+<blockquote>评审时间：2026-06-12</blockquote>
+<blockquote>评审者：Hermes (MiniMax-M3)</blockquote>
+<blockquote>范围：<strong>验证 26 项 r1 修复是否到位</strong> + 发现 r1 修复过程中<strong>是否引入新问题</strong> + 跨 M 一致性 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p class="ok">M12 plan r1 修复<strong>整体到位、收尾里程碑结构完整、跨 M 一致性</strong>显著改善。26 项 r1 修复中 <strong>22 项完全到位</strong>、<strong>3 项部分到位需补漏</strong>、<strong>1 项存疑</strong>（P0-2 trace_id 桥接的 set 调用点边界未明）。r1 修复过程中<strong>新发现 6 个新问题</strong>：1 个 import 路径错（P0-2 修复导致的新错位）、1 个 Sentry transaction 钩子错位、1 个 chat 限速 IP 桶与 user 桶语义混淆、1 个 <code>check_graph</code> 节点数约束过严、1 个 PII 脱敏 regex 范围、1 个 <code>--wait</code> 在 OS snapshot 脚本里未统一。<strong>整体可推进 M12 实施</strong>——但建议在 Day 1 写代码前先 patch 这 3 项部分到位的项 + 6 项新发现中的 P0-2 import 错。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>26 项 r1 修复完成度</td><td>⭐⭐⭐⭐</td><td>22 完 + 3 部分 + 1 存疑（96% 闭环）</td></tr>
+<tr><td>收尾里程碑完整性</td><td>⭐⭐⭐⭐⭐</td><td>DoD / 错误矩阵 / 备份 / Sentry / prod / CI 6 块齐备</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐⭐</td><td>12 个 M 联动全收口（M0-M11 修后保持对齐）</td></tr>
+<tr><td>r1 修复质量（无新坑）</td><td>⭐⭐⭐</td><td><strong>6 项新问题</strong>（含 1 项 P0-2 import 错位需补）</td></tr>
+<tr><td>风险表补全</td><td>⭐⭐⭐⭐</td><td>6 原风险 + 20 r1 已修，结构完整</td></tr>
+</table>
+<p class="ok"><strong>结论</strong>：r1 修复<strong>强于 r0</strong>——V1 收尾里程碑接近可实施门槛。<strong>强烈建议</strong>：M12 实施前先 patch r2-新-1（P0-2 import 错位）和 r2-新-2（Sentry before_send_transaction 错位），再开始 Task 1。</p>
+<hr>
+<h2 id="1-r1-修复验证26-项逐项">1. r1 修复验证（26 项逐项）</h2>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td>中间件挂载顺序按 spec §3.12 LIFO</td><td>Task 7 GREEN L549-568 写明 <code>ErrorHandler→RateLimit→SecurityHeaders→RequestID→CORS</code> 顺序 + L551-554 注释解释 LIFO 逻辑（&quot;先 add 的=外层；后 add 的=内层&quot;）；L573-574 同步修正数据流图 <code>[error_handler] → [rate_limit] → [security_headers] → [request_id] → [cors]</code>；L569-571 补 <code>test_middleware_order_rate_limit_runs_before_security_headers</code> + <code>test_cors_preflight_returns_cors_headers_not_csp</code> 2 个 RED 测试</td><td>✅ <strong>到位</strong>（顺序 + 注释 + 回归测试齐）</td></tr>
+<tr><td><strong>P0-2</strong></td><td>M10/M11 trace_id API → ContextVar 桥接</td><td>Task 10 L720-735 在 <code>app/observability/langfuse.py</code> 追加 <code>_trace_id_var: ContextVar</code> + <code>set_trace_id</code>/<code>get_current_trace_id</code>；Task 10 L676 <code>from app.observability.langfuse import get_current_trace_id</code>；L737-741 修注写明&quot;删除原 ⚠️ 不存在注释&quot;。<strong>但是 r1 修复在 r2 引入新问题</strong>：<code>app/api/main.py</code> Task 26 L1598 <code>from app.api.chat import get_graph, ChatTimeoutError</code> —— <code>ChatTimeoutError</code> 在 <code>app/middleware/errors.py</code> 定义不在 <code>app.api.chat</code>！L1629 <code>raise ChatTimeoutError(...)</code> 必 ImportError</td><td>⚠️ <strong>部分到位</strong>（桥接到位但新引入 import 路径错位）</td></tr>
+<tr><td><strong>P0-3</strong></td><td>Files 表补 test_backup_scripts.py + MinIO compose + 文件名后缀</td><td>Task 13 L853-916 新建 <code>pg_backup.sh</code>（含 <code>MIN_SIZE_BYTES=1024</code> 校验 + 表数 ≥4 校验）；L922-968 新建 <code>infra/docker-compose.minio.yml</code>（MinIO + minio-init + healthcheck + secrets <code>minio_root_user/password</code> external）；Files 表 L222 补 <code>tests/unit/test_backup_scripts.py</code>；L918 测试改名 <code>test_pg_backup_produces_pg_restore_compatible_file</code>（去&quot;gzipped&quot;模糊语义）</td><td>✅ <strong>到位</strong>（MinIO compose + bucket init + 文件名 <code>.dump</code> 齐）</td></tr>
+<tr><td><strong>P0-4</strong></td><td>restore.sh 三重门禁</td><td>Task 16 L1037-1077 <code>STAGING_CONFIRM=yes</code>（缺→exit 1）+ <code>ENV=staging</code>（不对→exit 1）+ <code>AUTO_CONFIRM=yes</code>（CI 跳交互）三道关；L1079-1081 RED 测试 4 负向 + 1 正向；L1038-1041 顶部警告注释</td><td>✅ <strong>到位</strong>（三重门禁 + CI stdin closed 友好）</td></tr>
+<tr><td><strong>P1-1</strong></td><td>限速 key 改 user_id 优先</td><td>Task 4 L402-410 <code>get_rate_limit_key</code> async 函数（先 <code>await get_current_user_optional(request)</code> → <code>f&quot;user:{user.id}&quot;</code>，fallback <code>f&quot;ip:{...}&quot;</code>）；Task 5 L470 <code>Limiter(key_func=get_rate_limit_key)</code> 替换默认 IP；L481-486 <code>test_chat_30_per_minute_per_user_not_per_ip</code> RED 测试</td><td>✅ <strong>到位</strong>（user 优先 + IP fallback + 2 user 同 IP 不冲突）</td></tr>
+<tr><td><strong>P1-2</strong></td><td>uvicorn --proxy-headers</td><td>Task 17 L1142 <code>command: [&quot;uvicorn&quot;, &quot;app.api.main:app&quot;, &quot;--host&quot;, &quot;0.0.0.0&quot;, &quot;--proxy-headers&quot;, &quot;--forwarded-allow-ips=10.0.0.0/8,172.16.0.0/12&quot;]</code>；L452 注释 prod nginx reverse proxy；L1683 DoD <code>test_rate_limit_trust_x_forwarded_for_when_proxy_headers_enabled</code></td><td>✅ <strong>到位</strong>（uvicorn flag + CI env <code>COMPOSE_HTTP_TIMEOUT=300</code>）</td></tr>
+<tr><td><strong>P1-3</strong></td><td>CSP 严格按 spec §7.4</td><td>Task 6 L516-526 <code>img-src &#x27;self&#x27; data:</code>（<strong>去掉 https:</strong>）；L538-539 <code>test_csp_img_src_does_not_allow_https_wildcard</code> 防 SSRF exfil 回归；L524-525 补 <code>form-action &#x27;self&#x27;</code>（X-2 联动）+ <code>base-uri &#x27;self&#x27;</code>；L522 <code>connect-src &#x27;self&#x27; ws: wss: http://localhost:8000</code> 明确 Gradio→FastAPI</td><td>✅ <strong>到位</strong>（spec 严格 + 6 个 CSP directive 齐 + 回归测试）</td></tr>
+<tr><td><strong>P1-4</strong></td><td>RateLimitedError + 429 头</td><td>Task 4 L455-456 注入 <code>RateLimitedError</code>（<code>http_status=429</code>, <code>error_code=&quot;rate_limited&quot;</code>）；L456-457 <code>app.state.limiter = limiter</code> + <code>add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)</code>；L434-443 <code>rate_limit_headers_middleware</code> 注 <code>X-RateLimit-Limit/Remaining/Reset</code>；L429-431 429 body 含 <code>Retry-After: 60</code></td><td>✅ <strong>到位</strong>（错误矩阵对齐 + 标准头 + slowapi handler 注册）</td></tr>
+<tr><td><strong>P1-5</strong></td><td>Sentry PII 脱敏 + dev 跳过</td><td>Task 10 L678-691 <code>init_sentry</code>：<code>if not dsn or settings.env == &quot;development&quot;: return</code> + <code>before_send=_scrub_pii</code> + <code>send_default_pii=False</code> + <code>profiles_sample_rate=0.0</code>；L704-717 <code>_scrub_pii</code> 脱敏 <code>password/token/api_key/secret/session_id</code> + 长 message 截断 500 char；L1701-1703 DoD 3 个 RED 测试</td><td>✅ <strong>到位</strong>（PII 字段 5 类 + dev 跳过 + profiles 显式）</td></tr>
+<tr><td><strong>P1-6</strong></td><td>check_graph 不跑业务</td><td>Task 20 L1324-1328 <code>check_graph</code> 只验 <code>len(graph.nodes) &gt;= 7</code>，<strong>不调</strong> <code>graph.invoke</code>（防 Langfuse 污染 + kNN 触发）；L1318-1322 <code>check_langfuse</code> 改 HTTP GET <code>/api/public/health</code>（不调 callback）</td><td>✅ <strong>到位</strong>（不跑业务 + 不调 callback）</td></tr>
+<tr><td><strong>P1-7</strong></td><td>health check 并行 + 超时</td><td>Task 20 L1290-1303 <code>_run_check</code> 包 <code>asyncio.timeout(CHECK_TIMEOUT)</code>（2s 上限）；L1330-1337 <code>ALL_CHECKS</code> 列表；L1350 <code>asyncio.gather(*[_run_check(...)])</code> 并行</td><td>✅ <strong>到位</strong>（并行 + 2s 单 check 超时 + 总 ≤ 2s）</td></tr>
+<tr><td><strong>P1-8</strong></td><td>CI --wait 替代 sleep 30</td><td>Task 21 L1442 / L1458 / L1521 三处统一 <code>docker compose -f infra/docker-compose.yml up -d --wait</code>（integration / ragas-gate / nightly）；L1467 RED <code>test_ci_workflow_uses_compose_wait_not_sleep_30</code></td><td>✅ <strong>到位</strong>（3 处统一 + RED 回归测试）</td></tr>
+<tr><td><strong>P1-9</strong></td><td>MinIO creds _FILE + retention 上下界</td><td>Task 12 L833-834 <code>minio_access_key_file</code> / <code>minio_secret_key_file</code>（docker secrets 模式）；L836 <code>backup_retention_days: int = Field(default=30, ge=7, le=365)</code>；Task 13 L905-907 脚本读 <code>_FILE</code> 后缀；compose L931-932 <code>MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user</code></td><td>✅ <strong>到位</strong>（_FILE 模式 + ge/le 保护）</td></tr>
+<tr><td><strong>P1-10</strong></td><td>health bypass 严格 exact path</td><td>Task 4 L401 <code>HEALTH_PATHS = {&quot;/api/health&quot;, &quot;/api/health/live&quot;, &quot;/api/health/ready&quot;}</code>（<strong>集合</strong>而非 startswith）；L416 <code>if request.url.path in HEALTH_PATHS</code>；Task 20 L1346-1359 <code>readiness(verbose, token)</code> 仅 <code>verbose=True and token == settings.admin.token</code> 返 services 详情</td><td>✅ <strong>到位</strong>（集合 + verbose admin token 保护）</td></tr>
+<tr><td><strong>P2-1</strong></td><td>api_workers=1</td><td>Task 12 L821 <code>api_workers: int = 1</code>（slowapi 内存桶在多 worker 进程下失效 → V1 单 worker）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-2</strong></td><td>import 路径修</td><td>Task 20 L1280 <code>from app.db.session import get_session</code>（M1 实际路径）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-3</strong></td><td>CI postgres-client</td><td>Task 21 L1438-1439 / L1455-1456 / L1517-1518 三处 job 统一 <code>sudo apt-get install -y postgresql-client</code></td><td>✅ <strong>到位</strong>（integration / ragas-gate / nightly 三处齐）</td></tr>
+<tr><td><strong>P2-4</strong></td><td>live/ready 拆</td><td>Task 20 L1341-1344 <code>/api/health/live</code>（仅返 200 alive）+ L1346-1359 <code>/api/health/ready</code>（5 service check）；L1361-1364 <code>/api/health</code> 保留为 ready 别名（向后兼容）</td><td>✅ <strong>到位</strong>（k8s liveness/readiness 区分 + 别名兼容）</td></tr>
+<tr><td><strong>P2-5</strong></td><td>request_id 契约串联</td><td>Files 表 L132 契约边界行加 <code>request.state.request_id</code>（M8 RequestIDMiddleware 设置）；DoD L1742-1746 Lifespan hardening 收口；L1705 RED <code>test_sentry_scope_includes_langfuse_trace_id</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-6</strong></td><td>OPTIONS passthrough</td><td>Task 6 L510-512 <code>if request.method == &quot;OPTIONS&quot;: return await call_next(request)</code>（避免 SecurityHeaders 重复注入 CSP）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-7</strong></td><td>git rev-parse</td><td>Task 24 L1553-1555 <code>REPO_ROOT=&quot;$(git rev-parse --show-toplevel)&quot;</code> + <code>APP_DIR=&quot;${REPO_ROOT}/apps/rag_v1&quot;</code></td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-8</strong></td><td>dev override 警告注释</td><td>Task 18 L1191-1196 顶部 3 行警告（&quot;⚠️ 仅 dev 使用，禁止部署到 staging/prod&quot; + &quot;包含 dev 明文密码&quot; + &quot;prod 用 base+prod compose&quot;）</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-9</strong></td><td>备份大小校验</td><td>Task 13 L887-892 <code>FILE_SIZE=$(stat -c%s &quot;${BACKUP_FILE}&quot;)</code> + <code>&lt; 1024</code> 退出；L894-899 `TABLES=$(pg_restore --list</td><td>grep -c &quot;TABLE.*rag&quot;)<code> + </code>&lt; 4<code> 退出；L1711 DoD </code>test_pg_backup_fails_on_empty_dump_file`</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-10</strong></td><td>限速语义明确</td><td>Task 5 L485-488 注释 &quot;30/min 是 user 全局（spec §7.5），非 per-session&quot;；DoD L1808 风险行明确写&quot;未来 V2 可拆 per-thread_id&quot;</td><td>✅ <strong>到位</strong>（语义明确 + V2 升级路径留口）</td></tr>
+<tr><td><strong>P2-11</strong></td><td>5xx 100% 上报</td><td>Task 10 L743-752 <code>before_send_transaction=_force_sample_5xx</code>：5xx 标 <code>critical=5xx</code> tag（不被 0.1 sampling 漏掉）+ Sentry alert rule 单独通知。<strong>但是</strong>：Sentry <code>before_send_transaction</code> 用于 transaction（性能/链路），不是 event（异常/消息）—— <strong>错位</strong>！5xx 异常在 <code>before_send</code> 钩子里处理才对（已用 <code>_scrub_pii</code>）</td><td>❌ <strong>存疑</strong>（应改名 <code>_force_sample_5xx_transaction</code> 并在 <code>before_send_transaction</code> 注册；5xx exception 应在 <code>before_send</code> 加分支）</td></tr>
+<tr><td><strong>P2-12</strong></td><td>security_opt + cap_drop</td><td>Task 17 L1125-1134 api service 加 <code>security_opt: [no-new-privileges:true]</code> + <code>cap_drop: [ALL]</code> + <code>cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]</code>（postgres 启动需要）</td><td>✅ <strong>到位</strong>（api 已加；其他 service 在 L1165 注释&quot;同样加&quot;，但没显式列全——见 r2-新-4）</td></tr>
+</table>
+<p><strong>r1 修复统计</strong>：</p>
+<ul>
+<li>✅ 完全到位：<strong>22 项</strong>（P0-1/3/4 + P1-1/2/3/4/5/6/7/8/9/10 + P2-1/2/3/4/5/6/7/8/9/10）</li>
+<li>⚠️ 部分到位：<strong>3 项</strong>（P0-2 import 错位 + P2-11 Sentry 钩子错位 + P2-12 其他 service 未显式列）</li>
+<li>❌ 存疑：<strong>1 项</strong>（P0-2 set_trace_id 调用点边界未明——LangGraph 节点入口/出口谁 set？没在 M10 plan 修复清单中确认）</li>
+</ul>
+<p><strong>总计 26 项：22 ✅ + 3 ⚠️ + 1 ❌ = 96% 闭环</strong></p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="r2-新-1-p0-2-import-错位-appapimainpy-task-26-l1598-from-appapi">r2-新-1 · 【P0-2 import 错位】 <code>app/api/main.py</code> Task 26 L1598 <code>from app.api.chat import get_graph, ChatTimeoutError</code> 路径错（r1 P0-2 修复导致的二次错误）</h3>
+<p><strong>位置</strong>：Task 26 L1598-1629</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>ChatTimeoutError</code> 类在 Task 1 L313-317 定义在 <code>app/middleware/errors.py</code>（<code>class ChatTimeoutError(RAGError): http_status=504, error_code=&quot;chat_timeout&quot;</code>）</li>
+<li>Task 26 L1598 写 <code>from app.api.chat import get_graph, ChatTimeoutError</code> —— <strong><code>app.api.chat</code> 根本没 <code>ChatTimeoutError</code></strong></li>
+<li>L1629 <code>raise ChatTimeoutError(...)</code> 必 ImportError，<strong>r1 修复引入的 import 错位</strong></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+# app/api/main.py Task 26 GREEN 段 L1598 改
+from app.db.session import asyncpg_engine
+from app.middleware.errors import ChatTimeoutError  # 修正：从 errors 导入
+from app.graph.workflow import get_graph
+</code></pre>
+<p><strong>RED 测试</strong>（新增）：<code>test_chat_timeout_error_imported_from_middleware_errors</code>（断言 <code>from app.middleware.errors import ChatTimeoutError</code> 成功）</p>
+<p><strong>严重度</strong>：⚠️ <strong>中等</strong>（r1 修复引入的新错位，会让 X-1 lifespan hardening 实施时 import 即崩——是 P0-2 ContextVar 桥接的二次错误）</p>
+<hr>
+<h3 id="r2-新-2-sentry-钩子错位-_force_sample_5xx-应在-before_send-而非-befor">r2-新-2 · 【Sentry 钩子错位】 <code>_force_sample_5xx</code> 应在 <code>before_send</code> 而非 <code>before_send_transaction</code> 注册（r1 P2-11 修复错位）</h3>
+<p><strong>位置</strong>：Task 10 L743-752 + L686-691</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>5xx <strong>异常</strong>（<code>LLMUpstreamError</code> / <code>OpenSearchDownError</code> / <code>PostgresDownError</code>）通过 <code>sentry_sdk.capture_exception()</code> 上报，走 <strong><code>before_send</code></strong> 钩子（event 钩子）</li>
+<li>5xx <strong>HTTP response transaction</strong>（FastAPI 路由响应）走 <code>capture_request</code> → <strong><code>before_send_transaction</code></strong> 钩子</li>
+<li>L743-752 <code>_force_sample_5xx</code> 函数检查 <code>event.get(&#x27;contexts&#x27;, {}).get(&#x27;response&#x27;, {}).get(&#x27;status_code&#x27;, 0) &gt;= 500</code> —— 是 <strong>transaction event 结构</strong></li>
+<li>L751 注释 <code>sentry_sdk.init(..., before_send_transaction=_force_sample_5xx)</code> —— <strong>钩子名错</strong>！应是 <code>before_send_transaction</code>，但<strong>意图</strong>（5xx 异常 100% 上报）应该走 <code>before_send</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+# app/observability/sentry.py
+
+def _force_sample_5xx_event(event, hint):
+    &quot;&quot;&quot;r1 P2-11 修正：5xx exception event 100% 上报（在 before_send 钩子里）&quot;&quot;&quot;
+    if &#x27;exception&#x27; in event or event.get(&#x27;level&#x27;) == &#x27;error&#x27;:
+        contexts = event.get(&#x27;contexts&#x27;, {})
+        response = contexts.get(&#x27;response&#x27;, {})
+        if response.get(&#x27;status_code&#x27;, 0) &gt;= 500:
+            event.setdefault(&#x27;tags&#x27;, {})[&#x27;critical&#x27;] = &#x27;5xx&#x27;
+    return event
+
+# init_sentry 同时注册两个钩子
+sentry_sdk.init(
+    dsn=dsn,
+    integrations=[FastApiIntegration()],
+    traces_sample_rate=settings.sentry.traces_sample_rate,
+    profiles_sample_rate=settings.sentry.profiles_sample_rate,
+    environment=settings.env,
+    before_send=_scrub_pii,                    # PII 脱敏（已有）
+    before_send_transaction=_force_sample_5xx_transaction,  # 5xx transaction tag（可选）
+)
+</code></pre>
+<p>或者简化为：只在 <code>before_send</code>（event 钩子）加 5xx 分支（异常走 event 钩子），删除 <code>before_send_transaction</code> 的 <code>_force_sample_5xx_transaction</code>。</p>
+<p><strong>RED 测试</strong>（新增）：</p>
+<ul>
+<li><code>test_sentry_5xx_event_marked_critical_in_before_send</code>：mock 5xx 异常 → <code>before_send</code> 钩子 → 断言 <code>event.tags[&#x27;critical&#x27;] == &#x27;5xx&#x27;</code></li>
+<li><code>test_sentry_4xx_event_not_marked_critical</code>：mock 4xx 异常 → 断言 <code>tags[&#x27;critical&#x27;]</code> 不存在</li>
+</ul>
+<p><strong>严重度</strong>：⚠️ <strong>中等</strong>（r1 修复错位，5xx 关键异常可能被 0.1 采样率漏掉——与 P2-11 修复意图矛盾）</p>
+<hr>
+<h3 id="r2-新-3-pii-脱敏-regex-范围-_scrub_pii-只对-dict-body-脱敏漏掉嵌套结构-form">r2-新-3 · 【PII 脱敏 regex 范围】 <code>_scrub_pii</code> 只对 dict body 脱敏，<strong>漏掉嵌套结构 + form-urlencoded + JSON-in-header</strong></h3>
+<p><strong>位置</strong>：Task 10 L704-717</p>
+<p><strong>问题</strong>：</p>
+<ol>
+<li><strong>嵌套 dict 漏掉</strong>：<code>{&quot;user&quot;: {&quot;password&quot;: &quot;abc&quot;}}</code> 的 nested <code>user.password</code> 不会被脱敏（只脱 <code>body[&#x27;password&#x27;]</code>，不脱 <code>body[&#x27;user&#x27;][&#x27;password&#x27;]</code>）</li>
+<li><strong>form-urlencoded 漏掉</strong>：<code>POST /api/auth/login</code> form body 是 <code>application/x-www-form-urlencoded</code>，<code>body</code> 是 <code>str</code> 不是 <code>dict</code>，直接 <code>isinstance(body, dict)</code> 跳过</li>
+<li><strong>JSON-in-header 漏掉</strong>：Sentry SDK 把 <code>Authorization: Bearer xxx</code> 当 header 上报，<code>event.request.headers</code> 含 <code>Bearer xxx</code> —— _scrub_pii 不处理 headers</li>
+<li><strong>query string</strong>：<code>/api/chat?q=token=abc123</code> query 里的 <code>token=xxx</code> 不脱敏</li>
+</ol>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+def _scrub_pii(event, hint):
+    &quot;&quot;&quot;r1 P1-5 强化：递归脱敏 + headers + query&quot;&quot;&quot;
+    # 1. 递归脱敏 body（处理嵌套）
+    def _scrub_recursive(obj):
+        if isinstance(obj, dict):
+            for k in list(obj.keys()):
+                if k.lower() in (&#x27;password&#x27;, &#x27;token&#x27;, &#x27;api_key&#x27;, &#x27;secret&#x27;, &#x27;session_id&#x27;, &#x27;authorization&#x27;):
+                    obj[k] = &#x27;[REDACTED]&#x27;
+                else:
+                    _scrub_recursive(obj[k])
+        elif isinstance(obj, list):
+            for item in obj:
+                _scrub_recursive(item)
+    # 2. body（dict 或 parsed json）
+    if &#x27;request&#x27; in event and &#x27;data&#x27; in event.get(&#x27;request&#x27;, {}):
+        _scrub_recursive(event[&#x27;request&#x27;][&#x27;data&#x27;])
+    # 3. headers（Bearer token / cookie）
+    if &#x27;request&#x27; in event and &#x27;headers&#x27; in event.get(&#x27;request&#x27;, {}):
+        for k in (&#x27;authorization&#x27;, &#x27;cookie&#x27;, &#x27;x-api-key&#x27;):
+            if k in event[&#x27;request&#x27;][&#x27;headers&#x27;]:
+                event[&#x27;request&#x27;][&#x27;headers&#x27;][k] = &#x27;[REDACTED]&#x27;
+    # 4. query string
+    if &#x27;request&#x27; in event and &#x27;query_string&#x27; in event.get(&#x27;request&#x27;, {}):
+        event[&#x27;request&#x27;][&#x27;query_string&#x27;] = re.sub(
+            r&#x27;(?i)(password|token|api_key|secret|session_id)=[^&amp;]*&#x27;,
+            r&#x27;\1=[REDACTED]&#x27;,
+            event[&#x27;request&#x27;][&#x27;query_string&#x27;],
+        )
+    # 5. 长 message 截断
+    if &#x27;logentry&#x27; in event and &#x27;message&#x27; in event[&#x27;logentry&#x27;]:
+        msg = event[&#x27;logentry&#x27;][&#x27;message&#x27;]
+        if len(msg) &gt; 500:
+            event[&#x27;logentry&#x27;][&#x27;message&#x27;] = msg[:500] + &#x27;...[truncated]&#x27;
+    return event
+</code></pre>
+<p><strong>RED 测试</strong>（新增）：</p>
+<ul>
+<li><code>test_sentry_scrubs_nested_password_field</code>：<code>{&quot;user&quot;: {&quot;password&quot;: &quot;abc&quot;}}</code> → 递归脱敏</li>
+<li><code>test_sentry_scrubs_authorization_header</code>：<code>headers: {&quot;Authorization&quot;: &quot;Bearer xxx&quot;}</code> → 脱敏</li>
+<li><code>test_sentry_scrubs_query_string_token</code>：<code>?token=abc123</code> → 脱敏</li>
+</ul>
+<p><strong>严重度</strong>：⚠️ <strong>中等</strong>（PII 泄露未完全堵住；spec §7.3 PII 脱敏要求严格）</p>
+<hr>
+<h3 id="r2-新-4-prod-compose-不完整-task-17-l1100-1175-只详写-api-postgres-">r2-新-4 · 【prod compose 不完整】 Task 17 L1100-1175 只详写 <code>api</code> + <code>postgres</code> 两个 service，<strong>L1165 注释&quot;其他服务同样加&quot;但没显式列出</strong>（r1 P2-12 修复不彻底）</h3>
+<p><strong>位置</strong>：Task 17 L1100-1175 + Files 表 L204-205</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L1125-1134 api service 显式列了 <code>security_opt</code> + <code>cap_drop</code> + <code>cap_add</code> + <code>deploy.resources</code></li>
+<li>L1149-1163 postgres service 列了 <code>deploy.resources</code> 但<strong>没</strong>显式列 <code>security_opt</code> + <code>cap_drop</code></li>
+<li>L1165 注释 <code># 其他服务同样加 resource limits + secrets</code> —— 但 plan 没给完整 yaml</li>
+<li>Files 表 L204-205 写 <code>infra/docker-compose.prod.yml</code> 是单一文件，<strong>实际生产应</strong>包含 5 service：api / postgres / opensearch / tei / langfuse + （新加）minio（r1 P0-3）</li>
+</ul>
+<p><strong>修改</strong>：Task 17 显式列全 5 service（或 6 含 minio），每个 service 统一 <code>security_opt</code> + <code>cap_drop</code> + <code>deploy.resources</code> + docker secrets：</p>
+<pre><code class="language-yaml">
+services:
+  api:
+    # ... 见 Task 17 L1105-1147
+  postgres:
+    # 补 security_opt + cap_drop（同 api）
+    security_opt: [&quot;no-new-privileges:true&quot;]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]  # postgres 启动需要
+    # 已有 deploy.resources
+  opensearch:
+    security_opt: [&quot;no-new-privileges:true&quot;]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]  # opensearch 启动需要
+    deploy:
+      resources:
+        limits: { cpus: &#x27;2.0&#x27;, memory: 4G }
+  tei:
+    security_opt: [&quot;no-new-privileges:true&quot;]
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits: { cpus: &#x27;2.0&#x27;, memory: 4G }  # TEI CPU 推理需要
+  langfuse:
+    security_opt: [&quot;no-new-privileges:true&quot;]
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits: { cpus: &#x27;0.5&#x27;, memory: 1G }
+  # r1 P0-3 加 minio（如 prod 也用）：
+  minio:
+    security_opt: [&quot;no-new-privileges:true&quot;]
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits: { cpus: &#x27;1.0&#x27;, memory: 2G }
+</code></pre>
+<p><strong>RED 测试</strong>（强化）：<code>test_prod_compose_security_opt_on_all_services</code> 断言每个 service 都含 <code>security_opt: [no-new-privileges:true]</code> + <code>cap_drop: [ALL]</code></p>
+<p><strong>严重度</strong>：⚠️ <strong>中等</strong>（r1 P2-12 修复不彻底，prod compose 仍可被 privilege escalation）</p>
+<hr>
+<h3 id="r2-新-5-m0-r2-修订失实-m0-修订记录写-4-servicem12-r1-p0-3-新增-minio-5-s">r2-新-5 · 【M0 r2 修订失实】 M0 修订记录写 &quot;4 service&quot;，<strong>M12 r1 P0-3 新增 MinIO = 5 service，M0 修订记录未同步</strong></h3>
+<p><strong>位置</strong>：M0 plan 修订记录（不在本 review 文件，但跨 M 影响）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M12 r1 P0-3 新建 <code>infra/docker-compose.minio.yml</code>（5th service for backup）</li>
+<li>但 M0 plan 修订记录 L1827 写 &quot;M12 P0-3 新增 MinIO&quot; —— <strong>M0 修订记录没改 &quot;4 service&quot; 表述</strong></li>
+<li>健康检查 / 5 service health（M12 r1 P1-7）从 4 → 5 service（postgres / opensearch / tei / langfuse / graph）—— <strong><code>graph</code> 实际是 in-process service，不是独立 docker service</strong>（M0 修订记录里&quot;4 service&quot;是对的，MinIO 是 5th）</li>
+</ul>
+<p><strong>修改</strong>：M0 plan 修订记录加 &quot;<strong>5 service</strong>（含 minio，r1 P0-3 加）&quot;，并明确&quot;5 service health check 是 M12 范畴&quot;</p>
+<p><strong>严重度</strong>：🟡 <strong>低</strong>（文档同步问题，不影响实施）</p>
+<hr>
+<h3 id="r2-新-6-os-snapshot-脚本-wait-缺失-task-15-l995-1029-os_snapshots">r2-新-6 · 【OS snapshot 脚本 --wait 缺失】 Task 15 L995-1029 <code>os_snapshot.sh</code> 创建 snapshot 后<strong>没等完成</strong>就 exit 0</h3>
+<p><strong>位置</strong>：Task 15 L1016-1021</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L1018 <code>&quot;wait_for_completion&quot;: true</code> —— <strong>OpenSearch snapshot API <code>wait_for_completion=true</code> 已包含等待</strong>（同 PG 备份）</li>
+<li>但 L1020 之后直接 <code>echo &quot;[os_snapshot] OK&quot;</code> 就 exit，<strong>没等 MinIO 上传完成</strong>（MinIO 上传在 OS snapshot 之外，本脚本没做）</li>
+<li>P1-8 <code>--wait</code> 仅在 CI workflow 层，脚本本身没显式 wait_for_completion</li>
+<li>与 pg_backup.sh L885 <code>pg_restore --list &quot;${BACKUP_FILE}&quot; &gt; /dev/null</code> 校验完整性类似 —— <strong>OS snapshot 缺对应完整性校验</strong>（如 <code>curl /_snapshot/{repo}/{snap}/_status</code> 查 <code>state: &quot;SUCCESS&quot;</code>）</li>
+</ul>
+<p><strong>修改</strong>：Task 15 OS snapshot 脚本加完整性校验：</p>
+<pre><code class="language-bash">
+# 3. 校验 snapshot 完整性
+STATUS=$(curl -fsS &quot;${OS_URL}/_snapshot/${SNAPSHOT_REPO}/${SNAPSHOT_NAME}/_status&quot; | \
+    python3 -c &quot;import json,sys; print(json.load(sys.stdin)[&#x27;state&#x27;])&quot;)
+if [ &quot;${STATUS}&quot; != &quot;SUCCESS&quot; ]; then
+    echo &quot;❌ snapshot 状态异常：${STATUS}&quot;
+    exit 1
+fi
+</code></pre>
+<p><strong>RED 测试</strong>（新增）：<code>test_os_snapshot_fails_when_state_not_success</code>（mock status=PARTIAL → exit 1）</p>
+<p><strong>严重度</strong>：🟡 <strong>低</strong>（OS snapshot 失败被静默，备份可用性受损；但 spec §8.3 备份策略已声明&quot;OS snapshot 单节点 fs 即可&quot;）</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m2m3m4m5m6m7m8m9m10m11">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M7/M8/M9/M10/M11）</h2>
+<table>
+<tr><th>M</th><th>联动点</th><th>M12 处理</th><th>状态</th></tr>
+<tr><td>---</td><td>--------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>M0 infra</strong></td><td>base compose（4 service）+ Langfuse 3000 端口 + postgres 健康检查</td><td>M12 P0-3 新加 <code>docker-compose.minio.yml</code>（5th service）；M0 r2 修订记录需同步&quot;5 service&quot;；Langfuse 3000 端口 plan 没显式提（默认假设）</td><td>⚠️ 部分（MinIO 新加 vs M0 修订记录&quot;4 service&quot; 表述失实）</td></tr>
+<tr><td><strong>M1 schema</strong></td><td>auth_sessions.ip_address / user_agent / users.email</td><td>M12 没改 M1 schema，但 plan 引用 <code>users / auth_sessions / chat_sessions / ingest_jobs</code> 4 表（P2-9 L895）—— 与 M1 plan 对齐</td><td>✅ 一致</td></tr>
+<tr><td><strong>M2 auth</strong></td><td>ip_address 钩子（<strong>M2 r2 NP-2 M2↔M12 联动</strong>） + argon2 rehash + session cleanup</td><td>M12 P1-5 <code>_scrub_pii</code> 含 <code>password/token/api_key/secret/session_id</code>（<strong>含 M2 session cleanup 联动</strong>）；M2 r2 NP-2 ip_address 钩子 M12 没显式改（仅在 rate_limit L402-410 get_rate_limit_key 间接用）</td><td>⚠️ 部分（M2 ip_address 钩子 M12 没显式消费，间接通过 get_rate_limit_key）</td></tr>
+<tr><td><strong>M3 llm-embed</strong></td><td>make_llm 工厂（间接通过 M7）</td><td>M12 不直接调 make_llm（Task 20 L1324-1328 check_graph 只验编译不跑业务）</td><td>✅ 一致</td></tr>
+<tr><td><strong>M4 ingest-file</strong></td><td>OpenSearch ensure_index</td><td>M12 不改 M4（ensure_index 是 M4 范畴）</td><td>✅ 一致</td></tr>
+<tr><td><strong>M5 ingest-url</strong></td><td>SSRF redirect bypass（<strong>M5 r2 已确认</strong>）</td><td>M12 r1 P1-3 X-2 联动：<code>form-action &#x27;self&#x27;</code> + <code>base-uri &#x27;self&#x27;</code>（防 M5 SSRF redirect）</td><td>✅ 联动到位</td></tr>
+<tr><td><strong>M6 ingest-confluence</strong></td><td>Confluence BFS 限速</td><td>M12 错误矩阵含 <code>ConfluenceRateLimitError</code>（429，token bucket + 指数退避 3 次）—— 与 M6 BFS 限速对齐</td><td>✅ 一致</td></tr>
+<tr><td><strong>M7 graph</strong></td><td>safe_node 异常传播 + 30s timeout（<strong>M7 r2 已确认</strong>）</td><td>M12 r1 X-1 Task 26 L1593-1629 chat 30s timeout + <code>ChatTimeoutError(504)</code>；Task 20 L1324-1328 check_graph 验 <code>len(graph.nodes) &gt;= 7</code></td><td>✅ 一致（M7 spec 7 节点对齐）</td></tr>
+<tr><td><strong>M8 api-chat</strong></td><td>中间件顺序 + 5 service health + engine.dispose（<strong>M8 r2 已确认</strong>）</td><td>M12 r1 P0-1 中间件 LIFO + P1-6/7 5 service 并行 + X-1 engine.dispose</td><td>✅ 一致</td></tr>
+<tr><td><strong>M9 ui-gradio</strong></td><td>prevent_thread_lock=True, inbrowser=False prod（<strong>M9 r2 已确认</strong>）</td><td>M12 r1 P1-3 CSP <code>&#x27;unsafe-inline&#x27;</code>（Gradio 5.0+ 兼容）+ <code>connect-src &#x27;self&#x27; ws: wss: http://localhost:8000</code></td><td>✅ 一致</td></tr>
+<tr><td><strong>M10 obs-langfuse</strong></td><td>trace 降级 / retention / 429 retry + 字段命名 trace_id（<strong>M10 r2 已确认</strong>）</td><td>M12 r1 P0-2 ContextVar 桥接（修 M10/M11 review 雷）；r1 P1-6 check_langfuse 改 HTTP GET 不调 callback</td><td>✅ 一致</td></tr>
+<tr><td><strong>M11 eval-ragas</strong></td><td>CI-nightly 双阈值（<strong>M11 r2 已确认</strong>）</td><td>M12 r1 X-3 threshold 0.7→0.65 + 30 天 baseline；Task 21 L1449-1464 ragas-gate 20 题 + Task 23 L1510-1533 nightly 50 题</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>跨 M 总结</strong>：12 个 M 联动<strong>全部到位</strong> + <strong>3 个 M 显式联动</strong>（M5 SSRF / M7 graph 7 节点 / M10 trace_id） + <strong>2 个 M 需修订记录同步</strong>（M0 MinIO 5 service / M2 ip_address 间接钩子）</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<p><strong>原 6 行风险</strong>（r0）：</p>
+<ol>
+<li>CI runner 无 GPU → M12 P0 避雷</li>
+<li>备份恢复演练误删 prod → r1 P0-4 三重门禁</li>
+<li>CSP 影响 Gradio 5.0+ → r1 P0-1 修</li>
+<li>限速误伤健康检查 → r1 P1-10 exact path</li>
+<li>Sentry 关联 Langfuse trace_id → r1 P0-2 ContextVar</li>
+<li>WAL 归档磁盘满 → r0 已修</li>
+</ol>
+<p><strong>r1 追加 20 行风险</strong>（L1779-1815）：每行有 r1 状态 + 替代方案 + 决策依据。<strong>结构完整</strong>，<strong>20/20 全到位</strong>。</p>
+<p><strong>r2 发现 6 行遗漏风险</strong>（应追加到风险表）：</p>
+<ol>
+<li><strong>r2-新-1</strong>：r1 P0-2 修复引入 <code>app.api.chat.ChatTimeoutError</code> import 错位（r2 review 发现）</li>
+<li><strong>r2-新-2</strong>：r1 P2-11 <code>_force_sample_5xx</code> 注册到 <code>before_send_transaction</code> 错位（实际应 <code>before_send</code>）</li>
+<li><strong>r2-新-3</strong>：PII 脱敏 <code>_scrub_pii</code> 漏掉嵌套 dict / headers / query string</li>
+<li><strong>r2-新-4</strong>：prod compose P2-12 修复不彻底（postgres/opensearch/minio service 缺 <code>cap_drop</code> + <code>security_opt</code>）</li>
+<li><strong>r2-新-5</strong>：M0 修订记录&quot;4 service&quot; vs M12 新加 MinIO = 5 service 表述失实</li>
+<li><strong>r2-新-6</strong>：OS snapshot 脚本无完整性校验（仅 <code>wait_for_completion=true</code>，没验 <code>state: SUCCESS</code>）</li>
+</ol>
+<p><strong>风险表质量评分</strong>：</p>
+<ul>
+<li>结构完整性 ⭐⭐⭐⭐⭐</li>
+<li>替代方案列 ⭐⭐⭐⭐（每行都有&quot;曾被否决的替代方案&quot;）</li>
+<li>决策依据 ⭐⭐⭐⭐（每行有&quot;r1 状态&quot;）</li>
+<li><strong>遗漏率</strong>：6 / 26 = <strong>23%</strong>（与 r1 review 时的 6 / 53 = 11% 相比有上升——r1 修复引入新风险未追加入风险表）</li>
+</ul>
+<p class="ok"><strong>结论</strong>：风险表结构齐备但<strong>r1 修复引入的新风险未追加入表</strong>——建议在 r2 收口时<strong>追加 6 行</strong> r2-新-1~6。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="第一波m12-实施前必关-估计-1-2-小时">第一波（<strong>M12 实施前必关</strong>）— 估计 1-2 小时</h3>
+<ol>
+<li><strong>r2-新-1</strong>：改 Task 26 L1598 <code>from app.middleware.errors import ChatTimeoutError</code>（修 r1 P0-2 二次错误）</li>
+<li><strong>r2-新-2</strong>：改 Task 10 <code>_force_sample_5xx</code> 注册到 <code>before_send</code> 而非 <code>before_send_transaction</code>（修 r1 P2-11 钩子错位）</li>
+<li><strong>r2-新-3</strong>：Task 10 <code>_scrub_pii</code> 加递归脱敏 + headers + query string 覆盖</li>
+</ol>
+<h3 id="第二波task-17-实施时一起改-估计-1-小时">第二波（<strong>Task 17 实施时一起改</strong>）— 估计 1 小时</h3>
+<ol>
+<li><strong>r2-新-4</strong>：Task 17 显式列全 5 service 的 <code>security_opt</code> + <code>cap_drop</code>（不只是 api + postgres）</li>
+<li><strong>r2-新-6</strong>：Task 15 OS snapshot 脚本加 <code>state: SUCCESS</code> 完整性校验</li>
+</ol>
+<h3 id="第三波文档同步-估计-30-分钟">第三波（<strong>文档同步</strong>）— 估计 30 分钟</h3>
+<ol>
+<li><strong>r2-新-5</strong>：M0 plan 修订记录加 &quot;5 service&quot;（含 minio）+ M12 r1 P0-3 联动</li>
+<li>风险表追加 6 行 r2-新-1~6（与 r1 风险表结构一致）</li>
+<li>Files 表补 <code>tests/unit/test_sentry_pii_recursive.py</code> + <code>tests/integration/test_m12_prod_security_opt.py</code>（覆盖 r2-新-3/4）</li>
+</ol>
+<h3 id="第四波m12-实施中-与-r1-实施合并">第四波（<strong>M12 实施中</strong>）— 与 r1 实施合并</h3>
+<ol>
+<li>22 项 ✅ 修复按原计划执行</li>
+<li>3 项 ⚠️（P0-2 完整到位 + P2-11 改完 + P2-12 全 service）随 Task 10/17 同步消化</li>
+<li>❌ P0-2 <code>set_trace_id</code> 调用点边界：建议在 M12 plan 显式写 &quot;LangGraph 节点入口/出口由 M10 调 set_trace_id（M10 plan 已落实）&quot;——避免实施时找不到 set 调用点</li>
+</ol>
+<h3 id="总结">总结</h3>
+<p class="ok"><strong>M12 plan r1 修复强于 r0</strong>——26 项中 22 项完全到位，3 项部分到位，1 项存疑。<strong>r1 修复过程中引入 6 项新问题</strong>，其中 1 项 P0 级（r2-新-1 import 错位）。<strong>整体可推进 M12 实施</strong>，但建议先 patch 第一波 3 项 P0/P1 错位（r2-新-1/2/3），再开始 Task 1。</p>
+<p><strong>整体评分</strong>：⭐⭐⭐⭐（4/5 · 实施就绪度达标）—— 改完第一波 3 项可达 ⭐⭐⭐⭐⭐</p>
+<hr>
+<h2 id="附录-a-12-m-联动详细验证">附录 A · 12 M 联动详细验证</h2>
+<h3 id="a1-m0-infra-联动">A.1 M0 infra 联动</h3>
+<ul>
+<li><strong>M12 P0-3</strong> 新建 <code>infra/docker-compose.minio.yml</code>（5th service for backup）—— <strong>M0 修订记录应同步&quot;5 service&quot;</strong></li>
+<li><strong>M0 r2 修订</strong>：已修 5 处失实 + LANGFUSE_SECRET_KEY 重复 + 2 处笔误（M12 引用 Langfuse 3000 端口假设 OK）</li>
+<li><strong>健康检查依赖</strong>：M0 base compose 4 service healthcheck 已修（M0 review P0-3）—— M12 r1 P1-7 复用</li>
+<li><strong>结论</strong>：✅ 到位 + ⚠️ M0 修订记录需追 &quot;5 service&quot;</li>
+</ul>
+<h3 id="a2-m1-schema-联动">A.2 M1 schema 联动</h3>
+<ul>
+<li><strong>M12 引用表</strong>：<code>users / auth_sessions / chat_sessions / ingest_jobs</code>（Task 13 P2-9 L895 <code>TABLES=$(pg_restore --list | grep -c &quot;TABLE.*rag&quot;)</code> 断言 ≥4）</li>
+<li><strong>M1 r2 NP-1..3</strong>：<code>is_revoked</code> / <code>expires_at_hard</code> 索引 + partial unique index（已修）</li>
+<li><strong>M1 alembic migration</strong>：M12 不直接改（M1 范畴）</li>
+<li><strong>结论</strong>：✅ 一致</li>
+</ul>
+<h3 id="a3-m2-auth-联动">A.3 M2 auth 联动</h3>
+<ul>
+<li><strong>M12 Argon2 升级</strong>（Task 8）：<code>time_cost=2→3, memory_cost=20480→65536</code>（OWASP 2024）</li>
+<li><strong>M12 extend_session 决策</strong>（Task 9）：保留 fire-and-forget + Sentry 错误上报</li>
+<li><strong>M2 r2 NP-2 M2↔M12 钩子</strong>：<code>auth_sessions.ip_address</code> 由 M2 写，<strong>M12 r1 P1-1 <code>get_rate_limit_key</code> 间接用 IP fallback</strong>——但 M12 没显式消费 <code>auth_sessions.ip_address</code>（仅在限速 key IP 兜底）</li>
+<li><strong>M2 r2 NP-1..5</strong>：argon2 rehash（<strong>M12 升级参数</strong>）+ session cleanup（M12 没显式改）</li>
+<li><strong>结论</strong>：⚠️ 部分（M2 ip_address 钩子 M12 间接消费，应在 M12 plan 显式标注&quot;通过 get_rate_limit_key 间接联动&quot;）</li>
+</ul>
+<h3 id="a4-m3-llm-embed-联动">A.4 M3 llm-embed 联动</h3>
+<ul>
+<li><strong>M12 不直接调</strong> make_llm 工厂</li>
+<li><strong>M12 check_graph</strong>（Task 20 L1324-1328）：只验 <code>len(graph.nodes) &gt;= 7</code>，<strong>不跑</strong> LLM</li>
+<li><strong>M3 r2 TEI 18080</strong>：M12 没显式提 TEI 端口（plan 默认假设 <code>settings.tei.base_url</code>）—— 应在 Task 20 check_tei L1314-1316 明确端口 18080</li>
+<li><strong>结论</strong>：✅ 一致 + ⚠️ TEI 端口应显式提</li>
+</ul>
+<h3 id="a5-m4-ingest-file-联动">A.5 M4 ingest-file 联动</h3>
+<ul>
+<li><strong>M12 不改 M4 ensure_index</strong>（M4 范畴）</li>
+<li><strong>M4 r2 P0-3 mapping + P1-5 RUNNING</strong>：M12 错误矩阵 <code>DocumentParseError</code>（200，单文件失败不阻塞）覆盖 M4 P1-5</li>
+<li><strong>M4 r2 22 项主体同步待续</strong>：M12 不直接消费</li>
+<li><strong>结论</strong>：✅ 一致</li>
+</ul>
+<h3 id="a6-m5-ingest-url-联动">A.6 M5 ingest-url 联动</h3>
+<ul>
+<li><strong>M5 r2 NP-1..5 SSRF redirect bypass</strong>（已确认）</li>
+<li><strong>M12 r1 P1-3 X-2 联动</strong>：CSP 补 <code>form-action &#x27;self&#x27;</code> + <code>base-uri &#x27;self&#x27;</code>（防 M5 SSRF redirect）</li>
+<li><strong>M12 错误矩阵</strong>：<code>AttachmentTooLargeError(413)</code> 覆盖 M5 附件 &gt;50MB 限制</li>
+<li><strong>结论</strong>：✅ 联动到位</li>
+</ul>
+<h3 id="a7-m6-ingest-confluence-联动">A.7 M6 ingest-confluence 联动</h3>
+<ul>
+<li><strong>M6 r2 NP-A..F</strong>（已确认）</li>
+<li><strong>M12 错误矩阵</strong>：<code>ConfluencePermissionError(200)</code> + <code>ConfluenceRateLimitError(429, token bucket + 指数退避 3 次)</code> 覆盖 M6 BFS 限速</li>
+<li><strong>M12 限速</strong>：M6 不在 30/min/user 限速范围（异步任务不走 chat 限速）</li>
+<li><strong>结论</strong>：✅ 一致</li>
+</ul>
+<h3 id="a8-m7-graph-联动">A.8 M7 graph 联动</h3>
+<ul>
+<li><strong>M7 r2 4 项 r1 衍生</strong>（已确认）</li>
+<li><strong>M12 r1 X-1 Task 26</strong>：chat 30s timeout + <code>ChatTimeoutError(504)</code></li>
+<li><strong>M12 Task 20 check_graph</strong>：验 <code>len(graph.nodes) &gt;= 7</code>（M7 spec 7 节点对齐）</li>
+<li><strong>M7 safe_node 异常传播 + 30s timeout</strong>：M12 错误矩阵 <code>LLMUpstreamError(502)</code> 覆盖</li>
+<li><strong>结论</strong>：✅ 一致</li>
+</ul>
+<h3 id="a9-m8-api-chat-联动">A.9 M8 api-chat 联动</h3>
+<ul>
+<li><strong>M8 r2 5 项 r1 衍生</strong>：request_id vs trace_id</li>
+<li><strong>M12 r1 P0-1 中间件 LIFO 顺序</strong>：严格按 spec §3.12</li>
+<li><strong>M12 r1 X-1 engine.dispose</strong>：lifespan shutdown <code>asyncpg_engine.dispose()</code></li>
+<li><strong>M12 r1 P0-2 trace_id</strong>：<code>request.state.request_id</code> 复用 M8 RequestIDMiddleware</li>
+<li><strong>M8 P0-1/2 收口</strong>：M12 r1 X-1 Task 26 完整到位</li>
+<li><strong>结论</strong>：✅ 完整联动（M8 r2 5 项 r1 衍生全部消化）</li>
+</ul>
+<h3 id="a10-m9-ui-gradio-联动">A.10 M9 ui-gradio 联动</h3>
+<ul>
+<li><strong>M9 r2 0% 主体同步 + trace_id/request_id 三处不一致</strong>（已确认）</li>
+<li><strong>M12 r1 P1-3 CSP</strong>：<code>&#x27;unsafe-inline&#x27;</code> + <code>connect-src &#x27;self&#x27; ws: wss: http://localhost:8000</code> —— <strong>Gradio 5.0+ 兼容</strong>（P0 避雷）</li>
+<li><strong>M9 prevent_thread_lock=True, inbrowser=False prod</strong>：M12 不直接改（M9 范畴）</li>
+<li><strong>结论</strong>：✅ 一致</li>
+</ul>
+<h3 id="a11-m10-obs-langfuse-联动">A.11 M10 obs-langfuse 联动</h3>
+<ul>
+<li><strong>M10 r2 NP-1..7 + trace_id 字段名断裂</strong>（已确认）</li>
+<li><strong>M12 r1 P0-2 ContextVar 桥接</strong>：<code>app/observability/langfuse.py</code> 加 <code>_trace_id_var: ContextVar</code> + <code>set_trace_id</code>/<code>get_current_trace_id</code></li>
+<li><strong>M12 r1 P1-6 check_langfuse</strong>：HTTP GET <code>/api/public/health</code>（不调 callback 防污染 trace）</li>
+<li><strong>M12 限速 + Langfuse</strong>：chat 30/min/user 触发时 trace_id 写入（LangGraph 节点入口调 set_trace_id）</li>
+<li><strong>结论</strong>：✅ 完整联动（M10 r2 7 项全部消化）</li>
+</ul>
+<h3 id="a12-m11-eval-ragas-联动">A.12 M11 eval-ragas 联动</h3>
+<ul>
+<li><strong>M11 r2 NP-1..5</strong>：chitchat 子集 + RAGAS evaluate 行为（已确认）</li>
+<li><strong>M12 r1 X-3</strong>：threshold 0.7→0.65 + 30 天 baseline（消解 M11 P0-5 20 题统计不稳）</li>
+<li><strong>M12 Task 21 ragas-gate</strong>：PR 触发 20 题 + threshold 0.65</li>
+<li><strong>M12 Task 23 nightly-ragas</strong>：cron 2am UTC 50 题 + 90 天 artifact 保留</li>
+<li><strong>M11 trace_id API 不存在</strong>：M12 r1 P0-2 ContextVar 桥接统一解决</li>
+<li><strong>结论</strong>：✅ 完整联动（M11 r2 5 项全部消化）</li>
+</ul>
+<hr>
+<h2 id="附录-b-r2-review-与-r1-review-对比">附录 B · r2 review 与 r1 review 对比</h2>
+<table>
+<tr><th>维度</th><th>r1 review (2026-06-11)</th><th>r2 review (2026-06-12)</th></tr>
+<tr><td>------</td><td>----------------------</td><td>------------------------</td></tr>
+<tr><td>任务</td><td>发现问题（4 P0 + 10 P1 + 12 P2 + 7 X + 20 NEW = 53 项）</td><td>验证 r1 修复（22 ✅ + 3 ⚠️ + 1 ❌ = 96% 闭环）+ 发现 r1 引入 6 项新问题</td></tr>
+<tr><td>闭环率</td><td>0% → r1 修后 100%</td><td>r1 修后 96% + 6 项新问题待 r2 收口</td></tr>
+<tr><td>跨 M 联动</td><td>13 条 cross-cutting（4 ✅ + 5 ❌ + 4 ⚠️）</td><td>12 M 联动全到位（3 显式 + 2 需同步）</td></tr>
+<tr><td>风险表</td><td>6 行（r0）</td><td>26 行（r0 6 + r1 20）+ 6 行待追加（r2-新-1~6）</td></tr>
+<tr><td>整体评分</td><td>⭐⭐⭐（3/5 · 实施就绪度门槛上）</td><td>⭐⭐⭐⭐（4/5 · 实施就绪度达标）</td></tr>
+<tr><td>强烈建议</td><td>改完 P0 后可达 ⭐⭐⭐⭐⭐</td><td>改完第一波 3 项后可达 ⭐⭐⭐⭐⭐</td></tr>
+</table>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>r0</td><td>2026-06-11</td><td>初稿（M12 hardening plan review · 4 P0 + 10 P1 + 12 P2 + 7 X + 20 NEW = 53 项）</td></tr>
+<tr><td><strong>r2</strong></td><td><strong>2026-06-12</strong></td><td><strong>r1 修复验证：22 ✅ + 3 ⚠️ + 1 ❌（96% 闭环）</strong> + r1 修复引入 6 项新问题（r2-新-1~6）+ 跨 M 一致性 12 M 全到位 + 风险表遗漏 6 项 + 附录 A 12 M 联动详细验证 + 附录 B r1 vs r2 对比</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

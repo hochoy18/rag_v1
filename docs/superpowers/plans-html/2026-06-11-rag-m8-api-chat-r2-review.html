@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M8 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M8 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>362 行</span>
+<span>36 P0</span>
+<span>26 P1</span>
+<span>27 P2</span>
+<span class="badge-r1">2 r1 标记</span>
+    <span>2026-06-11-rag-m8-api-chat-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证18-项逐项">1. r1 修复验证（18 项逐项）</a></li>
+<li><a href="#11-p0-项验证3-项">1.1 P0 项验证（3 项）</a></li>
+<li><a href="#12-p1-项验证6-项">1.2 P1 项验证（6 项）</a></li>
+<li><a href="#13-p2-项验证8-项">1.3 P2 项验证（8 项）</a></li>
+<li><a href="#14-18-项修复到位率统计">1.4 18 项修复到位率统计</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#新-1-chatresponse-schema-字段命名与-m9-渲染约定存在轻微不一致-p1">新-1 · ChatResponse schema 字段命名与 M9 渲染约定存在轻微不一致 [P1]</a></li>
+<li><a href="#新-2-5-service-health-探测并行-asynciogather-与-business-服务状态判定时序有">新-2 · 5 service health 探测并行 asyncio.gather 与 business 服务状态判定时序有微妙问题 [P1]</a></li>
+<li><a href="#新-3-lifespan-关闭时-graph-本身未-await-清理依赖-langgraph-105-是否有-clos">新-3 · Lifespan 关闭时 graph 本身未 await 清理（依赖 langgraph 1.0.5 是否有 close） [P2]</a></li>
+<li><a href="#新-4-idempotency-key-header-透传未在-m8-plan-显式支持依赖-m1-r2-4-表-ide">新-4 · Idempotency-Key Header 透传未在 M8 plan 显式支持（依赖 M1 r2 4 表 idempotency_key 联动） [P1]</a></li>
+<li><a href="#新-5-middleware-顺序注释与-m12-r1-p0-1-lifo-add_middleware-顺序需复核-p">新-5 · middleware 顺序注释与 M12 r1 P0-1 LIFO add_middleware 顺序需复核 [P2]</a></li>
+<li><a href="#r1-衍生新问题汇总">r1 衍生新问题汇总</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m2m3m4m5m6m7m9m10m11m12">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M7/M9/M10/M11/M12）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-必须先修的-r1-衍生新问题动手前必看">5.1 必须先修的 r1 衍生新问题（动手前必看）</a></li>
+<li><a href="#52-可选优化实施阶段复核即可">5.2 可选优化（实施阶段复核即可）</a></li>
+<li><a href="#53-tdd-顺序建议">5.3 TDD 顺序建议</a></li>
+<li><a href="#54-跨-m-契约验收点">5.4 跨 M 契约验收点</a></li>
+<li><a href="#55-抄-m3-范本的结构闪光点值得-m9m10m11-复制">5.5 抄 M3 范本的结构闪光点（值得 M9/M10/M11 复制）</a></li>
+<li><a href="#6-总结">6. 总结</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m8-plan-r2-review-r1-修复验证">M8 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>plans/2026-06-11-rag-m8-api-chat.md</code>（r1 版本 · 1411 行 · 18 项 P0/P1/P2 全部修复）</blockquote>
+<blockquote>评审基线：r1 review <code>reviews/2026-06-11-rag-m8-api-chat-review.md</code>（673 行 · 3 P0 + 6 P1 + 8 P2）</blockquote>
+<blockquote>参考 review：M0/M1/M2/M3/M4/M5/M6/M7 r2 review（均已修）+ M9/M10/M11/M12 r1 review（下游依赖）</blockquote>
+<blockquote>评审时间：2026-06-11（r2 阶段）</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查 · 验证 r1 修复质量 + 发现 r1 引入新问题）</blockquote>
+<blockquote>范围：M8 plan 18 项 r1 修复逐项验证 + r1 修复过程中是否引入新问题 + 跨 M 一致性 12 联动 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p class="ok">M8 plan r1 是 RAG V1 路线中<strong>修复密度第二高</strong>的 plan（仅次于 M7 r1）——1411 行主体（较 r0 964 行 +47%）+ 修订记录 23 行 r1 已修清单 + 风险表追加 18 行 <code>r1-2026-06-11 已修</code> 条目。3 项 P0（chat 30s timeout / lifespan engine.dispose / 5 service health URL 具体化）已全部补实现 + 配 RED 测试；6 项 P1（fallback_message 配置化 / _count_messages 实现 / get_orchestrator 删 fallback / lifespan override 可测 / AsyncSession 类型注解 / deleted_at 软删过滤 / 501 stub TODO 标记）已全部落地；8 项 P2（schema 字段补全 / health_checks 独立文件 / middleware 顺序注释 / page_size 配置 / RequestIdMiddleware 拆分 / safe_truncate UTF-8 字节截 / shutdown_event 缓冲 / APP_ENV 感知）已全落。</p>
+<p class="ok"><strong>r1 修复到位率约 96%</strong>——18 项中 17 项能在 plan 主体（Task 1-14 + Files 表 + DoD + 修订记录）找到对应落地实现；1 项存在轻度漂移（P0-3 health 探测 URL/timeout 配置化承诺 &quot;全部从 settings.health.<em> 读&quot;，但 plan 主体内 <code>_check_opensearch()</code> 等仍部分内联 URL 而非 <code>settings.health.opensearch_url.rstrip(&quot;/&quot;)</code> 的对称写法——r1 修订记录 L1393 说&quot;URL 全部从 settings.health.</em> 读&quot;，但 GREEN 段 L443/L472/L489 都用了 <code>settings.health.{opensearch_url,tei_url,langfuse_url}.rstrip(&quot;/&quot;)</code> 的<strong>对称</strong>写法，实际验证到位——这条标&quot;到位&quot;，<strong>无漂移</strong>）。r1 修复过程<strong>未引入新阻塞问题</strong>，但发现 5 项<strong>r1 衍生新问题</strong>（新-1 ChatResponse 缺 <code>trace_id</code> 字段不一致 M9 渲染 / 新-2 5 service health 串行 await / asyncio.gather 但 business 在 gather 后判定可能脏数据 / 新-3 middleware 顺序与 M12 hardening 未对齐 / 新-4 Idempotency-Key header 未透传 / 新-5 Lifespan 关闭时 graph 未 await 清理），全部为 P1/P2。</p>
+<p><strong>维度评分</strong>：</p>
+<table>
+<tr><th>维度</th><th>r1 评分</th><th>r2 评分</th><th>变化</th></tr>
+<tr><td>------</td><td>--------</td><td>--------</td><td>------</td></tr>
+<tr><td>路由契约完整性</td><td>⚠️ 5 路由主体</td><td>✅ <strong>5 路由 + 8 端点（chat/sessions×2/ingest/health/auth×3）</strong></td><td>大幅提升</td></tr>
+<tr><td>异常处理矩阵</td><td>⚠️ 401/403/404/422/500/502/503</td><td>✅ <strong>11 条矩阵 + timeout/GraphError/RetrievalError/ServiceNotReady 4 类细化</strong></td><td>大幅提升</td></tr>
+<tr><td>lifespan 单例</td><td>❌ 缺 engine.dispose / health 状态</td><td>✅ <strong>await make_checkpointer + engine.dispose + cp.close + shutdown_event 缓冲</strong></td><td>大幅提升</td></tr>
+<tr><td>健康检查深度</td><td>❌ URL/timeout/auth 模糊</td><td>✅ <strong>5 service 独立文件 + 并行 + 503 降级 + shutdown 感知</strong></td><td>大幅提升</td></tr>
+<tr><td>settings 化</td><td>⚠️ hardcode 多</td><td>✅ <strong>APISettings/HealthSettings/GraphSettings 三层配置化</strong></td><td>提升</td></tr>
+<tr><td>跨 M 一致性</td><td>⚠️ M7 依赖模糊</td><td>✅ <strong>M7 r1 P0-3 + P0-4 + P1-2 联动显式阻断</strong></td><td>提升</td></tr>
+<tr><td>风险表透明度</td><td>⚠️ 6 行原风险</td><td>✅ <strong>6 原 + 18 r1 已修 + 6 跨 M</strong></td><td>提升</td></tr>
+<tr><td>可立即实施</td><td>❌ P0 阻塞</td><td>✅ <strong>P0 全解 + TDD 节奏保留</strong></td><td>提升</td></tr>
+</table>
+<p class="ok"><strong>一句话</strong>：r1 修复<strong>整体质量高、覆盖率完整、TDD 节奏保留到位</strong>——M8 plan 已是 RAG V1 路线中<strong>可立即动手实施</strong>的状态。修完 5 项 r1 衍生新问题后即可进入 implementation 阶段。</p>
+<hr>
+<h2 id="1-r1-修复验证18-项逐项">1. r1 修复验证（18 项逐项）</h2>
+<h3 id="11-p0-项验证3-项">1.1 P0 项验证（3 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容（r1 修订记录）</th><th>实际验证（plan L/段落）</th><th>状态</th></tr>
+<tr><td>---------</td><td>--------------------</td><td>--------------------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td><code>POST /api/chat</code> 无超时保护 → <code>asyncio.wait_for(graph.ainvoke(...), timeout=settings.api.chat_timeout_seconds)</code> 包装；超时 raise 502 + 中文 detail；RED 测试 <code>test_chat_returns_502_on_timeout</code>；<code>APISettings.chat_timeout_seconds=30</code></td><td>Task 7 GREEN 段 L864-878 完整包装代码（<code>try: result = await asyncio.wait_for(graph.ainvoke({...}, config={...}), timeout=settings.api.chat_timeout_seconds)</code> + <code>except asyncio.TimeoutError: log.warning(...) + raise HTTPException(502, &quot;服务超时，请稍后重试。&quot;)</code>）；RED 测试 L801-803 完整定义；Files 表 修改段 L300 &quot;APISettings.chat_timeout_seconds: int = 30&quot;；测试矩阵 L1278 明示；DoD L1303</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-2</strong></td><td>lifespan 关闭未调 <code>engine.dispose()</code> → Task 13 GREEN <code>lifespan</code> 函数 <code>finally</code> 块 <code>await engine.dispose()</code> + <code>cp.close()</code> 幂等；RED 测试 <code>test_lifespan_closes_db_engine</code></td><td>Task 13 GREEN 段 L1146-1157 完整 finally 块（<code>shutdown_event.set() + await asyncio.sleep(0.5) + await engine.dispose() + close = getattr(checkpointer, &quot;close&quot;, None); if close: res = close(); if asyncio.iscoroutine(res): await res</code>）；RED 测试 L1193-1197 定义；测试矩阵 L1286 明示；DoD L1302 &quot;lifespan 关闭 engine.dispose() 归还 asyncpg 连接池&quot;；修订记录 L1392</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P0-3</strong></td><td>health check 5 service 探测实现模糊（缺 URL/timeout/auth） → 5 个 <code>_check_*</code> 函数移到 <code>app/api/health_checks.py</code>；URL 全部从 <code>settings.health.{opensearch_url,tei_url,langfuse_url}</code> 读；timeout 走 <code>settings.health.health_check_timeout</code>；RED 测试 mock 具体 URL 前缀</td><td>Task 2 GREEN 段 L412-538 完整 5 个 <code>_check_*</code> 函数 + <code>check_all(app)</code> 聚合（<code>_check_postgres</code> 用 <code>async with async_session() as s: await s.execute(text(&quot;SELECT 1&quot;))</code> / <code>_check_opensearch</code> 用 <code>httpx.AsyncClient(timeout=settings.health.health_check_timeout)</code> 调 <code>GET {url}/_cluster/health?wait_for_status=yellow&amp;timeout=2s</code> + cluster_status green/yellow/degraded/red 三态判别 / <code>_check_tei</code> 调 <code>GET {url}/health</code> / <code>_check_langfuse</code> 调 <code>GET {url}/api/public/health</code> / <code>_check_business</code> 走 <code>app.state.graph</code> + <code>app.state.checkpointer</code> 存活判定）；Files 表 修改段 L305 &quot;HealthSettings.opensearch_url / tei_url / langfuse_url / health_check_timeout&quot;；测试矩阵 L1284</td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p class="ok"><strong>P0 验证小结</strong>：3 项全部到位，P0 阻塞全部解除。其中：</p>
+<ul>
+<li>P0-1 是 chat 端点<strong>生产可用性</strong>修复（防 graph hang 拖垮 worker）→ 已全修</li>
+<li>P0-2 是 lifespan <strong>资源清理</strong>修复（asyncpg 连接池归还）→ 已全修</li>
+<li>P0-3 是 health check <strong>配置化</strong>修复（URL/timeout/auth 显式）→ 已全修</li>
+</ul>
+<h3 id="12-p1-项验证6-项">1.2 P1 项验证（6 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P1-1</strong></td><td>503 降级兜底文案硬编码 → Task 7 GREEN 段改用 <code>settings.graph.fallback_message</code>（与 M7 r1 P1-2 共用 <code>app/config.py</code> GraphSettings）</td><td>Task 7 GREEN 段 L884-889 <code>return ChatResponse(answer=settings.graph.fallback_message, sources=[], session_id=session_id, request_id=request_id, degraded=True)</code>；Files 表 修改段 L306 &quot;GraphSettings.fallback_message: str = ...（与 M7 P1-2 共用）&quot;；DoD L1312；修订记录 L1394</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-2</strong></td><td><code>GET /api/sessions</code> 缺 <code>_count_messages</code> 实现 → Task 4 GREEN 段补 <code>async def _count_messages(db, session_id) -&gt; int</code>；REFACTOR 改 outerjoin 一次出数</td><td>Task 4 GREEN 段 L642-646 <code>_count_messages</code> 完整实现（<code>stmt = select(func.count()).select_from(Message).where(Message.session_id == session_id); result = await db.execute(stmt); return result.scalar() or 0</code>）；Task 4 REFACTOR 段 L691 改为&quot;单 SQL select(ChatSession, func.count(Message.id)) + outerjoin + group_by(ChatSession.id) 一次出数&quot;；DoD L1309</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-3</strong></td><td><code>get_orchestrator</code> fallback 路径每次重建 graph + CP 泄漏 → Task 6 GREEN 删 fallback 路径，未初始化时 <code>raise HTTPException(503)</code>；避免每次重建 graph + CP 泄漏</td><td>Task 6 GREEN 段 L760-768 完整重写（<code>graph = getattr(request.app.state, &quot;graph&quot;, None); if graph is None: raise HTTPException(status_code=503, detail=&quot;服务尚未就绪，请稍后重试。&quot;); return graph</code>）；REFACTOR L787 抽 <code>app/api/errors.py</code> 的 <code>ServiceNotReadyError</code>；DoD L1313；修订记录 L1396</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-4</strong></td><td>lifespan override 不可测，fallback 是死代码 → Task 13 GREEN `create_app(lifespan_override: Lifespan \</td><td>None = None)<code> 接受测试 no-op lifespan；RED 测试用 </code>TestClient(create_app(lifespan_override=noop_lifespan))` 触发 503</td><td>Task 13 GREEN 段 L1160 <code>def create_app(lifespan_override=None) -&gt; FastAPI:</code> + L1165 <code>lifespan=lifespan_override or lifespan, # 修 P1-4：可注入测试 lifespan</code>；RED 测试 L781-785 <code>test_orchestrator_returns_503_when_app_state_missing</code>（用 <code>create_app(lifespan_override=noop_lifespan)</code>）；DoD L1314</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-5</strong></td><td><code>get_db</code> Depends 缺 <code>AsyncSession</code> 类型注解 → Task 6 GREEN 段 <code>async def get_db() -&gt; AsyncSession</code> 显式注解</td><td>Task 6 GREEN 段 L754-757 <code>async def get_db() -&gt; AsyncSession: &quot;&quot;&quot;FastAPI Depends：每个请求一个 AsyncSession（修 P1-5 显式类型注解）&quot;&quot;&quot; async with _get_session() as session: yield session</code>；DoD L1315</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-6</strong></td><td><code>GET /api/sessions</code> 缺软删除过滤 → Task 4 GREEN 段查询加 <code>ChatSession.deleted_at.is_(None)</code> 过滤；M1 schema 已有 <code>deleted_at</code> 列</td><td>Task 4 GREEN 段 L655-665 完整查询（<code>where(ChatSession.user_id == current_user.id, ChatSession.is_active == True, ChatSession.deleted_at.is_(None),)</code>）；DoD L1310；修订记录 L1399</td><td>✅ <strong>到位</strong>（注：M1 r2 修订已确认 <code>deleted_at</code> 列存在）</td></tr>
+<tr><td><strong>P1-7</strong></td><td><code>POST /api/ingest</code> 501 stub 缺 M4 合并标记 → Task 11 GREEN 段 stub 函数加 <code># TODO(m8→m4): 合并 M4-M6 时删除本 stub</code> 标记；DoD 加 <code>grep &quot;TODO(m8→m4)&quot; apps/rag_v1/</code> 必须命中</td><td>Task 11 GREEN 段 L1068-1083 完整 stub（<code>@router.post(&quot;&quot;, response_model=IngestAcceptedResponse, status_code=501) async def post_ingest_stub(req: IngestRequest): &quot;&quot;&quot;M8 占位：M4-M6 落地后替换为真实 ingest 入口。 TODO(m8→m4): 合并 M4-M6 时删除本 stub handler... grep 关键词：TODO(m8→m4) &quot;&quot;&quot;</code>）；DoD L1316；修订记录 L1400；测试矩阵 L1291</td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p><strong>P1 验证小结</strong>：7 项全部到位。P1-1 跨 M 联动（M7 r1 P1-2 GraphSettings）显式标注；P1-6 软删除过滤依赖 M1 r2 <code>deleted_at</code> 列补全已就位；P1-7 501 stub 的 grep 标记是 M4-M6 合并时的可定位替换点。</p>
+<h3 id="13-p2-项验证8-项">1.3 P2 项验证（8 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P2-1</strong></td><td>5 个 Response schema 字段未完整列出 → Files 表 schema 段补全：<code>SessionListResponse{sessions, total}</code> / <code>SessionDetailResponse{id, title, thread_id, messages, created_at, updated_at}</code> / <code>IngestProgressResponse{job_id, status, progress, error, created_at, updated_at}</code> / <code>IngestAcceptedResponse{job_id, status=&quot;accepted&quot;}</code></td><td>Task 1 GREEN 段 L355-401 完整 4 套 schema 字段（<code>SessionListItem / SessionListResponse / SessionDetailResponse</code> L357-378 + <code>IngestProgressResponse / IngestRequest / IngestAcceptedResponse</code> L382-401）；Task 5 GREEN 段 L700-723 <code>SessionDetailResponse</code> 完整字段构造；Task 8 GREEN 段 L965-972 <code>ChatResponse</code> 含 <code>request_id</code> 字段（修 trace_id 备）；DoD L1317</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-2</strong></td><td><code>_check_*</code> 拆到独立文件提法过晚 → 直接在 Task 2 GREEN 段写 <code>app/api/health_checks.py</code> 5 个函数 + <code>check_all(app)</code> 聚合；<code>health.py</code> 只留路由；删原 REFACTOR 步骤</td><td>Task 2 GREEN 段 L412-538 完整 5 个 <code>_check_<em></code> 函数 + <code>check_all(app)</code> 聚合；<code>health.py</code> L540-584 只留 <code>router</code> + <code>_degraded_response</code>；Files 表 L279 &quot;<code>app/api/health_checks.py</code> 5 个 <code>_check_</em></code> 探测函数（修 P0-3 + P2-2：直接放独立文件，URL/timeout 具体）&quot;；DoD L1318</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-3</strong></td><td>middleware 挂载顺序无注释 → Task 13 GREEN 段在 <code>add_middleware</code> 上方加注释：<code>1. CORS（不依赖 tracing）</code> / <code>2. RequestId（后续中间件/路由有 request_id）</code> / <code>↓ M12 RateLimit（依赖 request_id）</code></td><td>Task 13 GREEN 段 L1171-1184 完整注释（<code># 修 P2-3：middleware 挂载顺序（注释说明职责）</code> + <code># 1. CORS 最先：preflight OPTIONS 不依赖 tracing</code> + <code>app.add_middleware(CORSMiddleware, ...)</code> + <code># 2. RequestId 次之：所有后续中间件 / 路由可读 request_id</code> + <code>app.add_middleware(RequestIdMiddleware)</code> + <code># ↓ future: RateLimitMiddleware (M12)  # 3. 限速（依赖 request_id for per-user limit）</code>）；DoD L1319</td><td>✅ <strong>到位</strong>（与 M12 r1 P0-1 中间件顺序 LIFO 一致）</td></tr>
+<tr><td><strong>P2-4</strong></td><td><code>limit(50)</code> 硬编码 → Task 4 GREEN 段改用 <code>settings.api.default_session_page_size</code>（<code>APISettings</code> 追加字段，默认 50）</td><td>Task 4 GREEN 段 L664 <code>.limit(settings.api.default_session_page_size)  # 修 P2-4：可配置</code>；Files 表 修改段 L301 &quot;APISettings.default_session_page_size: int = 50（修 P2-4）&quot;；DoD L1320</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-5</strong></td><td><code>RequestIdMiddleware</code> 内联在 main.py → 拆到 <code>app/api/middleware.py</code>；<code>main.py</code> 改为 import</td><td>Task 3 GREEN 段 L598-613 <code>app/api/middleware.py</code> 完整 <code>RequestIdMiddleware</code> 类（<code>from starlette.middleware.base import BaseHTTPMiddleware; import uuid; class RequestIdMiddleware(BaseHTTPMiddleware): &quot;&quot;&quot;注入 / 透传 X-Request-Id，用于 M10 Langfuse 业务 trace 关联&quot;&quot;&quot;</code>）；Task 13 GREEN 段 L1126 <code>from app.api.middleware import RequestIdMiddleware  # 修 P2-5：从独立文件 import</code>；Files 表 L282 &quot;app/api/middleware.py  RequestIdMiddleware（修 P2-5：从 main.py 拆出）&quot;；DoD L1321</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-6</strong></td><td>session title 截断可能截断 multi-byte（emoji / surrogate） → Task 7 GREEN 段用 <code>safe_truncate(text, max_bytes=50)</code>（按 UTF-8 byte 截，surrogate 安全）；实现放 <code>app/utils/text.py</code></td><td>Task 7 GREEN 段 L901-908 完整 <code>safe_truncate</code> 实现（<code>def safe_truncate(text: str, max_bytes: int = 100) -&gt; str: &quot;&quot;&quot;按 UTF-8 byte length 截取，不截断在 multi-byte 中间（emoji / surrogate safe）&quot;&quot;&quot; encoded = text.encode(&quot;utf-8&quot;)[:max_bytes]; return encoded.decode(&quot;utf-8&quot;, errors=&quot;ignore&quot;)</code>）；Task 7 调用 L844 <code>title=safe_truncate(req.query.strip().replace(&quot;\n&quot;, &quot; &quot;), 50)</code>；Files 表 L288 &quot;app/utils/text.py  safe_truncate UTF-8 byte-aware 工具（修 P2-6：session 标题截取）&quot;；DoD L1322</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-7</strong></td><td>lifespan 关闭时 in-flight health check 仍读 DB → Task 13 GREEN <code>finally</code> 块先 <code>app.state.shutdown_event.set()</code> + <code>await asyncio.sleep(0.5)</code> 给 in-flight 请求缓冲，再 <code>engine.dispose()</code>；health 端点检测 shutdown_event 返 503</td><td>Task 13 GREEN 段 L1147-1151（<code># 修 P2-7：通知 health check 开始返 503 + 给 in-flight 请求 500ms 缓冲</code> + <code>app.state.shutdown_event.set()</code> + <code>await asyncio.sleep(0.5)</code> + <code>await engine.dispose()</code>）；<code>health.py</code> L552-555 检测 <code>request.app.state.shutdown_event.is_set()</code> 返 503；DoD L1323</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-8</strong></td><td>缺 <code>APP_ENV</code> 环境感知（Swagger docs / CORS / debug） → <code>APISettings.env: Literal[&quot;dev&quot;,&quot;staging&quot;,&quot;prod&quot;] = &quot;dev&quot;</code>；<code>cors_origins</code> 按 env 切换；<code>expose_docs: bool = env == &quot;dev&quot;</code>；<code>create_app</code> 中 <code>docs_url/redoc_url/openapi_url</code> 受 <code>expose_docs</code> 控制</td><td>Files 表 修改段 L302-304 完整 3 行（&quot;APISettings.env: Literal[&quot;dev&quot;,&quot;staging&quot;,&quot;prod&quot;] = &quot;dev&quot;（修 P2-8）&quot; + &quot;APISettings.cors_origins: list[str]（修 P2-8：dev=[&quot;*&quot;]，prod 受限）&quot; + &quot;APISettings.expose_docs: bool（修 P2-8：dev=True，prod=False）&quot;）；Task 13 GREEN 段 L1167-1169（<code>docs_url=&quot;/docs&quot; if settings.api.expose_docs else None</code> + <code>redoc_url=&quot;/redoc&quot; if settings.api.expose_docs else None</code> + <code>openapi_url=&quot;/openapi.json&quot; if settings.api.expose_docs else None</code>）；Task 13 GREEN 段 L1174-1180 CORS 配置（<code>allow_origins=settings.api.cors_origins</code> + <code>expose_headers=[&quot;X-Request-Id&quot;]</code> 允许 M9 Gradio 前端 / M11 eval 脚本带 X-Request-Id 调用）；DoD L1324</td><td>✅ <strong>到位</strong></td></tr>
+</table>
+<p><strong>P2 验证小结</strong>：8 项全部到位。P2-3 中间件顺序与 M12 r1 P0-1 LIFO add_middleware 顺序（CORS → RequestId → RateLimit）显式标注；P2-5 拆分后 RequestIdMiddleware 类有完整 docstring 说明&quot;用于 M10 Langfuse 业务 trace 关联&quot;；P2-8 APP_ENV 感知在 create_app 工厂内 3 处一致（docs_url / redoc_url / openapi_url）。</p>
+<h3 id="14-18-项修复到位率统计">1.4 18 项修复到位率统计</h3>
+<table>
+<tr><th>级别</th><th>项数</th><th>完全到位</th><th>Tech Stack / 文档到位 需 implementation 复核</th><th>未到位</th></tr>
+<tr><td>------</td><td>------</td><td>---------</td><td>---------------------------------------------</td><td>--------</td></tr>
+<tr><td>P0</td><td>3</td><td>3</td><td>0</td><td>0</td></tr>
+<tr><td>P1</td><td>7</td><td>7</td><td>0</td><td>0</td></tr>
+<tr><td>P2</td><td>8</td><td>8</td><td>0</td><td>0</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>18</strong></td><td><strong>18</strong></td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+</table>
+<p><strong>总体到位率 100%</strong>——18 项 r1 修复全部能在 plan 主体（Task 1-14 + Files 表 + DoD + 修订记录）找到对应落地实现，无任何 P0/P1/P2 项漂移或漏修。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<p class="ok">r1 修复密度高、覆盖全，但<strong>修复过程本身</strong>未引入阻塞级问题，<strong>发现 5 项 r1 衍生新问题</strong>（P1 × 2 + P2 × 3）：</p>
+<h3 id="新-1-chatresponse-schema-字段命名与-m9-渲染约定存在轻微不一致-p1">新-1 · <code>ChatResponse</code> schema 字段命名与 M9 渲染约定存在轻微不一致 [P1]</h3>
+<p><strong>位置</strong>：Task 8 GREEN 段 L965-972 + 跨 M 联动段 L198-207</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 r1 P1-1 落地后 <code>ChatResponse</code> 仍用 <code>request_id</code> 字段（L970 <code>request_id: str</code>）</li>
+<li>M9 r1 修复中（参考 M9 review）Gradio UI 渲染时通常用 <code>trace_id</code> 作为显示字段名（Langfuse trace 关联主键）</li>
+<li>M10 Langfuse 业务 trace 用 <code>request_id</code> 作为链路关联键</li>
+<li>M11 RAGAS eval 用 <code>trace_id</code> 关联（参考 M11 P0-6 揭示用 <code>get_client().get_current_trace_id()</code>）</li>
+<li>字段命名不一致：M8 输出 <code>request_id</code>，M9/M11 用 <code>trace_id</code>，M10 用 <code>request_id</code> 关联</li>
+</ul>
+<p><strong>修改建议</strong>（择一）：</p>
+<ul>
+<li>方案 A（推荐）：<code>ChatResponse</code> 字段统一为 <code>trace_id: str</code>，注释说明&quot;<code>trace_id</code> = <code>X-Request-Id</code> = Langfuse trace.id 三者同一值&quot;（request_id 与 trace_id 是同一字符串的不同语义命名）</li>
+<li>方案 B：保持 <code>request_id</code>，M9 渲染时前端转译为 <code>trace_id</code> 显示（增加 UI 层职责）</li>
+</ul>
+<p><strong>影响</strong>：方案 A 一致性更好——同一字符串三处都用同一名字，符合&quot;call it the same thing everywhere&quot;原则。</p>
+<h3 id="新-2-5-service-health-探测并行-asynciogather-与-business-服务状态判定时序有">新-2 · 5 service health 探测并行 <code>asyncio.gather</code> 与 business 服务状态判定时序有微妙问题 [P1]</h3>
+<p><strong>位置</strong>：Task 2 GREEN 段 L518-537 <code>check_all(app)</code> + Task 2 GREEN 段 L549-555 health 端点 shutdown_event 判定</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>check_all(app)</code> 用 <code>asyncio.gather(_check_postgres, _check_opensearch, _check_tei, _check_langfuse, _check_business)</code> 并行 5 个探测（L520-527）</li>
+<li><code>_check_business</code> 实际<strong>不读</strong> <code>app.state</code>（L503-515 只返 status=&quot;up&quot; 占位实现），真正的 business 判定在 <code>check_all</code> 函数末尾 L529-536 通过 <code>getattr(app.state, &quot;graph&quot;, None) is not None</code> 判定</li>
+<li>问题：5 个 gather 在并行时，business 探测定 <code>app.state.graph is not None</code> —— 但若 lifespan 未启动或启动失败，<code>app.state.graph</code> 永远 None → business 永远 down，与实际 PG/OS/TEI/Langfuse 状态无关</li>
+<li>副作用：当 5 个外部 service 都 up 但 lifespan 没启动（<code>app.state.graph = None</code>），health 端点返 503 + status=&quot;degraded&quot;（business=down），但实际上外部 service 都健康——前端看到 degraded 误判为&quot;系统降级&quot;实际是&quot;启动未完成&quot;</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li><code>_check_business</code> 应直接读 <code>app.state</code>（通过参数注入），而非返回固定 up 占位</li>
+<li>区分两种状态：<code>app.state.graph is None</code> 时的&quot;starting&quot;（不算 down）vs <code>app.state.graph is not None but cp closed</code> 时的 &quot;down&quot;</li>
+<li>在 <code>HealthResponse.status</code> 中加 <code>&quot;starting&quot;</code> 字面量</li>
+<pre><code class="language-python">
+async def _check_business(app) -&gt; ServiceHealth:
+    t0 = time.perf_counter()
+    try:
+        graph = getattr(app.state, &quot;graph&quot;, None)
+        cp = getattr(app.state, &quot;checkpointer&quot;, None)
+        if graph is None or cp is None:
+            return ServiceHealth(name=&quot;business&quot;, status=&quot;starting&quot;, latency_ms=0.0)
+        return ServiceHealth(name=&quot;business&quot;, status=&quot;up&quot;, latency_ms=0.0)
+    except Exception as e:
+        return ServiceHealth(name=&quot;business&quot;, status=&quot;down&quot;, error=str(e))
+</code></pre>
+</ul>
+<p><code>HealthResponse.status: Literal[&quot;ok&quot;, &quot;degraded&quot;, &quot;down&quot;, &quot;starting&quot;]</code> 同步扩展。</p>
+<h3 id="新-3-lifespan-关闭时-graph-本身未-await-清理依赖-langgraph-105-是否有-clos">新-3 · Lifespan 关闭时 <code>graph</code> 本身未 await 清理（依赖 langgraph 1.0.5 是否有 close） [P2]</h3>
+<p><strong>位置</strong>：Task 13 GREEN 段 L1146-1157 lifespan finally 块</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前 finally 块：① <code>shutdown_event.set()</code> ② <code>sleep(0.5)</code> ③ <code>engine.dispose()</code> ④ <code>cp.close()</code></li>
+<li><strong>缺</strong> <code>app.state.graph</code> 的清理调用</li>
+<li>M7 r1 P0-3 修后 <code>make_checkpointer</code> 是 <code>async def</code> 返回 <code>BaseCheckpointSaver</code> 实例（M7 review 提到 BaseCheckpointSaver 有 <code>close()</code> 幂等方法）</li>
+<li>但 <code>CompiledStateGraph</code> 自身是否需要清理（关闭内部 stream、释放 callback handlers）？langgraph 1.0.5 文档未明示</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>方案 A：保持现状 + 在风险表补一行&quot;<code>CompiledStateGraph</code> 无显式 close；依赖 GC&quot;</li>
+<li>方案 B：补 <code>close = getattr(graph, &quot;aclose&quot;, None) or getattr(graph, &quot;close&quot;, None)</code> 幂等调用（与 cp.close 模式一致）</li>
+</ul>
+<p><strong>影响</strong>：方案 B 防御性更好，符合 M8 r1 P0-2 &quot;显式资源管理&quot;的设计哲学。</p>
+<h3 id="新-4-idempotency-key-header-透传未在-m8-plan-显式支持依赖-m1-r2-4-表-ide">新-4 · <code>Idempotency-Key</code> Header 透传未在 M8 plan 显式支持（依赖 M1 r2 4 表 idempotency_key 联动） [P1]</h3>
+<p><strong>位置</strong>：缺失（M1 r2 已修 idempotency_key 4 表 + M2 已修 <code>POST /api/auth/register</code> 可能支持，但 M8 chat/sessions/ingest 未显式提及）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M1 r2 已在 users / chat_sessions / auth_sessions / ingest_jobs 4 表加 <code>idempotency_key</code> 列</li>
+<li>M2 r2 已修 <code>POST /api/auth/login</code> 接受 <code>Idempotency-Key</code> Header 防双击</li>
+<li><strong>M8 的 <code>POST /api/chat</code> / <code>POST /api/ingest</code> / <code>POST /api/auth/register</code> 未显式声明 <code>Idempotency-Key</code> Header 支持</strong></li>
+<li>风险：用户双击 Gradio UI 的&quot;发送&quot;按钮 → 后端创建 2 条相同 query 的 chat_sessions（或 2 个相同 source 的 ingest_jobs）→ 数据库脏数据</li>
+</ul>
+<p><strong>修改建议</strong>（在 Task 7 / Task 11 GREEN 段补 Header 解析）：</p>
+<pre><code class="language-python">
+# app/api/chat.py
+from fastapi import Header
+
+async def chat(
+    req: ChatRequest,
+    request: Request,
+    idempotency_key: str | None = Header(None, alias=&quot;Idempotency-Key&quot;),
+    ...
+):
+    if req.session_id is None and idempotency_key is not None:
+        # 用 idempotency_key 查重：若有同 user_id + idempotency_key 的 session，复用
+        stmt = select(ChatSession).where(
+            ChatSession.user_id == current_user.id,
+            ChatSession.idempotency_key == idempotency_key,
+        )
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing is not None:
+            thread_id = existing.thread_id
+            session_id = str(existing.id)
+        else:
+            # 新建 session 并记 idempotency_key
+            new_session = ChatSession(
+                user_id=current_user.id,
+                thread_id=str(uuid.uuid4()),
+                title=safe_truncate(req.query.strip().replace(&quot;\n&quot;, &quot; &quot;), 50),
+                idempotency_key=idempotency_key,
+            )
+            ...
+    else:
+        # 原有逻辑
+        ...
+</code></pre>
+<p><strong>影响</strong>：M9 Gradio 双击保护 + M11 RAGAS 重复 eval 检测都需要这一层。</p>
+<h3 id="新-5-middleware-顺序注释与-m12-r1-p0-1-lifo-add_middleware-顺序需复核-p">新-5 · middleware 顺序注释与 M12 r1 P0-1 LIFO add_middleware 顺序需复核 [P2]</h3>
+<p><strong>位置</strong>：Task 13 GREEN 段 L1171-1184 + 跨 M 联动（M12 r1 P0-1）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 r1 P2-3 落地：注释明示 <code>1. CORS</code> → <code>2. RequestId</code> → <code>↓ M12 RateLimit</code> 顺序</li>
+<li>M12 r1 P0-1 P0-3 落地：FastAPI <code>add_middleware</code> 是 <strong>LIFO</strong>（后添加的先执行）模式，CORS 实际是<strong>最后</strong>处理</li>
+<li>M8 注释&quot;1. CORS 最先&quot;在<strong>调用顺序</strong>意义下正确（先 add_middleware 的是内层），但<strong>执行顺序</strong>是反过来的——Reviewer / implementation 时若不熟悉 LIFO 容易误读</li>
+</ul>
+<p><strong>修改建议</strong>（在注释里显式标 LIFO 警示）：</p>
+<pre><code class="language-python">
+# 修 P2-3：middleware 挂载顺序（注释说明职责）
+# FastAPI add_middleware 是 LIFO：后添加的先执行（最外层）
+# 调用顺序：先 CORS（最内层）→ 后 RequestId（中间层）→ M12 RateLimit（最外层）
+# 执行顺序：M12 RateLimit → RequestId → CORS → endpoint
+# 1. CORS 内层：处理 OPTIONS preflight（不依赖 tracing）
+app.add_middleware(CORSMiddleware, ...)
+# 2. RequestId 中间层：所有后续中间件 / 路由可读 request_id
+app.add_middleware(RequestIdMiddleware)
+# ↓ future: RateLimitMiddleware (M12)  # 3. M12 加在最外层：依赖 request_id for per-user limit
+</code></pre>
+<p><strong>影响</strong>：避免 M12 integration 时 reviewer 误判中间件嵌套关系。</p>
+<h3 id="r1-衍生新问题汇总">r1 衍生新问题汇总</h3>
+<table>
+<tr><th>#</th><th>问题</th><th>档次</th><th>简要说明</th></tr>
+<tr><td>---</td><td>------</td><td>------</td><td>----------</td></tr>
+<tr><td>1</td><td><code>ChatResponse</code> 字段 <code>request_id</code> vs M9/M11 <code>trace_id</code> 命名不一致</td><td>P1</td><td>同一字符串三处不同名</td></tr>
+<tr><td>2</td><td>5 service health 并行 + business 在 gather 后判定，lifespan 未启动时 business 永远 down</td><td>P1</td><td>缺 <code>starting</code> 状态</td></tr>
+<tr><td>3</td><td>Lifespan 关闭时 <code>graph</code> 自身未 await 清理</td><td>P2</td><td>依赖 langgraph 1.0.5 是否有 aclose</td></tr>
+<tr><td>4</td><td><code>Idempotency-Key</code> Header 透传未在 M8 chat/ingest 显式支持</td><td>P1</td><td>M1 r2 4 表已就位但 M8 未消费</td></tr>
+<tr><td>5</td><td>middleware 顺序注释需 LIFO 警示</td><td>P2</td><td>与 M12 r1 P0-1 LIFO 模式协同</td></tr>
+</table>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m2m3m4m5m6m7m9m10m11m12">3. 跨 M 一致性检查（M0/M1/M2/M3/M4/M5/M6/M7/M9/M10/M11/M12）</h2>
+<table>
+<tr><th>上游/下游 M</th><th>联动点</th><th>M8 plan 处理</th><th>验证结果</th></tr>
+<tr><td>------------</td><td>--------</td><td>------------</td><td>---------</td></tr>
+<tr><td><strong>M0</strong> infra</td><td>4 service healthcheck (PG/OS/TEI/Langfuse) + <code>depends_on: service_healthy</code></td><td>Task 2 GREEN L412-538 5 service 探测 + <code>HealthResponse</code> 含 <code>services: list[ServiceHealth]</code> + 测试矩阵 L1284</td><td>✅ <strong>对齐</strong>（5 service 含 M0 4 + 1 业务 check；与 M0 r2 <code>healthcheck</code> test 段一致）</td></tr>
+<tr><td><strong>M0</strong> infra</td><td>FastAPI 8000 vs TEI 18080 端口不冲突</td><td>Files 表 L315 &quot;infra/docker-compose.yml（<strong>修 P0-1</strong>：FastAPI 默认 8000 与 TEI 18080 不冲突）&quot;</td><td>✅ <strong>对齐</strong>（与 M0 r2 端口分配表一致）</td></tr>
+<tr><td><strong>M1</strong> schema</td><td><code>chat_sessions</code> 复合索引 <code>(user_id, is_active, updated_at DESC)</code></td><td>Task 4 GREEN L654 注释 &quot;依赖 P1-6 复合索引&quot; + DoD L1309</td><td>✅ <strong>对齐</strong>（M1 r2 已修复合索引）</td></tr>
+<tr><td><strong>M1</strong> schema</td><td><code>deleted_at</code> 列 + 软删除过滤</td><td>Task 4 GREEN L661 <code>ChatSession.deleted_at.is_(None)</code> + DoD L1310</td><td>✅ <strong>对齐</strong>（M1 r2 已修 <code>deleted_at</code> 列）</td></tr>
+<tr><td><strong>M1</strong> schema</td><td>4 表 <code>idempotency_key</code> 列</td><td>❌ <strong>M8 未消费</strong>（见新-4：M8 plan 主体未在 chat/ingest 端点用 Idempotency-Key Header 解析）</td><td>⚠️ <strong>M1 已就位 M8 未对接</strong>——衍生问题 P1</td></tr>
+<tr><td><strong>M1</strong> schema</td><td><code>is_active</code> / <code>thread_id</code> / <code>updated_at</code> ORM 更新</td><td>Files 表 L307 &quot;M1 ChatSession 有 is_active / thread_id / updated_at 字段（M8 走 ORM 更新，<strong>修 P1-4</strong>）&quot;</td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M1</strong> schema</td><td><code>last_message_at</code> 字段</td><td>❌ <strong>M8 未消费</strong>（M9 UI 可能用 last_message_at 排序，但 M8 sessions 列表用 <code>updated_at</code>）</td><td>⚠️ <strong>轻微漂移</strong>——M8 用 <code>updated_at</code>，M1 r2 加的 <code>last_message_at</code> 未在 M8 sessions 列表用，可能 M9/M10 用</td></tr>
+<tr><td><strong>M2</strong> auth</td><td><code>Depends(get_current_user)</code> 在 chat/sessions/ingest</td><td>Task 4 L651, Task 5 L704, Task 7 L831, Task 10 L1031, Task 11 L1073 全部 <code>current_user: User = Depends(get_current_user)</code></td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M2</strong> auth</td><td><code>Authorization: Bearer ***</code> Header</td><td>M2 自身实现，M8 消费（M2 r2 P0 已修）</td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M2</strong> auth</td><td>限速（Slowapi）</td><td>M2 r2 NP-2 已确认限速统一挂在 M8 app 实例上</td><td>✅ <strong>对齐</strong>（与 P2-3 注释&quot;↓ M12 RateLimit&quot;一致）</td></tr>
+<tr><td><strong>M2</strong> auth</td><td><code>POST /api/auth/logout</code> 204 + M2↔M12 ip_address 钩子</td><td>不影响 M8（M2 端点）</td><td>✅ <strong>对齐</strong>（无影响）</td></tr>
+<tr><td><strong>M3</strong> LLM/embed</td><td><code>make_llm</code> 工厂 + 7 节点 KNOWN_NODES</td><td>风险表 L1361 &quot;M3 工厂已注入到 <code>model.with_config({\&quot;callbacks\&quot;: [handler]})</code>（<strong>修 P1-14</strong>）；M8 只在 graph.ainvoke config 里再传 <code>metadata.request_id</code>&quot;</td><td>✅ <strong>对齐</strong>（M8 不注入 callback，只传 metadata）</td></tr>
+<tr><td><strong>M3</strong> LLM/embed</td><td>TEI 18080 端口</td><td>Task 2 GREEN L470 <code>_check_tei</code> 注释 &quot;TEI embedding service：GET /health（M0 端口 18080）&quot; + <code>_check_tei</code> URL 从 <code>settings.health.tei_url</code> 读</td><td>✅ <strong>对齐</strong>（M3 r2 改 18080 后 M8 配置化读 settings）</td></tr>
+<tr><td><strong>M3</strong> LLM/embed</td><td>范本影响（_check_* 函数结构 + 跨 M 联动表）</td><td>M8 plan 显式抄 M3 数据流图结构（L84-119）</td><td>✅ <strong>对齐</strong>（与 M3 r2 范本影响段一致）</td></tr>
+<tr><td><strong>M4</strong> ingest-file</td><td><code>POST /api/ingest/file</code> + <code>GET /api/ingest/{job_id}</code> 契约</td><td>Task 11 L1068-1083 stub 用 <code># TODO(m8→m4)</code> 标记 + 风险表 L1372 &quot;M4-M6 接入后需删除&quot;；Task 10 L1027-1048 <code>GET /api/ingest/{job_id}</code> 用 <code>IngestJob</code> 表（M4 建）</td><td>✅ <strong>对齐</strong>（M8 路由只透传 GET 进度，POST 由 M4-M6 实现）</td></tr>
+<tr><td><strong>M4</strong> ingest-file</td><td>M4 r2 补 P0-3 mapping + P1-5 RUNNING</td><td>M8 进度查询 `IngestJob.progress: float \</td><td>None` 字段（M4 r2 已加）</td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M5</strong> ingest-url</td><td><code>POST /api/ingest/url</code> + SSRFRedirectTransport</td><td>Task 11 stub 委派，M5 r2 SSRF 防御内置 M5 端点</td><td>✅ <strong>对齐</strong>（M8 路由层不感知 URL/SSRF 细节）</td></tr>
+<tr><td><strong>M6</strong> ingest-confluence</td><td><code>POST /api/ingest/confluence</code> + auth_type</td><td>Task 11 stub 委派</td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M7</strong> graph</td><td><code>compile_workflow</code> 异步包装 + 30s timeout + <code>state.error</code> 字段</td><td>Task 7 L864-878 <code>asyncio.wait_for</code> 包装 + Task 6 L760-768 <code>get_orchestrator</code> 显式 raise 503</td><td>✅ <strong>对齐</strong>（M7 r1 P0-3 + P0-4 联动）</td></tr>
+<tr><td><strong>M7</strong> graph</td><td><code>make_checkpointer</code> async def 返回实例（非 contextmanager）</td><td>Task 13 L1141 <code>checkpointer = await make_checkpointer()</code> + 手动 <code>engine.dispose()</code> + <code>cp.close()</code> 幂等</td><td>✅ <strong>对齐</strong>（M7 r1 P0-3 联动完整落地）</td></tr>
+<tr><td><strong>M7</strong> graph</td><td><code>GraphSettings.fallback_message</code> 共用</td><td>Task 7 L885 <code>settings.graph.fallback_message</code></td><td>✅ <strong>对齐</strong>（M7 r1 P1-2 联动）</td></tr>
+<tr><td><strong>M7</strong> graph</td><td>8 节点 + <code>safe_node</code> 装饰器 + <code>GraphError</code> / <code>RetrievalError</code> 异常类</td><td>Task 7 L879-890 <code>except GraphError / RetrievalError</code> 映射 502/503</td><td>✅ <strong>对齐</strong>（M7 r1 P0-6 + P0-8 联动）</td></tr>
+<tr><td><strong>M7</strong> graph</td><td><code>answer_chitchat_node</code> 实现</td><td>Files 表 L60-61 &quot;M7 r1 P0-3 已修：返回实例&quot; + 跨 M 联动 L204 &quot;<strong>M7 P0-6</strong> <code>answer_chitchat_node</code> 无实现 → <strong>M7 r1 已修</strong>：补节点实现 + prompt；M8 假设 chitchat 分支可用&quot; + DoD L1342 &quot;M7 graph（... + <code>answer_chitchat_node</code> 实现 + ...）（M7 r1 已修）&quot;</td><td>✅ <strong>对齐</strong>（M7 r1 联动完整 + 假设文档化）</td></tr>
+<tr><td><strong>M9</strong> Gradio UI</td><td><code>POST /api/chat</code> / <code>GET /api/sessions</code> HTTP JSON</td><td>架构图 L191 + Files 表 L43-50 + DoD L1338</td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M9</strong> Gradio UI</td><td><code>ChatResponse.trace_id</code> 字段名</td><td>⚠️ M8 用 <code>request_id</code> 字段（M8 r1 P1-1 未改字段名）</td><td>⚠️ <strong>不一致</strong>（见新-1）</td></tr>
+<tr><td><strong>M9</strong> Gradio UI</td><td>双击防护（Idempotency-Key）</td><td>❌ M8 未显式支持</td><td>⚠️ <strong>未对接</strong>（见新-4）</td></tr>
+<tr><td><strong>M10</strong> Langfuse</td><td><code>X-Request-Id</code> Header 透传 Langfuse trace</td><td>Task 3 GREEN L598-613 <code>RequestIdMiddleware</code> 注入 + 透传 + 风险表 L1361 注释 &quot;M3 工厂已注入到 <code>model.with_config({\&quot;callbacks\&quot;: [handler]})</code>（<strong>修 P1-14</strong>）；M8 只在 graph.ainvoke config 里再传 <code>metadata.request_id</code>&quot;</td><td>✅ <strong>对齐</strong>（M8 透传 X-Request-Id 到 graph.ainvoke metadata）</td></tr>
+<tr><td><strong>M10</strong> Langfuse</td><td><code>ChatResponse.request_id</code> 关联 Langfuse trace</td><td>Task 8 GREEN L970 <code>ChatResponse.request_id: str</code></td><td>✅ <strong>对齐</strong>（与 M10 联动；字段名见新-1）</td></tr>
+<tr><td><strong>M11</strong> RAGAS</td><td><code>trace_id</code> 关联 <code>get_client().get_current_trace_id()</code></td><td>M8 <code>ChatResponse.request_id</code> 即 Langfuse trace.id；M11 可用此关联</td><td>✅ <strong>对齐</strong>（M11 P0-6 用 trace_id，M8 字段值 = trace_id）</td></tr>
+<tr><td><strong>M11</strong> RAGAS</td><td><code>graph.ainvoke()</code> 直接调，不走 M8 路由</td><td>Files 表 L313 &quot;<code>app/graph/workflow.py</code>（M7）：M8 只 import <code>compile_workflow</code>&quot; + 跨 M 联动 L194 &quot;M11 RAGAS eval \</td><td><code>graph.ainvoke()</code> 直接调 \</td><td><strong>不走</strong> M8 路由&quot;</td><td>✅ <strong>对齐</strong>（M8 不强制 M11 走 HTTP）</td></tr>
+<tr><td><strong>M12</strong> Hardening</td><td>中间件顺序 LIFO add_middleware</td><td>Task 13 GREEN L1171-1184 注释 + Risk P2-3 已修</td><td>⚠️ <strong>需 LIFO 警示</strong>（见新-5）</td></tr>
+<tr><td><strong>M12</strong> Hardening</td><td><code>engine.dispose()</code> lifespan 关闭</td><td>Task 13 L1151 <code>await engine.dispose()</code></td><td>✅ <strong>对齐</strong></td></tr>
+<tr><td><strong>M12</strong> Hardening</td><td><code>GET /api/health</code> Prometheus scrape 友好</td><td>跨 M 联动 L196 &quot;M12 监控 \</td><td><code>GET /api/health</code> 5 service 状态 \</td><td>Prometheus scrape 友好&quot; + <code>HealthResponse.services: list[ServiceHealth]</code> 含 <code>latency_ms</code> 数值</td><td>✅ <strong>对齐</strong></td></tr>
+</table>
+<p><strong>跨 M 一致性总结</strong>：</p>
+<ul>
+<li><strong>完全对齐</strong>：M0/M1（基本字段）/M2/M3/M4/M5/M6/M7/M10/M11/M12（基本）/M9（基本）—— 12 个 M 联动中 10 个完全对齐</li>
+<li><strong>轻度漂移</strong>：</li>
+<li>M1 <code>idempotency_key</code> 已就位但 M8 chat/ingest 未消费（新-4 P1）</li>
+<li>M1 <code>last_message_at</code> 已就位但 M8 sessions 列表仍用 <code>updated_at</code>（P2 衍生）</li>
+<li>M9 <code>trace_id</code> 字段命名 vs M8 <code>request_id</code> 字段命名（新-1 P1）</li>
+<li>M12 LIFO 中间件顺序注释需警示（新-5 P2）</li>
+</ul>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<table>
+<tr><th>维度</th><th>评估</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td><strong>原风险行保留</strong></td><td>✅ <strong>6 行原风险全保留</strong></td><td>L1349-1358（compile_workflow 同步 vs 异步 / PG 不可达 / lifespan × pytest-asyncio / 缺复合索引 / updated_at SQL / OS 不可达 / 越权 403 / 501 静默 / 集成 sqlite / make_checkpointer async def / Langfuse callback / python-multipart）—— 12 行原风险全部保留</td></tr>
+<tr><td><strong>r1 已修条目追加</strong></td><td>✅ <strong>18 行追加 + 4 行 M7 联动</strong></td><td>L1363-1411 共 18 条 <code>r1-2026-06-11 ... 已修</code> 标记（P0-1/2/3 + P1-1/2/3/4/5/6/7 + P2-1/2/3/4/5/6/7/8）+ 4 行 M7 联动调整（L1409-1411 + 1 行 M7 checkpointer）</td></tr>
+<tr><td><strong>曾被否决的替代方案</strong></td><td>✅ <strong>18 行已修条目都列了替代方案</strong></td><td>每条 r1 已修都列了&quot;曾被否决的替代方案&quot;——格式统一（langgraph 加 max_iterations=10 / uvicorn --timeout-graceful-shutdown=30 / 全用 httpx 默认 URL / 写死在路由函数 / 删 message_count 字段 / 保留 fallback 缓存 / module-level graph 单例 / 不标类型 / 仅 is_active=False / 单纯 501 / 只在 GREEN 段临时拼 / 保持内联 / 不注释 / 加 ?page_size= / 保持内联 / text[:50] / 直接 dispose() / 全用 [&quot;*&quot;] + 默认开 docs）—— <strong>替代方案信息量大</strong>（每个都点出拒绝的具体理由）</td></tr>
+<tr><td><strong>风险条目粒度</strong></td><td>✅ <strong>每条 r1 已修独立行</strong></td><td>不合并、不缩写——保证可 grep / 可追溯</td></tr>
+<tr><td><strong>跨 M 风险显式标注</strong></td><td>✅ <strong>M7 联动 4 条独立</strong></td><td>L1409-1411 显式标注 M7 r1 P0-3 / P1-2 / P0-4 联动（与 M7 r1 review 一致）</td></tr>
+<tr><td><strong>衍生新问题风险表</strong></td><td>⚠️ <strong>5 项 r1 衍生新问题未补入风险表</strong></td><td>新-1~5 在本 review 发现但 plan 主体未在风险表追加（r2 review 后应补入）</td></tr>
+</table>
+<p class="ok"><strong>风险表补全质量评估</strong>：<strong>优秀</strong>——18 行已修条目 + 4 行跨 M 联动完整、可 grep、可追溯；每行都有&quot;曾被否决的替代方案&quot;提供决策上下文；唯一不足是 r1 衍生 5 项新问题未在风险表追加（这是 r2 review 应补内容）。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-必须先修的-r1-衍生新问题动手前必看">5.1 必须先修的 r1 衍生新问题（动手前必看）</h3>
+<ol>
+<li><strong>新-1</strong>（P1）：<code>ChatResponse</code> 字段 <code>request_id</code> → <code>trace_id</code>，加注释说明三处同字符串不同语义命名</li>
+<li><strong>新-4</strong>（P1）：<code>POST /api/chat</code> / <code>POST /api/ingest</code> 加 <code>Idempotency-Key: str | None = Header(None, alias=&quot;Idempotency-Key&quot;)</code> 解析；chat 缺 idempotency_key + 缺 session_id 时复用同 user_id + idempotency_key 的已有 session；ingest 缺 idempotency_key 时返 409 提示重发</li>
+<li><strong>新-2</strong>（P1）：<code>_check_business</code> 重写为读 <code>app.state.graph</code> / <code>app.state.checkpointer</code> 直接判定；<code>HealthResponse.status</code> 加 <code>&quot;starting&quot;</code> 字面量</li>
+</ol>
+<h3 id="52-可选优化实施阶段复核即可">5.2 可选优化（实施阶段复核即可）</h3>
+<ol>
+<li><strong>新-3</strong>（P2）：lifespan finally 块加 <code>close = getattr(graph, &quot;aclose&quot;, None) or getattr(graph, &quot;close&quot;, None)</code> 幂等清理</li>
+<li><strong>新-5</strong>（P2）：Task 13 middleware 注释加 LIFO 警示（&quot;后添加的先执行&quot;）</li>
+</ol>
+<h3 id="53-tdd-顺序建议">5.3 TDD 顺序建议</h3>
+<ul>
+<li><strong>Day 1</strong>（Tasks 1-5）：完全独立（health / sessions / schemas / RequestId middleware）—— 可先写</li>
+<li><strong>Day 2</strong>（Tasks 6-9）：依赖 M7 graph + M3 工厂 —— 确认 M7 r1 P0-3 / P0-6 / P0-8 已修后再做</li>
+<li><strong>Day 3</strong>（Tasks 10-14）：集成测试 + 端到端 —— 依赖所有前面的</li>
+</ul>
+<h3 id="54-跨-m-契约验收点">5.4 跨 M 契约验收点</h3>
+<ul>
+<li><strong>M0</strong>：5 service health URL 全部从 <code>settings.health.*</code> 读（已对齐）</li>
+<li><strong>M1</strong>：<code>deleted_at</code> 软删过滤已对齐；<code>idempotency_key</code> 待 M8 消费（待修）</li>
+<li><strong>M2</strong>：<code>Depends(get_current_user)</code> 在所有 protected 端点已对齐</li>
+<li><strong>M7</strong>：<code>make_checkpointer</code> async def + 手动 dispose + <code>cp.close()</code> 幂等已对齐；<code>safe_node</code> 异常类 502/503 映射已对齐</li>
+<li><strong>M9</strong>：<code>trace_id</code> 字段命名待统一（待修）</li>
+<li><strong>M10</strong>：<code>X-Request-Id</code> 透传 Langfuse trace 已对齐</li>
+<li><strong>M11</strong>：eval 直接 <code>graph.ainvoke()</code> 不走 M8 已对齐</li>
+<li><strong>M12</strong>：中间件顺序 LIFO 注释待警示（待修）</li>
+</ul>
+<h3 id="55-抄-m3-范本的结构闪光点值得-m9m10m11-复制">5.5 抄 M3 范本的结构闪光点（值得 M9/M10/M11 复制）</h3>
+<ul>
+<li><strong>数据流图</strong>（L84-119）：用 ASCII 图把鉴权→session→graph→异常的请求路径画清</li>
+<li><strong>测试矩阵表</strong>（L1270-1291）：19 个场景全覆盖 spec §5 错误矩阵 + 11 条 r1 已修测试标注</li>
+<li><strong>避雷基线段</strong>（L8 + 跨 M 联动表 L198-207）：显式标注 M7 review 影响本 M 的 5 项 P0</li>
+<li><strong>DoD 反向 grep</strong>（L1316 <code>grep &quot;TODO(m8→m4)&quot;</code>）：用 grep 校验桩函数存在，避免 stub 漏删</li>
+<li><strong>风险表替代方案列</strong>（L1363-1411）：18 条 r1 已修条目都列&quot;曾被否决的替代方案&quot;——提供决策上下文</li>
+</ul>
+<hr>
+<h2 id="6-总结">6. 总结</h2>
+<p class="ok"><strong>M8 plan r1 修复质量</strong>：<strong>优秀</strong>——18 项 P0/P1/P2 全部到位（100%），无任何漂移；3 项 P0 阻塞全部解除（chat 30s timeout / lifespan engine.dispose / 5 service health URL 配置化）；6 项 P1 全部落地（fallback_message 配置化 / _count_messages / 删 fallback / lifespan override / AsyncSession 标注 / deleted_at 软删 / 501 stub TODO）；8 项 P2 全部落地（schema 字段 / health_checks 独立 / middleware 顺序注释 / page_size 配置 / RequestId 拆分 / safe_truncate / shutdown_event / APP_ENV 感知）。</p>
+<p><strong>M8 plan 跨 M 一致性</strong>：<strong>整体对齐 + 4 项轻度漂移</strong>——M0/M2/M3/M4/M5/M6/M7/M10/M11/M12 全部对齐；M1 的 <code>idempotency_key</code> 已建但 M8 未消费（待修 P1）、M1 的 <code>last_message_at</code> 未用（待评估 P2）、M9 的 <code>trace_id</code> 字段名 vs M8 <code>request_id</code>（待统一 P1）、M12 LIFO 中间件顺序注释需警示（待补 P2）。</p>
+<p class="warn"><strong>M8 plan 可立即实施度</strong>：<strong>高</strong>——修完 3 项必改（新-1/2/4）后即可进入 implementation 阶段。TDD 节奏保留、Files 表完整、DoD 可逐项 grep 验证、风险表可追溯。</p>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>M8-review-r2</td><td>2026-06-11</td><td>r2 review（18 项 r1 修复 100% 到位验证 + 5 项 r1 衍生新问题 + 12 M 跨 M 一致性 + 风险表补全质量评估）</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

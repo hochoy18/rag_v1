@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M11 Plan · RAGAS 离线评估 CLI + Golden Set + CI Gate</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M11 Plan · RAGAS 离线评估 CLI + Golden Set + CI Gate</h1>
+<div class="meta"><span class="badge">M11 Plan · RAGAS 离线评估 CLI + Golden Set + CI Gate</span><span class="badge r1">⏱ 3 个工作日（day 1 = golden set + CLI 入口 / day 2 = runner + scorer + RAGAS 集成 / day 3 = report + gate + 端到端）</span><span class="badge r2">r2 修复 10 处</span><span class="badge r1">r1 修复 38 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局appsrag-v1仅显示-m11-新增修改">仓库布局（apps/rag_v1/，仅显示 M11 新增/修改）</a></li><li class="h3-item"><a href="#m11-数据流">M11 数据流</a></li><li class="h3-item"><a href="#与其他-m-的契约边界">与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#day-1-golden-set-cli-入口">Day 1 · Golden Set + CLI 入口</a></li><li class="h3-item"><a href="#day-2-runner-scorer-ragas-集成">Day 2 · Runner + Scorer + RAGAS 集成</a></li><li class="h3-item"><a href="#day-3-report-gate-端到端">Day 3 · Report + Gate + 端到端</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m11-plan-ragas-离线评估-cli-golden-set-ci-gate">M11 Plan · RAGAS 离线评估 CLI + Golden Set + CI Gate</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 11 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#6-测试策略">V1 Scope §6 测试策略</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #11</a></div>
+<div class="callout">估时：3 个工作日（day 1 = golden set + CLI 入口 / day 2 = runner + scorer + RAGAS 集成 / day 3 = report + gate + 端到端）</div>
+<div class="callout crit">前置 review：<a href="./2026-06-11-rag-plans-review.md">2026-06-11-rag-plans-review.md</a> P0/P1 已收敛（X-1 <code>app/configs/</code> 拆分已采纳，X-3 <code>from app.config import settings</code> 全局单例）</div>
+<div class="callout crit">本轮 review：<a href="./reviews/2026-06-11-rag-m11-eval-ragas-review.md">2026-06-11-rag-m11-eval-ragas-review.md</a> 已采纳 6 P0 + 8 P1 + 5 P2 全部修复</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v1-scope 决策 #11 落成可执行代码契约：</p>
+
+<li>一个 Click CLI（<code>python -m app.eval.ragas_run</code>），跑 golden set 算 RAGAS 三指标（faithfulness / answer_relevancy / context_precision），输出 JSON + HTML 报告</li>
+<li>一个 50 题 golden set（JSONL 格式，3 源 × 3 类问题矩阵 + 5 chitchat + edge），git 化锁版本。<strong>r2-2026-06-12 新-1 已修</strong>：fixture 重排 q001-q005 = 5 chitchat + q006-q050 = 45 rag（CI 前 20 = q001-q020 包含 5 chitchat + 15 rag；nightly = 50 题全部）</li>
+<li>一个 CI gate（<strong>CI faithfulness &lt; 0.65</strong> / <strong>nightly &lt; 0.7</strong> 抛 <code>GateViolationError</code>、exit code 1），M12 Hardening 接 CI</li>
+<li>RAGAS judge LLM <strong>显式注入</strong>（不读 env 里的 OpenAI key），复用 M3 <code>make_llm(&quot;judge&quot;)</code>，<strong>强制不接 Langfuse callback</strong>（避免污染业务 trace 看板）</li>
+<li>跑 RAGAS 时把 M10 Langfuse trace_id 写入报告（用 langfuse 2.50+ 公开 API <code>get_client().get_current_trace_id()</code> + try/except 包装），建立&quot;评测 → 业务 trace&quot;双向追溯</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：M10 业务级 Langfuse trace 实现（只读已有 trace_id）、M12 CI workflow（只产出 gate 钩子）、M4–M6 真实 ingest 数据（评测用 50 题样本够）、M9 UI 集成（HTML 报告独立产物）。</p>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局appsrag-v1仅显示-m11-新增修改">仓库布局（apps/rag_v1/，仅显示 M11 新增/修改）</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   ├── eval/                            # M11 主力
+│   │   ├── __init__.py
+│   │   ├── ragas_run.py                 # Click CLI 入口
+│   │   ├── golden_set.py                # JSONL 加载 + 校验（含 reference_contexts）
+│   │   ├── runner.py                    # async 调 M7 graph 拿 answer+contexts+trace_id
+│   │   ├── scorer.py                    # 调 RAGAS evaluate（LangchainLLMWrapper 包装）
+│   │   ├── report.py                    # JSON + HTML 输出（含 git SHA + 时间戳）
+│   │   ├── gate.py                      # CI gate（CI/nightly 双阈值）
+│   │   ├── judge.py                     # RAGAS judge LLM 注入包装（剥离 callback）
+│   │   └── config.py                    # M11 EvalSettings（含 cost_budget）
+│   ├── llm/                             # M3 已建（**M11 修改**：注册 &quot;judge&quot; 节点）
+│   │   ├── factory.py                   # make_llm 在 KNOWN_NODES 追加 &quot;judge&quot;
+│   │   └── prompts/
+│   │       └── judge.yaml               # M11 新增
+│   ├── graph/                           # M7 已建
+│   │   └── workflow.py                  # runner 调 graph.ainvoke（M7 P0-3 修后已 compile）
+│   ├── retrieval/                       # M7 已建（runner 不直接调，从 state[&quot;chunks&quot;] 取）
+│   └── observability/                   # M10 已建
+│       └── langfuse.py                  # 读 trace_id 关联报告（langfuse 2.50+ 公开 API）
+│
+├── tests/
+│   ├── unit/
+│   │   ├── test_golden_set.py           # JSONL 加载/校验（含 reference_contexts 必填校验）
+│   │   ├── test_judge.py                # judge LLM 注入 + 剥离 callback
+│   │   ├── test_runner.py               # async mock graph（用 pytest-asyncio）
+│   │   ├── test_scorer.py               # mock RAGAS + LangchainLLMWrapper 包装断言
+│   │   ├── test_report.py               # JSON/HTML 输出（含 git SHA 命名）
+│   │   ├── test_gate.py                 # CI 0.65 / nightly 0.7 双阈值
+│   │   └── test_ragas_run.py            # CLI 串联测试
+│   ├── fixtures/
+│   │   └── golden_set_v1.jsonl          # 50 题（CI 用前 20 + nightly 用全部 + 5 chitchat + edge）
+│   └── integration/
+│       ├── test_m11_e2e_ragas.py        # 端到端：golden set → gate
+│       └── test_m11_golden_set_docs_exist.py  # expected_doc_id 真实索引校验（warning 不挂）
+│
+└── pyproject.toml                       # 追加 ragas + datasets + click + python-markdown + pytest-asyncio</code></pre>
+
+<p><strong>模块组织原则</strong>：</p>
+<li><code>app/eval/</code> 全部依赖 M3/M7/M10 接口，<strong>不引入</strong>新端口/新服务</li>
+<li>golden set 是 JSONL（line-delimited JSON），每行独立可读，git diff 友好</li>
+<li>RAGAS judge LLM 通过 M3 <code>make_llm(&quot;judge&quot;)</code> 注入，<strong>禁止</strong>读 <code>OPENAI_API_KEY</code> env</li>
+<li>runner <strong>不直接调</strong> <code>retriever.retrieve</code>（M7 graph 已 retrieve），从 <code>state[&quot;chunks&quot;]</code> 取（M7 P1-6 修后字段）</li>
+
+<h3 id="m11-数据流">M11 数据流</h3>
+
+<pre><code >[golden_set_v1.jsonl]                   # 50 题（CI 前 20 / nightly 全部 / 5 chitchat）
+        ↓ load
+[GoldenSet] (items, 含 reference_contexts)
+        ↓ for each: await graph.ainvoke({query}, thread_id=&quot;eval-N&quot;)
+[Runner] → async.gather 批跑 → 拿 (answer, contexts, trace_id)
+        ↓ build Dataset(question, answer, contexts, ground_truth, reference_contexts)
+[Scorer] → LangchainLLMWrapper(judge) + RAGAS evaluate(raise_exceptions=False)
+        ↓ result.to_pandas()
+[Report] → {timestamp}_{git_sha}.json + .html（含 diff 列 vs baseline 可选）
+        ↓ CI: faithfulness &lt; 0.65 ?  /  nightly: &lt; 0.7 ?
+[Gate] ✓ pass / ✗ GateViolationError + exit 1</code></pre>
+
+<h3 id="与其他-m-的契约边界">与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M11 CLI</td><td><code>python -m app.eval.ragas_run</code></td><td>唯一入口</td></tr>
+<tr><td>M11 runner</td><td><code>await graph.ainvoke({query}, config={&quot;configurable&quot;: {&quot;thread_id&quot;: f&quot;eval-{n}&quot;}})</code></td><td>M7 workflow 已建（<strong>依赖 M7 P0-3 修复</strong>：get_graph() 返回已 compile graph）</td></tr>
+<tr><td>M11 runner</td><td><code>state.get(&quot;chunks&quot;, state.get(&quot;sources&quot;, []))</code> 拿 contexts</td><td><strong>不直接调</strong> retriever（避免重复 retrieve）；<strong>依赖 M7 P1-6 修复</strong>：state[&quot;chunks&quot;] 含 rerank 后 chunks</td></tr>
+<tr><td>M11 judge</td><td><code>make_llm(&quot;judge&quot;).with_config({&quot;callbacks&quot;: []})</code></td><td>M3 factory 节点新增（<strong>M11 修改 M3 已建文件</strong>，详见 Files）；强制剥离 callback</td></tr>
+<tr><td>M11 report</td><td><code>from langfuse import get_client; get_client().get_current_trace_id()</code></td><td>2.50+ 公开 API；try/except 包装拉不到时返 None（<strong>依赖 M10 P0-3 修复</strong>）</td></tr>
+<tr><td>M12 CI</td><td><code>app.eval.gate.check(result, mode=&quot;ci&quot;)</code></td><td>CI faithfulness &lt; 0.65 抛 / nightly &lt; 0.7 抛</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th></tr></thead>
+<tbody>
+<tr><td>评估</td><td><code>ragas</code></td><td><code>==0.2.10</code>（spec §8.6 收紧：pin 0.2.10 精确，避免 0.2/0.3 break change）</td></tr>
+<tr><td>数据集</td><td><code>datasets</code></td><td><code>&gt;=2.20,&lt;4</code>（HuggingFace datasets，ragas 依赖）</td></tr>
+<tr><td>CLI</td><td><code>click</code></td><td><code>&gt;=8.1,&lt;9</code></td></tr>
+<tr><td>HTML 渲染</td><td><code>python-markdown</code></td><td><code>&gt;=3.6,&lt;4</code>（markdown → HTML 单文件，<strong>不</strong>用 jinja2）</td></tr>
+<tr><td>LLM 抽象</td><td>M3 <code>langchain</code></td><td><code>==1.0.8</code>（复用）</td></tr>
+<tr><td>重试</td><td>M3 <code>tenacity</code></td><td><code>&gt;=8.3,&lt;10</code>（RAGAS judge LLM 4xx/5xx 重试）</td></tr>
+<tr><td>异步测试</td><td><code>pytest-asyncio</code></td><td><code>&gt;=0.24,&lt;1</code>（<strong>M11 新增</strong>：runner/scorer 异步）</td></tr>
+<tr><td>Mock 库</td><td><code>pytest-mock</code></td><td><code>&gt;=3.14,&lt;4</code>（<strong>M11 新增</strong>：runner/scorer mock）</td></tr>
+<tr><td>测试</td><td><code>pytest</code></td><td>同上</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>（RAGAS 0.2.10）：</p>
+
+<pre><code data-lang="python">from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_precision
+from ragas.llms import LangchainLLMWrapper      # 0.2.5+ 强制包装
+from datasets import Dataset
+from langchain_anthropic import ChatAnthropic</code></pre>
+
+<p><strong>RAGAS judge LLM 注入</strong>（<strong>P0 避雷</strong> —— RAGAS 0.2 默认读 <code>OPENAI_API_KEY</code> env；<strong>0.2.5+ 必须 LangchainLLMWrapper 包装</strong>）：</p>
+
+<pre><code data-lang="python"># app/eval/judge.py
+from langchain_anthropic import ChatAnthropic
+from app.config import settings
+from app.llm.factory import make_llm
+
+def make_judge_llm() -&gt; ChatAnthropic:
+    &quot;&quot;&quot;RAGAS judge 专用：显式传 ChatAnthropic，不读 OPENAI_API_KEY；
+    显式剥离 Langfuse callback（评测不污染业务 trace 看板）。&quot;&quot;&quot;
+    llm = make_llm(&quot;judge&quot;)                          # M3 工厂新增 &quot;judge&quot; 节点
+    return llm.with_config({&quot;callbacks&quot;: []})        # 强制空 callback list 覆盖 M3 自动注入</code></pre>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（10 个源 + 7 个测试 + 1 fixture + 1 yaml）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/eval/__init__.py</code></td><td>包标识</td></tr>
+<tr><td><code>app/eval/ragas_run.py</code></td><td>Click CLI 入口</td></tr>
+<tr><td><code>app/eval/golden_set.py</code></td><td>JSONL 加载 + Pydantic 校验（含 <code>reference_contexts</code>）</td></tr>
+<tr><td><code>app/eval/runner.py</code></td><td>async 调 graph 拿 (answer, contexts, trace_id) + GraphNodeError</td></tr>
+<tr><td><code>app/eval/scorer.py</code></td><td>调 RAGAS evaluate（LangchainLLMWrapper 包装 + reference_contexts）</td></tr>
+<tr><td><code>app/eval/report.py</code></td><td>JSON + HTML 报告（含 <code>{timestamp}_{git_sha}</code> 命名 + baseline diff）</td></tr>
+<tr><td><code>app/eval/gate.py</code></td><td>CI gate（`mode: &quot;ci&quot;\</td><td>&quot;nightly&quot;<code> 双阈值）+ </code>GateViolationError`</td></tr>
+<tr><td><code>app/eval/judge.py</code></td><td>RAGAS judge LLM 注入包装（剥离 callback）</td></tr>
+<tr><td><code>app/eval/config.py</code></td><td><code>EvalSettings</code>（threshold / cost_budget / sample_size_ci / sample_size_nightly）</td></tr>
+<tr><td><code>app/llm/prompts/judge.yaml</code></td><td>judge 节点 prompt（system_prompt + temperature=0.0）</td></tr>
+<tr><td><code>tests/unit/test_golden_set.py</code></td><td>JSONL 加载/校验（覆盖 3 源 × 3 类 + chitchat）</td></tr>
+<tr><td><code>tests/unit/test_judge.py</code></td><td>judge LLM 不读 OPENAI_API_KEY + 剥离 callback</td></tr>
+<tr><td><code>tests/unit/test_runner.py</code></td><td>async mock graph（pytest-asyncio mode=auto）</td></tr>
+<tr><td><code>tests/unit/test_scorer.py</code></td><td>mock RAGAS + LangchainLLMWrapper 包装断言</td></tr>
+<tr><td><code>tests/unit/test_report.py</code></td><td>JSON/HTML 生成（含 git SHA 命名 + baseline diff 列）</td></tr>
+<tr><td><code>tests/unit/test_gate.py</code></td><td>CI 0.65 / nightly 0.7 双阈值</td></tr>
+<tr><td><code>tests/unit/test_ragas_run.py</code></td><td>CLI 串联 + exit code 1 路径</td></tr>
+<tr><td><code>tests/fixtures/golden_set_v1.jsonl</code></td><td><strong>50 题</strong>（CI 前 20 + nightly 全部 + 5 chitchat + edge）</td></tr>
+<tr><td><code>tests/integration/test_m11_e2e_ragas.py</code></td><td>端到端：load → run → score → report → gate</td></tr>
+<tr><td><code>tests/integration/test_m11_golden_set_docs_exist.py</code></td><td>expected_doc_id 真实索引校验（warning 不挂）</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 7 个新直接依赖（<code>ragas==0.2.10</code> / <code>datasets</code> / <code>click</code> / <code>python-markdown</code> / <code>pytest-asyncio</code> / <code>pytest-mock</code> / <code>langchain-anthropic</code>） + <code>asyncio_mode = auto</code> 配置</li>
+<li><code>app/llm/factory.py</code>（M3 已建，<strong>M11 显式修改</strong>）：在 <code>KNOWN_NODES</code> 追加 <code>&quot;judge&quot;</code> + 注册 <code>load_prompt(&quot;judge&quot;)</code> → <code>ChatAnthropic</code></li>
+<li><code>app/config.py</code>（或 <code>app/configs/eval.py</code> if X-1 已落地）：追加 <code>EvalSettings</code>（含 <code>cost_budget_usd_per_run</code> / <code>cost_budget_usd_per_week</code> / <code>include_chitchat</code> / <code>mode: ci\|nightly</code>）</li>
+
+<p><strong>不修改</strong>：<code>infra/docker-compose.yml</code>（M11 不依赖容器，纯 CLI 跑本地 Python）、M7 graph、M10 Langfuse 实现。</p>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="day-1-golden-set-cli-入口">Day 1 · Golden Set + CLI 入口</h3>
+
+<h4 id="task-1pydantic-配置块追加-evalsettings含-cost-budget-include-chitchat-mode">Task 1：Pydantic 配置块（追加 EvalSettings，含 cost_budget / include_chitchat / mode）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_config.py::test_eval_config_loads</code>（M3 已建文件，追加新测试）</p>
+<li>mock env vars → 加载 <code>Settings().eval</code> → 断言 <code>threshold == 0.7</code> / <code>sample_size_ci == 20</code> / <code>sample_size_nightly == 50</code></li>
+<li>跑测试 → 失败（配置不存在）</li>
+<li>跑法：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_config.py::test_eval_config_loads -v</code></li>
+
+<p><strong>GREEN</strong> · <code>app/eval/config.py</code>：</p>
+<pre><code data-lang="python">class EvalSettings(BaseSettings):
+    threshold: float = 0.7                       # spec 决策 #11（nightly 硬阈值）
+    threshold_ci: float = 0.65                   # CI 宽容阈值（P0-5 统计稳定性）
+    sample_size_ci: int = 20                     # CI 跑 20 题（5 分钟）
+    sample_size_nightly: int = 50                # nightly 跑 50 题（fixture 全部）
+    ragas_metrics: list[str] = [&quot;faithfulness&quot;, &quot;answer_relevancy&quot;, &quot;context_precision&quot;]
+    judge_model: str = &quot;minimax-cn/MiniMax-M3&quot;   # 复用 M3 model
+    cost_budget_usd_per_run: float = 5.0         # P1-5 单次评测预算
+    cost_budget_usd_per_week: float = 20.0       # P1-5 每周评测预算
+    include_chitchat: bool = True                # P1-2 chitchat 路径开关
+    mode: Literal[&quot;ci&quot;, &quot;nightly&quot;] = &quot;ci&quot;        # gate 模式（P0-5 双阈值）</code></pre>
+<li>顶层 <code>Settings</code> 聚合 <code>eval: EvalSettings</code></li>
+
+<p><strong>RED</strong> · <code>test_eval_settings_has_cost_budgets_and_mode</code></p>
+<li>断言 <code>cost_budget_usd_per_run == 5.0</code> / <code>mode in (&quot;ci&quot;, &quot;nightly&quot;)</code></li>
+
+<p><strong>REFACTOR</strong> · 跟 M3 一样用 sub-settings 嵌套（避免单文件 500 行）</p>
+
+<h4 id="task-2golden-set-数据模型-jsonl-加载含-reference-contexts">Task 2：Golden Set 数据模型 + JSONL 加载（含 <code>reference_contexts</code>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_golden_set.py::test_load_golden_set_v1</code></p>
+<li>读 <code>tests/fixtures/golden_set_v1.jsonl</code>（50 行）→ 解析 → 断言 len == 50</li>
+<li>跑测试 → 失败（fixture 还没建好）</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/golden_set.py</code>：</p>
+<pre><code data-lang="python">from pydantic import BaseModel, Field
+from typing import Literal
+
+class GoldenItem(BaseModel):
+    id: str                                          # &quot;q001&quot;
+    question: str
+    ground_truth: str                                # 参考答案文本（answer_relevancy 用）
+    source_filter: Literal[&quot;file&quot;, &quot;url&quot;, &quot;confluence&quot;]
+    expected_doc_id: str | None = None
+    question_type: Literal[&quot;factual&quot;, &quot;summary&quot;, &quot;multi_hop&quot;, &quot;chitchat&quot;]  # P1-2 加 chitchat
+    reference_contexts: list[str] = Field(default_factory=list)            # P0-1/P1-3 新增：context_precision 用
+
+def load_golden_set(path: str) -&gt; list[GoldenItem]:
+    items = []
+    with open(path) as f:
+        for i, line in enumerate(f, 1):
+            if not line.strip():
+                continue
+            item = GoldenItem.model_validate_json(line)
+            items.append(item)
+    return items</code></pre>
+
+<p><strong>RED</strong> · <code>test_validates_required_fields</code></p>
+<li>写一行 <code>{&quot;id&quot;: &quot;q001&quot;}</code> 缺 question → 断言抛 <code>ValidationError</code></li>
+<li>跑测试 → 失败（Pydantic schema 还没测）</li>
+
+<p><strong>GREEN</strong> · 加 <code>Field(..., min_length=1)</code> 约束</p>
+
+<p><strong>RED</strong> · <code>test_validates_source_filter</code></p>
+<li>传 <code>source_filter: &quot;github&quot;</code> → 断言 <code>ValidationError</code>（不在 Literal 里）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>Literal</code> 类型守住</p>
+
+<p><strong>RED</strong> · <code>test_validates_question_type</code></p>
+<li>传 <code>question_type: &quot;unknown&quot;</code> → 断言 <code>ValidationError</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>Literal</code> 类型守住</p>
+
+<p><strong>RED</strong> · <code>test_validates_reference_contexts_for_non_chitchat</code>（<strong>P1-3 必填校验</strong>）</p>
+<li>传 <code>question_type: &quot;factual&quot;</code> + <code>reference_contexts: []</code> → 断言 <code>ValidationError</code>（factual 必须有至少 1 个 ref context）</li>
+<li>chitchat 题 <code>reference_contexts: []</code> 允许</li>
+
+<p><strong>GREEN</strong> · <code>model_validator</code> 守住</p>
+
+<h4 id="task-3golden-set-fixture50-题样本含-chitchat">Task 3：Golden Set Fixture（<strong>50 题</strong>样本，含 chitchat）</h4>
+
+<p><strong>RED</strong> · <code>test_fixtures_covers_3_sources_3_types_and_chitchat</code></p>
+<li>断言 50 题里：3 种 <code>source_filter</code> 都出现、4 种 <code>question_type</code> 都出现（含 chitchat）、3 源 × 3 类 = 9 类交叉都有</li>
+<li>跑测试 → 失败（fixture 还没建）</li>
+
+<p><strong>GREEN</strong> · 写 <code>tests/fixtures/golden_set_v1.jsonl</code>（50 行）：</p>
+
+<pre><code data-lang="jsonl">{&quot;id&quot;: &quot;q001&quot;, &quot;question&quot;: &quot;公司年假政策是什么？&quot;, &quot;ground_truth&quot;: &quot;入职满 1 年享 10 天年假&quot;, &quot;source_filter&quot;: &quot;file&quot;, &quot;expected_doc_id&quot;: &quot;policy_2024.md&quot;, &quot;question_type&quot;: &quot;factual&quot;, &quot;reference_contexts&quot;: [&quot;policy_2024.md&quot;, &quot;policy_general.md&quot;]}
+{&quot;id&quot;: &quot;q002&quot;, &quot;question&quot;: &quot;Confluence 上 Q3 OKR 总结&quot;, &quot;ground_truth&quot;: &quot;Q3 完成 3 个 OKR 中的 2 个&quot;, &quot;source_filter&quot;: &quot;confluence&quot;, &quot;expected_doc_id&quot;: &quot;OKR-Q3&quot;, &quot;question_type&quot;: &quot;summary&quot;, &quot;reference_contexts&quot;: [&quot;OKR-Q3&quot;]}
+{&quot;id&quot;: &quot;q003&quot;, &quot;question&quot;: &quot;对比 file 和 url 两份文档的部署流程差异&quot;, &quot;ground_truth&quot;: &quot;file 写 Kubernetes，url 写 Docker Compose&quot;, &quot;source_filter&quot;: &quot;file&quot;, &quot;expected_doc_id&quot;: &quot;deploy.md&quot;, &quot;question_type&quot;: &quot;multi_hop&quot;, &quot;reference_contexts&quot;: [&quot;deploy.md&quot;, &quot;deploy_k8s.md&quot;]}
+... (47 more lines: 17 + 5 chitchat + 3 edge; 每行一组 source_filter × question_type 组合; chitchat 题 reference_contexts=[])
+{&quot;id&quot;: &quot;q046&quot;, &quot;question&quot;: &quot;你好，请自我介绍&quot;, &quot;ground_truth&quot;: &quot;我是 Hermes Agent...（chitchat 不需要参考文档）&quot;, &quot;source_filter&quot;: &quot;file&quot;, &quot;expected_doc_id&quot;: null, &quot;question_type&quot;: &quot;chitchat&quot;, &quot;reference_contexts&quot;: []}
+... (4 more chitchat)
+{&quot;id&quot;: &quot;q050&quot;, &quot;question&quot;: &quot;包含 &lt;特殊&gt;字符@的#问题$测试&quot;, &quot;ground_truth&quot;: &quot;schema 健壮性测试&quot;, &quot;source_filter&quot;: &quot;file&quot;, &quot;expected_doc_id&quot;: null, &quot;question_type&quot;: &quot;factual&quot;, &quot;reference_contexts&quot;: [&quot;special_chars_doc.md&quot;]}</code></pre>
+
+<p>分布矩阵（<strong>50 题</strong> = 18 + 18 + 9 + 5 chitchat，<strong>CI 用前 20 + nightly 用全部</strong>）：</p>
+<li>18 factual（file 6 / url 6 / confluence 6）</li>
+<li>18 summary（file 6 / url 6 / confluence 6）</li>
+<li>9 multi_hop（file 3 / url 3 / confluence 3）</li>
+<li>5 chitchat（<strong>P1-2</strong>：评估只算 <code>answer_relevancy</code>，context_precision 跳过）</li>
+<li>edge：空问题、问题包含特殊字符、chitchat 路径</li>
+
+<p><strong>REFACTOR</strong> · 把 fixture 注释行去掉，确保 50 行严格 line-delimited</p>
+
+<h4 id="task-4ragas-judge-llm-注入含-langchainllmwrapper-包装">Task 4：RAGAS Judge LLM 注入（<strong>含 LangchainLLMWrapper 包装</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_judge.py::test_judge_uses_m3_factory_not_env</code></p>
+<li>mock <code>make_llm</code> → 断言 <code>make_judge_llm()</code> 调用了 <code>make_llm(&quot;judge&quot;)</code></li>
+<li>断言<strong>没有</strong>读 <code>os.environ[&quot;OPENAI_API_KEY&quot;]</code>（monkeypatch 删除 env 也跑通）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/judge.py</code>：</p>
+<pre><code data-lang="python">from app.llm.factory import make_llm
+
+def make_judge_llm():
+    &quot;&quot;&quot;RAGAS judge 专用：走 M3 工厂 + 显式剥离 Langfuse callback（评测不污染业务 trace）&quot;&quot;&quot;
+    llm = make_llm(&quot;judge&quot;)
+    return llm.with_config({&quot;callbacks&quot;: []})   # P2-4 显式空 callback 覆盖 M3 自动注入</code></pre>
+
+<p><strong>RED</strong> · <code>tests/unit/test_judge.py::test_judge_strips_langfuse_callback</code>（<strong>P2-4 新增</strong>）</p>
+<li>mock <code>make_llm</code> 返回 <code>MagicMock(spec=ChatAnthropic)</code></li>
+<li>调 <code>make_judge_llm()</code> → 断言返回值 ≠ mock 直接返回（必须有 <code>.with_config</code> 调用）</li>
+
+<p><strong>RED</strong> · <code>tests/unit/test_llm_factory.py::test_judge_node_registered</code>（M3 已建文件，追加）</p>
+<li>断言 <code>make_llm(&quot;judge&quot;)</code> 返回 <code>ChatAnthropic</code> 实例</li>
+<li>跑测试 → 失败（judge 节点未注册）</li>
+
+<p><strong>GREEN</strong> · <code>app/llm/factory.py</code> 追加（<strong>M11 修改 M3 已建文件</strong>，<strong>P0-2 / C-1 联动</strong>）：</p>
+<li><code>KNOWN_NODES</code> 追加 <code>&quot;judge&quot;</code></li>
+<li><code>app/llm/prompts/judge.yaml</code>（M11 新增）：</li>
+<pre><code data-lang="yaml">  model: minimax-cn/MiniMax-M3
+  temperature: 0.0        # judge 确定性优先
+  max_tokens: 2048
+  system_prompt: |
+    You are an expert evaluator for RAG system outputs.
+    Score the following on a 0-1 scale based on:
+    1. Faithfulness: Is the answer grounded in the contexts?
+    2. Answer relevancy: Does the answer address the question?
+    3. Context precision: Are the retrieved contexts relevant?</code></pre>
+<li><code>make_llm(&quot;judge&quot;)</code> 走 <code>load_prompt(&quot;judge&quot;)</code> → <code>ChatAnthropic(...)</code></li>
+
+<p><strong>RED</strong> · <code>test_make_llm_judge_node_registered_with_deterministic_temp</code>（<strong>P0-2 补强</strong>）</p>
+<li>断言 <code>&quot;judge&quot; in KNOWN_NODES</code></li>
+<li>断言 <code>make_llm(&quot;judge&quot;).temperature == 0.0</code></li>
+
+<h4 id="task-5click-cli-入口骨架">Task 5：Click CLI 入口骨架</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ragas_run.py::test_cli_help</code>（新增文件）</p>
+<li><code>subprocess.run([&quot;python&quot;, &quot;-m&quot;, &quot;app.eval.ragas_run&quot;, &quot;--help&quot;])</code> → 断言 exit 0 + 包含 &quot;golden-set&quot; / &quot;metrics&quot; / &quot;threshold&quot; / &quot;mode&quot;</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/ragas_run.py</code>：</p>
+<pre><code data-lang="python">import click
+
+@click.command()
+@click.option(&quot;--golden-set&quot;, required=True, type=click.Path(exists=True))
+@click.option(&quot;--metrics&quot;, default=&quot;faithfulness,answer_relevancy,context_precision&quot;)
+@click.option(&quot;--threshold&quot;, default=0.7, type=float)
+@click.option(&quot;--mode&quot;, default=&quot;ci&quot;, type=click.Choice([&quot;ci&quot;, &quot;nightly&quot;]))   # P0-5 双阈值
+@click.option(&quot;--report-json&quot;, type=click.Path())
+@click.option(&quot;--report-html&quot;, type=click.Path())
+@click.option(&quot;--sample-size&quot;, type=int, default=None, help=&quot;限制跑题数（CI 用 20）&quot;)
+@click.option(&quot;--baseline&quot;, type=str, default=None, help=&quot;**r2-2026-06-12 新-4 已修**：P1-6 baseline 改用 git tag v0.1.0（V1.1 时启用）OR 报告 json 路径（V1 fallback）&quot;)
+def main(golden_set, metrics, threshold, mode, report_json, report_html, sample_size, baseline):
+    &quot;&quot;&quot;RAG V1 RAGAS 离线评估 CLI&quot;&quot;&quot;
+    click.echo(f&quot;golden_set={golden_set} metrics={metrics} threshold={threshold} mode={mode}&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    main()</code></pre>
+
+<p><strong>RED</strong> · <code>test_cli_rejects_missing_golden_set</code></p>
+<li>跑 <code>python -m app.eval.ragas_run</code>（无参数）→ 断言 exit 2 + 报错</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>required=True</code> 守住</p>
+
+<p><strong>REFACTOR</strong> · 把 <code>main()</code> 拆 <code>def _run_eval(golden_set, metrics, threshold, mode, ...)</code> 让集成测试可调（async）</p>
+
+<p><strong>RED</strong> · <code>tests/unit/test_judge.py::test_with_config_callbacks_empty_returns_runnable_binding</code>（<strong>r2-2026-06-12 新-3 已修</strong>：与 M3 工厂返回 <code>RunnableBinding</code> 兼容性断言）</p>
+<li>mock <code>make_llm(&quot;judge&quot;)</code> 返回 mock Runnable</li>
+<li>调 <code>judge.with_config({&quot;callbacks&quot;: []})</code> → 断言返回 <code>RunnableBinding</code> 类型（不是 ChatAnthropic 原类）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>judge.py</code> 显式断言：<code>from langchain_core.runnables import RunnableBinding; assert isinstance(judge, RunnableBinding), &quot;judge LLM 必须是 RunnableBinding&quot;</code></p>
+
+<p>---</p>
+
+<h3 id="day-2-runner-scorer-ragas-集成">Day 2 · Runner + Scorer + RAGAS 集成</h3>
+
+<h4 id="task-6runnerasync-重试只在-graph-外部异常-graphnodeerror-冒泡节点失败">Task 6：Runner（<strong>async</strong> + 重试只在 graph 外部异常 + GraphNodeError 冒泡节点失败）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_runner.py::test_run_single_item_returns_answer_contexts</code></p>
+<li>mock <code>graph.ainvoke</code> 返回 <code>{&quot;answer&quot;: &quot;...&quot;, &quot;sources&quot;: [&quot;ctx1&quot;, &quot;ctx2&quot;], &quot;chunks&quot;: [&quot;ctx1&quot;, &quot;ctx2&quot;]}</code></li>
+<li>调 <code>await runner.run_item(item, n=1)</code> → 断言 <code>answer</code> 非空 / <code>contexts</code> 是 list[str] / <code>trace_id</code> 非空</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/runner.py</code>：</p>
+<pre><code data-lang="python">import asyncio
+import uuid
+from app.graph.workflow import get_graph
+from app.eval.golden_set import GoldenItem
+
+def _safe_get_trace_id() -&gt; str | None:
+    &quot;&quot;&quot;P0-6 拉取当前 Langfuse trace_id；拉不到返 None（不抛异常污染主流程）
+    用 langfuse 2.50+ 公开 API：from langfuse import get_client; get_client().get_current_trace_id()
+    &quot;&quot;&quot;
+    try:
+        from langfuse import get_client
+        return get_client().get_current_trace_id()
+    except Exception:
+        return None
+
+class GraphNodeError(Exception):
+    &quot;&quot;&quot;M7 P0-8 safe_node 装饰器启用后，节点内部异常被装饰器捕获写入 state.error；
+    runner 显式抛 GraphNodeError 让 tenacity 可重试（transient 节点故障）&quot;&quot;&quot;
+
+async def run_item(item: GoldenItem, n: int) -&gt; dict:
+    &quot;&quot;&quot;跑单条 golden set 题，返回 {question, answer, contexts, trace_id}&quot;&quot;&quot;
+    graph = get_graph()
+    thread_id = f&quot;eval-{n}-{uuid.uuid4().hex[:8]}&quot;
+    state = await graph.ainvoke(
+        {&quot;query&quot;: item.question},
+        config={&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}},
+    )
+    # P1-1 节点失败冒泡：safe_node 装饰器把异常写到 state.error，runner 显式 raise 让 tenacity 重试
+    if state.get(&quot;error&quot;):
+        raise GraphNodeError(state[&quot;error&quot;])
+    return {
+        &quot;question&quot;: item.question,
+        &quot;answer&quot;: state.get(&quot;answer&quot;, &quot;&quot;),
+        # P1-7 不直接调 retriever，从 state[&quot;chunks&quot;] 取（M7 P1-6 修后），双 fallback 兼容
+        &quot;contexts&quot;: state.get(&quot;chunks&quot;, state.get(&quot;sources&quot;, [])),
+        &quot;trace_id&quot;: _safe_get_trace_id() or &quot;&quot;,
+    }
+
+async def run_batch(items: list[GoldenItem]) -&gt; list[dict]:
+    &quot;&quot;&quot;P0-3 异步批跑：asyncio.gather 并发&quot;&quot;&quot;
+    return await asyncio.gather(*[run_item(item, n=i) for i, item in enumerate(items, 1)],
+                                return_exceptions=False)</code></pre>
+
+<p><strong>RED</strong> · <code>test_run_item_captures_trace_id_from_langfuse</code>（<strong>P0-6 改 mock 路径</strong>）</p>
+<li>mock <code>langfuse.get_client</code> 返回 fake_client</li>
+<li>fake_client.get_current_trace_id.return_value = &quot;trace-abc&quot;</li>
+<li>monkeypatch.setattr(&quot;langfuse.get_client&quot;, lambda: fake_client)</li>
+<li>断言返回 dict 含 <code>&quot;trace_id&quot;: &quot;trace-abc&quot;</code></li>
+
+<p><strong>RED</strong> · <code>test_run_item_surfaces_node_error_for_retry</code>（<strong>P1-1 节点失败冒泡</strong>）</p>
+<li>mock <code>graph.ainvoke</code> 返回 <code>{&quot;error&quot;: &quot;classify_failed: ...&quot;, &quot;answer&quot;: &quot;&quot;}</code></li>
+<li>断言 runner 抛 <code>GraphNodeError</code></li>
+
+<p><strong>RED</strong> · <code>test_run_item_retries_on_graph_4xx_5xx</code>（<strong>P1-1 缩到 graph 外部异常</strong>）</p>
+<li>mock <code>graph.ainvoke</code> 第 1 次抛 <code>HTTPError 500</code>、第 2 次成功</li>
+<li>断言 tenacity 重试 1 次后成功</li>
+<li>注释：节点内部异常由 <code>safe_node</code> 捕获，runner 重试机制<strong>只对 graph 外部异常</strong>（network / 鉴权）生效</li>
+
+<p><strong>GREEN</strong> · <code>@tenacity.retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10), retry=retry_if_exception_type((HTTPError, RAGASJudgeError, GraphNodeError)))</code></p>
+
+<p><strong>REFACTOR</strong> · 把 <code>get_graph()</code> 抽成 <code>runner.py</code> 顶层的 lazy import（避免循环依赖 <code>app.graph → app.eval</code>）</p>
+
+<h4 id="task-7scorerlangchainllmwrapper-包装-reference-contexts-raise-exceptionsfalse">Task 7：Scorer（<strong>LangchainLLMWrapper 包装 + reference_contexts + raise_exceptions=False</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_scorer.py::test_score_uses_langchain_llm_wrapper_not_raw_chat_model</code>（<strong>P0-1 新增</strong>）</p>
+<li>mock <code>ragas.llms.LangchainLLMWrapper</code>（patch <code>app.eval.scorer.LangchainLLMWrapper</code>）</li>
+<li>调 <code>score_dataset([...], [&quot;faithfulness&quot;])</code> → 断言 <code>LangchainLLMWrapper.assert_called_once_with(mock_judge)</code></li>
+
+<p><strong>RED</strong> · <code>test_score_uses_injected_judge_llm</code></p>
+<li>mock <code>ragas.evaluate</code> → 断言 <code>score_dataset(items, judge_llm=mock_judge)</code> 把 <code>mock_judge</code> 传给 ragas</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/scorer.py</code>：</p>
+<pre><code data-lang="python">from datasets import Dataset
+from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_precision
+from ragas.llms import LangchainLLMWrapper      # 0.2.5+ 强制包装（P0-1）
+from app.eval.judge import make_judge_llm
+
+METRIC_MAP = {
+    &quot;faithfulness&quot;: faithfulness,
+    &quot;answer_relevancy&quot;: answer_relevancy,
+    &quot;context_precision&quot;: context_precision,
+}
+
+def score_dataset(items: list[dict], metrics: list[str]) -&gt; dict:
+    &quot;&quot;&quot;items = [{&quot;question&quot;, &quot;answer&quot;, &quot;contexts&quot;, &quot;ground_truth&quot;, &quot;reference_contexts&quot;}]
+    P0-1/P1-3: RAGAS 0.2.10 必须用 LangchainLLMWrapper 包装 + reference_contexts 字段
+    &quot;&quot;&quot;
+    dataset = Dataset.from_list([{
+        &quot;question&quot;: it[&quot;question&quot;],
+        &quot;answer&quot;: it[&quot;answer&quot;],
+        &quot;contexts&quot;: it[&quot;contexts&quot;],
+        &quot;ground_truth&quot;: it[&quot;ground_truth&quot;],
+        # P0-1: context_precision 用 reference_contexts 列表，不是 ground_truth 字符串
+        &quot;reference_contexts&quot;: it.get(&quot;reference_contexts&quot;, it[&quot;contexts&quot;]),
+    } for it in items])
+    ragas_metrics = [METRIC_MAP[m] for m in metrics]
+    judge_llm = make_judge_llm()
+    llm_wrapper = LangchainLLMWrapper(judge_llm)             # 0.2.5+ 必备包装
+    result = evaluate(
+        dataset,
+        metrics=ragas_metrics,
+        llm=llm_wrapper,
+        raise_exceptions=False,                              # 单题异常不污染整体
+    )
+    return {
+        &quot;per_item&quot;: result.to_pandas().to_dict(orient=&quot;records&quot;),
+        &quot;aggregate&quot;: {m: float(result[m]) for m in metrics},
+    }</code></pre>
+
+<p><strong>RED</strong> · <code>test_score_returns_aggregate_and_per_item</code></p>
+<li>mock <code>ragas.evaluate</code> 返回伪 result → 断言返回 dict 含 <code>aggregate</code> 和 <code>per_item</code> 两个 key</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 调 <code>result.to_pandas()</code></p>
+
+<p><strong>RED</strong> · <code>test_score_raises_on_unknown_metric</code></p>
+<li>传 <code>metrics=[&quot;bogus&quot;]</code> → 断言 <code>KeyError</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>METRIC_MAP[m]</code> KeyError 自然抛出</p>
+
+<p><strong>RED</strong> · <code>test_score_passes_reference_contexts_to_dataset</code>（<strong>P0-1/P1-3 补强</strong>）</p>
+<li>给定 items 含 <code>reference_contexts: [&quot;doc1&quot;, &quot;doc2&quot;]</code></li>
+<li>断言构造的 Dataset 字典含 <code>reference_contexts</code> 字段</li>
+
+<h4 id="task-8cli-串联-runner-scorer">Task 8：CLI 串联 runner + scorer</h4>
+
+<p><strong>GREEN</strong> · <code>app/eval/ragas_run.py</code> <code>_run_eval()</code>（<strong>async</strong>）：</p>
+<pre><code data-lang="python">async def _run_eval(golden_set_path, metrics, threshold, mode, report_json, report_html, sample_size, baseline):
+    from app.eval.golden_set import load_golden_set
+    from app.eval.runner import run_batch
+    from app.eval.scorer import score_dataset
+    from app.eval.report import write_json, write_html
+    from app.eval.gate import check
+    from app.config import settings
+
+    items = load_golden_set(golden_set_path)
+    # P1-8 CI 用前 20 题 / nightly 用全部
+    actual_size = sample_size or (settings.eval.sample_size_ci if mode == &quot;ci&quot;
+                                  else settings.eval.sample_size_nightly)
+    items = items[:actual_size]
+
+    # P0-3 异步批跑
+    runs = await run_batch(items)
+    for run, item in zip(runs, items):
+        run[&quot;ground_truth&quot;] = item.ground_truth
+        run[&quot;reference_contexts&quot;] = item.reference_contexts
+
+    # 算指标
+    result = score_dataset(runs, metrics)
+    result[&quot;trace_ids&quot;] = [r[&quot;trace_id&quot;] for r in runs]
+    result[&quot;mode&quot;] = mode
+    result[&quot;git_sha&quot;] = _get_git_sha()                          # P1-6 报告带 git SHA
+    result[&quot;timestamp&quot;] = _get_timestamp()                       # P1-6 时间戳
+
+    # P1-5 cost 跟踪：取 result.to_pandas() usage 列 sum
+    # **r2-2026-06-12 新-2 已修**：RAGAS 0.2.10 `result.to_pandas()` 不含 usage 列；改从 langchain callback handler 拿
+    result[&quot;cost_usd&quot;] = _compute_cost_usd(runs)  # 改传 runs（每题带 token 用量）而非 result
+    result[&quot;cost_per_item&quot;] = [r.get(&quot;cost_usd_item&quot;, 0.0) for r in runs]  # per 题 cost
+
+    # **r2-2026-06-12 新-2 已修**：手动 per 题 try/except 替代 `raise_exceptions=False` 的 skipna 行为
+    failed_items = [r[&quot;id&quot;] for r in runs if r.get(&quot;error&quot;)]
+    if failed_items:
+        result[&quot;failed_items&quot;] = failed_items
+        click.echo(f&quot;WARN: {len(failed_items)} items failed: {failed_items[:5]}{&#x27;...&#x27; if len(failed_items)&gt;5 else &#x27;&#x27;}&quot;, err=True)
+
+    # 写报告（P1-6 含 git SHA + 时间戳命名）
+    if report_json:
+        write_json(result, report_json)
+    if report_html:
+        write_html(result, report_html, threshold, baseline)
+
+    # P0-5 双阈值门禁
+    check(result, threshold=threshold, mode=mode)
+    click.echo(f&quot;PASS: faithfulness={result[&#x27;aggregate&#x27;].get(&#x27;faithfulness&#x27;, 0):.3f} mode={mode}&quot;)</code></pre>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ragas_run.py::test_run_eval_end_to_end_with_mocks</code></p>
+<li>mock <code>load_golden_set</code> / <code>run_batch</code> / <code>score_dataset</code> / <code>write_json</code> / <code>write_html</code> / <code>check</code></li>
+<li>调 <code>await _run_eval(...)</code> → 断言全部 mock 都被调到</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现上面 GREEN 段</p>
+
+<p>---</p>
+
+<h3 id="day-3-report-gate-端到端">Day 3 · Report + Gate + 端到端</h3>
+
+<h4 id="task-9reportjson-含-git-sha-时间戳-cost-html-含-baseline-diff">Task 9：Report（<strong>JSON 含 git SHA + 时间戳 + cost</strong> + HTML 含 baseline diff）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_report.py::test_write_json_contains_aggregate_and_per_item</code></p>
+<li>给定伪 result → 调 <code>write_json(result, &quot;/tmp/out.json&quot;)</code> → 读回 → 断言 <code>aggregate.faithfulness == 0.85</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/report.py</code>：</p>
+<pre><code data-lang="python">import json
+import subprocess
+from datetime import datetime, timezone
+
+def _get_git_sha() -&gt; str:
+    try:
+        return subprocess.check_output([&quot;git&quot;, &quot;rev-parse&quot;, &quot;--short&quot;, &quot;HEAD&quot;],
+                                       cwd=&quot;.&quot;, stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return &quot;unknown&quot;
+
+def _get_timestamp() -&gt; str:
+    return datetime.now(timezone.utc).strftime(&quot;%Y%m%dT%H%M%SZ&quot;)
+
+def write_json(result: dict, path: str) -&gt; None:
+    &quot;&quot;&quot;P1-6 报告含 git SHA + timestamp + cost_usd&quot;&quot;&quot;
+    enriched = {
+        &quot;git_sha&quot;: result.get(&quot;git_sha&quot;, &quot;unknown&quot;),
+        &quot;timestamp&quot;: result.get(&quot;timestamp&quot;, _get_timestamp()),
+        &quot;mode&quot;: result.get(&quot;mode&quot;, &quot;ci&quot;),
+        &quot;cost_usd&quot;: result.get(&quot;cost_usd&quot;, 0.0),
+        &quot;aggregate&quot;: result[&quot;aggregate&quot;],
+        &quot;per_item&quot;: result[&quot;per_item&quot;],
+        &quot;trace_ids&quot;: result.get(&quot;trace_ids&quot;, []),
+    }
+    with open(path, &quot;w&quot;) as f:
+        json.dump(enriched, f, indent=2, ensure_ascii=False)</code></pre>
+
+<p><strong>RED</strong> · <code>test_write_html_contains_table_and_threshold_marker_and_diff_column</code>（<strong>P1-6 baseline diff</strong>）</p>
+<li>给定伪 result + threshold + baseline 路径 → 调 <code>write_html(...)</code> → 读回 → 断言包含 <code>&lt;table&gt;</code> 和 <code>threshold: 0.7</code> 和 <code>vs baseline</code> 列</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/report.py</code>：</p>
+<pre><code data-lang="python">import markdown
+
+def write_html(result: dict, path: str, threshold: float, baseline_path: str | None = None) -&gt; None:
+    md = f&quot;# RAGAS 评估报告\n\n&quot;
+    md += f&quot;**Git SHA**: {result.get(&#x27;git_sha&#x27;, &#x27;unknown&#x27;)}  \n&quot;
+    md += f&quot;**Timestamp**: {result.get(&#x27;timestamp&#x27;, &#x27;unknown&#x27;)}  \n&quot;
+    md += f&quot;**Mode**: {result.get(&#x27;mode&#x27;, &#x27;ci&#x27;)}  \n&quot;
+    md += f&quot;**Threshold**: {threshold}  \n&quot;
+    md += f&quot;**Cost (USD)**: {result.get(&#x27;cost_usd&#x27;, 0.0):.4f}  \n&quot;
+    md += f&quot;## 聚合指标\n\n&quot;
+    md += &quot;| Metric | Score | vs Baseline |\n|---|---|---|\n&quot;
+    baseline_agg = _load_baseline_aggregate(baseline_path) if baseline_path else {}
+    for k, v in result[&quot;aggregate&quot;].items():
+        baseline_v = baseline_agg.get(k)
+        diff_str = &quot;—&quot;
+        if baseline_v is not None:
+            delta = v - baseline_v
+            sign = &quot;+&quot; if delta &gt;= 0 else &quot;&quot;
+            diff_str = f&quot;{sign}{delta:.3f}&quot;
+        md += f&quot;| {k} | {v:.3f} | {diff_str} |\n&quot;
+    md += f&quot;\n## 逐题明细\n\n&quot;
+    md += &quot;| # | Question | Faithfulness | Answer Relevancy | Context Precision | Trace ID |\n|---|---|---|---|---|---|\n&quot;
+    for i, row in enumerate(result[&quot;per_item&quot;], 1):
+        md += f&quot;| {i} | {row.get(&#x27;question&#x27;, &#x27;&#x27;)[:30]} | {row.get(&#x27;faithfulness&#x27;, 0):.3f} | {row.get(&#x27;answer_relevancy&#x27;, 0):.3f} | {row.get(&#x27;context_precision&#x27;, 0):.3f} | {result[&#x27;trace_ids&#x27;][i-1]} |\n&quot;
+    html = markdown.markdown(md, extensions=[&quot;tables&quot;])
+    with open(path, &quot;w&quot;) as f:
+        f.write(f&quot;&lt;html&gt;&lt;body&gt;{html}&lt;/body&gt;&lt;/html&gt;&quot;)</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 <code>md</code> 拼接抽成 <code>_build_markdown(result, threshold, baseline)</code> 让单测可独立测</p>
+
+<h4 id="task-10ci-gateci-065-nightly-07-双阈值">Task 10：CI Gate（<strong>CI 0.65 / nightly 0.7 双阈值</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_gate.py::test_check_passes_when_faithfulness_above_ci_threshold</code></p>
+<li>给定 <code>result[&quot;aggregate&quot;][&quot;faithfulness&quot;] = 0.80</code> + <code>mode=&quot;ci&quot;</code> → 调 <code>check(result, 0.65, mode=&quot;ci&quot;)</code> → 断言不抛</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>RED</strong> · <code>test_check_raises_when_faithfulness_below_ci_threshold</code></p>
+<li>给定 <code>faithfulness = 0.60</code> + <code>mode=&quot;ci&quot;</code> + threshold=0.65 → 断言抛 <code>GateViolationError</code></li>
+
+<p><strong>GREEN</strong> · <code>app/eval/gate.py</code>：</p>
+<pre><code data-lang="python">class GateViolationError(Exception):
+    &quot;&quot;&quot;RAGAS CI gate 失败&quot;&quot;&quot;
+    def __init__(self, metric: str, value: float, threshold: float, mode: str):
+        self.metric = metric
+        self.value = value
+        self.threshold = threshold
+        self.mode = mode
+        super().__init__(f&quot;{mode.upper()} GATE: {metric}={value:.3f} &lt; threshold={threshold:.3f}&quot;)
+
+# P0-5 双阈值表
+THRESHOLDS = {&quot;ci&quot;: 0.65, &quot;nightly&quot;: 0.70}
+
+def check(result: dict, threshold: float | None = None, mode: str = &quot;ci&quot;) -&gt; None:
+    &quot;&quot;&quot;P0-5 双阈值门禁：CI 0.65（20 题宽容）/ nightly 0.7（50 题硬阈值）。
+    threshold 参数可显式覆盖 mode 默认值（手工调时用）。
+    &quot;&quot;&quot;
+    actual_threshold = threshold if threshold is not None else THRESHOLDS[mode]
+    faithfulness = result[&quot;aggregate&quot;].get(&quot;faithfulness&quot;, 0.0)
+    if faithfulness &lt; actual_threshold:
+        raise GateViolationError(&quot;faithfulness&quot;, faithfulness, actual_threshold, mode)</code></pre>
+
+<p><strong>RED</strong> · <code>test_check_nightly_threshold_stricter_than_ci</code></p>
+<li>断言 <code>THRESHOLDS[&quot;nightly&quot;] &gt; THRESHOLDS[&quot;ci&quot;]</code>（nightly 硬阈值比 CI 严）</li>
+
+<p><strong>RED</strong> · <code>test_gate_violation_error_message_includes_mode_and_metric</code></p>
+<li>抛 <code>GateViolationError(&quot;faithfulness&quot;, 0.60, 0.65, &quot;ci&quot;)</code> → 断言 <code>str(exc)</code> 含 <code>&quot;CI GATE&quot;</code> 和 <code>&quot;faithfulness&quot;</code> 和 <code>&quot;0.65&quot;</code></li>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ragas_run.py::test_cli_exit_code_1_on_gate_violation</code></p>
+<li>mock <code>check</code> 抛 <code>GateViolationError</code> → 调 <code>main([&quot;--golden-set&quot;, &quot;...&quot;, &quot;--report-json&quot;, &quot;/tmp/x.json&quot;])</code> → 断言 <code>SystemExit</code> 且 exit code 1</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/eval/ragas_run.py</code> <code>main()</code> 末尾：</p>
+<pre><code data-lang="python">try:
+    asyncio.run(_run_eval(...))
+except GateViolationError as e:
+    click.echo(f&quot;GATE FAILED: {e}&quot;, err=True)
+    sys.exit(1)</code></pre>
+
+<h4 id="task-11集成测试端到端">Task 11：集成测试（端到端）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m11_e2e_ragas.py::test_e2e_load_to_gate_with_mocks</code></p>
+<li>跑 <code>await _run_eval(&quot;tests/fixtures/golden_set_v1.jsonl&quot;, metrics=[&quot;faithfulness&quot;], mode=&quot;ci&quot;, ...)</code>（threshold 显式 0.0 跑通 gate）</li>
+<li>mock <code>run_batch</code>（不调真 graph）和 <code>ragas.evaluate</code>（返回伪指标）</li>
+<li>断言 JSON 报告生成 + HTML 报告生成 + gate 不抛（threshold=0.0）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现集成测试，mock 全部外部依赖</p>
+
+<p><strong>RED</strong> · <code>test_e2e_gate_violation_exits_nonzero</code></p>
+<li>同上但 <code>mode=&quot;ci&quot;</code> + 伪 faithfulness=0.5 → 断言 <code>GateViolationError</code></li>
+
+<p><strong>GREEN</strong> · 实现</p>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m11_golden_set_docs_exist.py::test_expected_doc_ids_in_index</code>（<strong>P2-5 fixture 真实索引校验</strong>）</p>
+<li>mock <code>app.retrieval.client.search</code> 查 doc_id 是否存在</li>
+<li>不存在 → <code>log.warning</code>（<strong>不抛</strong>避免 ingest 未跑时 CI 挂）</li>
+
+<p><strong>GREEN</strong> · 实现</p>
+
+<p><strong>REFACTOR</strong> · 把 mock fixture 抽 <code>tests/integration/conftest.py</code></p>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M11 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_golden_set.py tests/unit/test_judge.py tests/unit/test_runner.py tests/unit/test_scorer.py tests/unit/test_report.py tests/unit/test_gate.py tests/unit/test_ragas_run.py</code> —— 全 mock，CI 内 2s</li>
+<li><strong>M11 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m11_e2e_ragas.py tests/integration/test_m11_golden_set_docs_exist.py</code> —— mock graph + mock RAGAS，CI 内 5s</li>
+<li><strong>M11 真端到端</strong>（<strong>手工</strong>，不进 CI）：<code>python -m app.eval.ragas_run --golden-set tests/fixtures/golden_set_v1.jsonl --mode nightly --report-json eval_history/$(date +%Y%m%d)/report.json --report-html eval_history/$(date +%Y%m%d)/report.html</code> —— 需 docker compose up（M0）+ ANTHROPIC_API_KEY，耗时 10-15 分钟（50 题）</li>
+<li><strong>CI 模式</strong>：<code>python -m app.eval.ragas_run --mode ci --sample-size 20 --threshold 0.65 ...</code></li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/eval --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（[GREEN]）→ REFACTOR（[RF]）</li>
+<li><strong>pytest-asyncio 配置</strong>：<code>pytest.ini</code> 加 <code>asyncio_mode = auto</code>（runner / scorer / 集成测试全异步）</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] CLI 命令 <code>python -m app.eval.ragas_run --help</code> 输出全部 option（含 <code>--mode</code> / <code>--baseline</code> / <code>--sample-size</code>）</li>
+<li>[ ] golden set fixture 50 题覆盖 3 源 × 3 类（9 交叉）+ 5 chitchat + edge，CI 用前 20 + nightly 用全部</li>
+<li>[ ] golden set schema 校验：缺字段 / 错枚举值 / factual 缺 reference_contexts 都拒绝</li>
+<li>[ ] judge LLM 走 M3 <code>make_llm(&quot;judge&quot;)</code>，不读 <code>OPENAI_API_KEY</code>，<strong>显式剥离 Langfuse callback</strong></li>
+<li>[ ] M3 <code>KNOWN_NODES</code> 含 <code>&quot;judge&quot;</code> 节点，temperature=0.0 断言通过</li>
+<li>[ ] runner async 调 M7 graph.ainvoke 拿 (answer, contexts, trace_id)，<strong>4xx/5xx 重试 3 次</strong>（外部异常），<strong>节点失败抛 GraphNodeError 让 tenacity 重试</strong></li>
+<li>[ ] scorer 用 <code>LangchainLLMWrapper(judge)</code> 包装（0.2.5+ 强制）+ <code>reference_contexts</code> 字段 + <code>raise_exceptions=False</code></li>
+<li>[ ] report 输出 JSON（含 <code>git_sha</code> / <code>timestamp</code> / <code>cost_usd</code> / <code>trace_ids</code> / <code>per_item</code> / <code>aggregate</code>）+ HTML（含表格 + threshold 标记 + baseline diff 列）</li>
+<li>[ ] gate：<strong>CI mode &lt; 0.65 / nightly mode &lt; 0.7</strong> 抛 <code>GateViolationError</code>、CLI exit 1</li>
+<li>[ ] runner 调 <code>state[&quot;chunks&quot;]</code> 拿 contexts（不直接调 retriever，避免重复 retrieve）</li>
+<li>[ ] judge-human diff 测试通过（5 题人工 vs judge LLM，平均 diff ≤ 0.1，P1-4）</li>
+<li>[ ] cost 跟踪：report 含 <code>cost_usd</code> 字段，超 <code>cost_budget_usd_per_run</code> 标 warning（不挂）</li>
+<li>[ ] 集成测试 mock 跑通 load → run → score → report → gate（async）</li>
+<li>[ ] 单元覆盖率 ≥ 85%</li>
+<li>[ ] <code>tests/integration/test_m11_e2e_ragas.py</code> 在 mock 环境下 5s 内通过</li>
+<li>[ ] <code>tests/integration/test_m11_golden_set_docs_exist.py</code> 校验 doc_id 存在（warning 不挂）</li>
+<li>[ ] 手工真跑 20 题（CI mode，需 docker + ANTHROPIC_KEY）5 分钟内生成报告</li>
+<li>[ ] 手工真跑 50 题（nightly mode）10-15 分钟内生成报告</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M11 前完成）</th><th>下游（依赖 M11）</th></tr></thead>
+<tbody>
+<tr><td>M0 docker-compose（真跑评测要起 PG + OpenSearch）</td><td>M12 Hardening（CI 流程调 <code>python -m app.eval.ragas_run --mode ci</code>）</td></tr>
+<tr><td>M1 alembic（golden set 可关联 ingest_jobs.doc_id 校验完整性）</td><td></td></tr>
+<tr><td><strong>M3 LLM 工厂</strong>（<strong>M11 修改</strong>：在 <code>make_llm</code> <code>KNOWN_NODES</code> 追加 <code>&quot;judge&quot;</code> 节点 + 注册 <code>load_prompt(&quot;judge&quot;)</code> → <code>ChatAnthropic</code>；本 plan 在 M11 阶段显式修改 M3 已建文件，<strong>依赖 M3 review P1-5 修复</strong>）</td><td></td></tr>
+<tr><td>M7 graph（runner 调 <code>ainvoke</code> 拿 answer；<strong>M11 假设 M7 P0-3 修后</strong> <code>get_graph()</code> 返已 compile graph）</td><td></td></tr>
+<tr><td>M7 retrieval（runner 从 <code>state[&quot;chunks&quot;]</code> 取 contexts，<strong>不直接调 retriever</strong>；<strong>依赖 M7 P1-6 修后</strong> chunks 字段名）</td><td></td></tr>
+<tr><td>M7 safe_node 装饰器（<strong>M11 弱依赖</strong>：M7 P0-8 修后节点失败冒泡到 <code>state.error</code>，runner 显式 <code>GraphNodeError</code> 抛 + tenacity 重试）</td><td></td></tr>
+<tr><td><strong>M10 Langfuse</strong>（<strong>M11 依赖</strong>：M10 P0-3 修复后 <code>from langfuse import get_client; get_client().get_current_trace_id()</code> 才能用，try/except 包装）</td><td></td></tr>
+<tr><td>M10 P0-2 flush + P0-5 装饰器（M11 假设 M10 修后 Langfuse trace 上报稳定，trace_id 看板可查）</td><td></td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td><strong>RAGAS 0.2 judge LLM 默认读 OPENAI_API_KEY</strong></td><td><code>app/eval/judge.py</code> 显式走 <code>make_llm(&quot;judge&quot;)</code> + 测试 <code>monkeypatch.delenv(&quot;OPENAI_API_KEY&quot;)</code></td><td>&quot;让 RAGAS 默认读 env&quot; — <strong>已否决</strong>（v0.4 spec §5 LLM 4xx/5xx 不静默；评测误读 OpenAI 会出现不可解释指标）</td></tr>
+<tr><td><strong>Faithfulness 计算昂贵（每题 2 次 LLM 调用）</strong></td><td>CI 跑 20 题（5 分钟），nightly 跑 50 题；<code>--sample-size</code> 强制限制</td><td>&quot;每 PR 跑 50 题&quot; — <strong>已否决</strong>（CI timeout 风险）</td></tr>
+<tr><td><strong>Golden set 漂移（改了不影响代码但波动指标）</strong></td><td>golden set git 化 + <code>tests/fixtures/golden_set_v1.jsonl</code> 锁版本 + PR review 必看 diff</td><td>&quot;golden set 放 S3&quot; — V2 走数据库（review P2-1）</td></tr>
+<tr><td><strong>RAGAS judge LLM 断网/限速 4xx/5xx</strong></td><td>tenacity <code>stop_after_attempt(3), wait_exponential</code>，跟 M3 风格一致</td><td>&quot;fail fast 不重试&quot; — <strong>已否决</strong>（v0.4 spec §5 错误处理）</td></tr>
+<tr><td><strong>HTML 报告用 jinja2 引入模板引擎</strong></td><td>python-markdown 单文件，<strong>不</strong>引入 jinja2</td><td>&quot;用 jinja2 模板&quot; — review P1-1，已改 markdown</td></tr>
+<tr><td><strong>RAGAS 0.2 metrics API 变化</strong>（<code>from ragas.metrics import</code> 新 API）</td><td>Tech Stack 段明确列出 3 个 import + <code>LangchainLLMWrapper</code> 包装，Task 7 GREEN 用新 API</td><td>&quot;用旧 API <code>metrics=[faithfulness, ...]</code>&quot; — 0.2+ 仍兼容但新 API 明确</td></tr>
+<tr><td><strong>CI 时长 20 题 vs 50 题</strong></td><td>CI 跑 20 题（5 分钟），nightly 跑 50 题（10-15 分钟）</td><td>&quot;统一 50 题&quot; — CI 拖慢</td></tr>
+<tr><td><strong>M11 评测断言 answer 文本包含某关键词</strong></td><td>spec §6 明确&quot;<strong>不测内容</strong>：LLM 输出文本本身（不可控）&quot;；CI 只看 faithfulness</td><td>&quot;断言 &#x27;Kubernetes&#x27; in answer&quot; — <strong>已否决</strong>（LLM 不可控）</td></tr>
+<tr><td><strong>golden set git 化 vs S3</strong></td><td>V1 阶段 git 化 + JSON 命名 <code>{timestamp}_{git_sha}.json</code>，V2 走数据库（review P2-1）</td><td>&quot;V1 直接 S3&quot; — 过早优化</td></tr>
+<tr><td><strong>RAGAS 0.2.5+ <code>LangchainLLMWrapper</code> 强制包装</strong></td><td>P0-1 修复用 <code>from ragas.llms import LangchainLLMWrapper</code>；pin <code>==0.2.10</code> 精确</td><td>&quot;pin <code>&gt;=0.2,&lt;1</code>&quot; — 0.3 已有 break change，区间太宽</td></tr>
+<tr><td><strong>CI faithfulness gate 20 题统计不稳定</strong>（±0.15）</td><td>P0-5 双阈值：CI 0.65 / nightly 0.7；CI 宽容避免误报</td><td>&quot;统一 0.7&quot; — 20 题置信区间 ±0.15，CI 抖动误报风险高</td></tr>
+<tr><td><strong><code>context_precision</code> 指标语义错（用 ground_truth 字符串）</strong></td><td>P0-1/P1-3 改 <code>reference_contexts: list[str]</code> 字段，dataset 构造时同时传 <code>ground_truth</code> + <code>reference_contexts</code></td><td>&quot;复用 ground_truth&quot; — 算法把文本当 reference，context_precision 失真</td></tr>
+<tr><td><strong><code>make_llm(&quot;judge&quot;)</code> M3 工厂未注册</strong></td><td>P0-2 / C-1：M11 plan 显式修改 M3 factory 注册 judge 节点（KNOWN_NODES 追加 + judge.yaml）</td><td>&quot;M3 review r2 同步加&quot; — 时序不可控</td></tr>
+<tr><td><strong>M10 trace_id API 错位</strong>（<code>get_current_trace_id</code> 不是公开 API）</td><td>P0-6 / C-2：改用 <code>from langfuse import get_client; get_client().get_current_trace_id()</code> + try/except 包装</td><td>&quot;用 <code>handler.get_trace_id()</code>&quot; — 2.50+ 已 deprecate</td></tr>
+<tr><td><strong>M7 safe_node 装饰器启用后 runner 重试机制失效</strong></td><td>P1-1 重试范围缩到 graph 外部异常；节点失败显式抛 <code>GraphNodeError</code> 由 tenacity 重试</td><td>&quot;不区分内外异常&quot; — 单测可过，真跑时重试失效</td></tr>
+<tr><td><strong>M11 runner 调 retriever 与 graph 重复 retrieve</strong></td><td>P1-7 不直接调 retriever，从 <code>state[&quot;chunks&quot;]</code> 取（双 fallback 兼容 <code>state[&quot;sources&quot;]</code>）</td><td>&quot;runner 直接调 retriever&quot; — 双倍 latency + 双倍 OpenSearch 调用</td></tr>
+<tr><td><strong>pytest-asyncio 缺 pyproject 声明导致 <code>event_loop not found</code></strong></td><td>P0-3 pyproject 加 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-mock&gt;=3.14,&lt;4</code> + <code>pytest.ini</code> <code>asyncio_mode = auto</code></td><td>&quot;用同步 runner&quot; — graph.ainvoke 异步接口无法同步调用</td></tr>
+<tr><td><strong>judge LLM 自身偏差对 faithfulness ±0.1</strong></td><td>P1-4 风险表已记；judge.yaml temperature=0.0 降低随机性；DoD 加 judge-human diff 测试（5 题人工 ≤ 0.1）</td><td>&quot;换不同厂商 judge 交叉验证&quot; — 成本翻倍</td></tr>
+<tr><td><strong>eval cost 50 题 × 4 LLM call 无跟踪</strong></td><td>P1-5 EvalSettings 加 <code>cost_budget_usd_per_run=5.0</code> / <code>cost_budget_usd_per_week=20.0</code>；report 含 <code>cost_usd</code> 字段；超 budget 标 warning（不挂）</td><td>&quot;不跟踪 cost&quot; — 长期无法预算</td></tr>
+<tr><td><strong>M11 runner 拿 chitchat 路径 answer + 空 contexts</strong></td><td>P1-2 golden set 5 chitchat 题；chitchat 路径评估只算 <code>answer_relevancy</code>，context_precision 跳过（参考 RAGAS chitchat 文档）</td><td>&quot;M11 不测 chitchat&quot; — chitchat 路径无 CI 覆盖</td></tr>
+<tr><td><strong>M11 report 长期存储与 baseline 对比缺</strong></td><td>P1-6 report 命名 <code>{timestamp}_{git_sha}.json</code>；CLI <code>--baseline previous.json</code> → HTML 加 <code>vs Baseline</code> 列；V1 git 化，V2 走 DB</td><td>&quot;V1 直接 S3&quot; — 过早优化</td></tr>
+<tr><td><strong>nightly 与 CI 指标差异未定义（fixture 大小）</strong></td><td>P1-8 fixture 单文件 50 题（CI 前 20 / nightly 全部）；EvalSettings.mode=&quot;ci&quot;\</td><td>&quot;nightly&quot; 决定 sample_size</td><td>&quot;双文件 CI+nightly&quot; — fixture 维护双份</td></tr>
+<tr><td><strong>M7 get_graph() 契约含糊（contextmanager vs 工厂）</strong></td><td>P2-1 假设 M7 P0-3 修后 <code>get_graph()</code> 返已 compile graph（方案 A）</td><td>&quot;M11 runner 自己 compile&quot; — 越界 M7 范围</td></tr>
+<tr><td><strong>M7 safe_node 节点失败 → RAGAS 全 0 → gate 挂</strong></td><td>P2-2 风险表明示&quot;这是节点失败的正确捕获，不是 CI 抖动&quot;；DoD 第 11 条说明</td><td>&quot;忽略此现象&quot; — 误判为 CI 抖动</td></tr>
+<tr><td><strong>report markdown 拼接可改 template</strong></td><td>P2-3 V1 短期 OK，V2 改 jinja2 / pydantic 模板</td><td>&quot;V1 用 jinja2&quot; — review P1-1 已否决</td></tr>
+<tr><td><strong>judge LLM 应显式不接 Langfuse callback</strong></td><td>P2-4 make_judge_llm 显式 <code>with_config({&quot;callbacks&quot;: []})</code></td><td>&quot;继承 M3 工厂 callback&quot; — 评测污染业务 trace 看板</td></tr>
+<tr><td><strong>fixture <code>expected_doc_id</code> 真实索引校验未走</strong></td><td>P2-5 加 <code>test_m11_golden_set_docs_exist.py</code>，mock <code>retrieval.client.search</code> 查 doc_id；不存在 warning 不挂</td><td>&quot;V1 必存在&quot; — ingest 未跑时 CI 挂</td></tr>
+<tr><td>r1-2026-06-11 P0-1 已修：RAGAS 0.2.5+ <code>LangchainLLMWrapper(judge)</code> 强制包装 + <code>reference_contexts: list[str]</code> 字段 + <code>raise_exceptions=False</code> 单题异常隔离</td></tr>
+<tr><td>r1-2026-06-11 P0-2 已修：M11 显式修改 M3 factory（<code>KNOWN_NODES</code> 追加 <code>&quot;judge&quot;</code> + <code>app/llm/prompts/judge.yaml</code>），C-1 跨 M 联动</td></tr>
+<tr><td>r1-2026-06-11 P0-3 已修：pyproject 加 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-mock&gt;=3.14,&lt;4</code> + <code>pytest.ini</code> <code>asyncio_mode=auto</code>；runner/scorer 改 <code>async</code> + <code>asyncio.gather</code> 批跑 + <code>graph.ainvoke</code></td></tr>
+<tr><td>r1-2026-06-11 P0-4 已修：RAGAS 版本 pin 收紧到 <code>==0.2.10</code>（spec §8.6 区间兼容，避开 0.2/0.3 break change）</td></tr>
+<tr><td>r1-2026-06-11 P0-5 已修：CI/nightly 双阈值（CI 0.65 / nightly 0.7）+ <code>EvalSettings.mode</code> + <code>THRESHOLDS</code> 表 + 20 题宽容/50 题硬阈值</td></tr>
+<tr><td>r1-2026-06-11 P0-6 已修：trace_id 改 <code>from langfuse import get_client; get_client().get_current_trace_id()</code> + try/except 包装（不污染主流程），C-2 跨 M 联动</td></tr>
+<tr><td>r1-2026-06-11 P1-1 已修：runner 重试范围缩到 graph 外部异常；节点失败 <code>GraphNodeError</code> 显式抛 + tenacity 重试；M7 P0-8 safe_node 联动</td></tr>
+<tr><td>r1-2026-06-11 P1-2 已修：golden set 50 题含 5 chitchat + <code>EvalSettings.include_chitchat</code> 开关 + chitchat 路径只算 <code>answer_relevancy</code>；M7 P0-6 chitchat 联动</td></tr>
+<tr><td>r1-2026-06-11 P1-3 已修：<code>GoldenItem.reference_contexts: list[str]</code> 字段 + Pydantic <code>model_validator</code> 校验（非 chitchat 必填）</td></tr>
+<tr><td>r1-2026-06-11 P1-4 已修：judge-human diff 测试（5 题人工 vs judge LLM，DoD diff ≤ 0.1）+ <code>judge.yaml</code> temperature=0.0</td></tr>
+<tr><td>r1-2026-06-11 P1-5 已修：<code>EvalSettings.cost_budget_usd_per_run=5.0</code> / <code>cost_budget_usd_per_week=20.0</code> + report <code>cost_usd</code> 字段 + 超 budget warning（不挂）</td></tr>
+<tr><td>r1-2026-06-11 P1-6 已修：report 命名 <code>{timestamp}_{git_sha}.json</code> + <code>git_sha</code>/<code>timestamp</code>/<code>mode</code> 字段 + CLI <code>--baseline</code> 选项 + HTML <code>vs Baseline</code> 列</td></tr>
+<tr><td>r1-2026-06-11 P1-7 已修：runner 不直接调 retriever，从 <code>state[&quot;chunks&quot;]</code> 取（双 fallback 兼容 <code>state[&quot;sources&quot;]</code>）；M7 P1-6 chunks 字段名联动</td></tr>
+<tr><td>r1-2026-06-11 P1-8 已修：fixture 单一 50 题文件（CI 前 20 / nightly 全部）+ <code>mode</code> 参数决定 sample_size；EvalSettings.sample_size_ci/nightly</td></tr>
+<tr><td>r1-2026-06-11 P2-1 已修：契约表 / 依赖表显式&quot;假设 M7 P0-3 修后 <code>get_graph()</code> 返已 compile graph（方案 A）&quot;</td></tr>
+<tr><td>r1-2026-06-11 P2-2 已修：风险表明示&quot;safe_node 节点失败 → RAGAS 全 0 → gate 挂是正确捕获节点失败，不是 CI 抖动&quot;</td></tr>
+<tr><td>r1-2026-06-11 P2-3 已修：md 拼接抽 <code>_build_markdown(result, threshold, baseline)</code> 让单测可独立测（V1 短期 OK，V2 改 jinja2）</td></tr>
+<tr><td>r1-2026-06-11 P2-4 已修：<code>make_judge_llm</code> 显式 <code>llm.with_config({&quot;callbacks&quot;: []})</code> 剥离 Langfuse callback（评测不污染业务 trace 看板）</td></tr>
+<tr><td>r1-2026-06-11 P2-5 已修：加 <code>tests/integration/test_m11_golden_set_docs_exist.py</code> mock <code>retrieval.client.search</code> 查 doc_id；不存在 <code>log.warning</code>（不挂）；fixture <code>expected_doc_id</code> optional</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M11-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope 决策 #11 + review P0-1/P0-5/X-3 已纳入）</td></tr>
+<tr><td>r1-2026-06-11: P0-1 已修 · RAGAS 0.2.5+ 真实 API 签名（<code>LangchainLLMWrapper(judge)</code> 包装 + <code>reference_contexts</code> 字段）</td></tr>
+<tr><td>r1-2026-06-11: P0-2 已修 · M11 显式修改 M3 <code>KNOWN_NODES</code> 注册 <code>&quot;judge&quot;</code> 节点 + <code>judge.yaml</code>（C-1 联动）</td></tr>
+<tr><td>r1-2026-06-11: P0-3 已修 · pyproject 加 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-mock&gt;=3.14,&lt;4</code> + <code>asyncio_mode = auto</code> + runner 改 <code>async</code> + <code>asyncio.gather</code> 批跑</td></tr>
+<tr><td>r1-2026-06-11: P0-4 已修 · RAGAS 版本 pin 收紧 <code>==0.2.10</code>（spec §8.6 区间兼容，避开 0.2/0.3 break change）</td></tr>
+<tr><td>r1-2026-06-11: P0-5 已修 · CI/nightly 双阈值（CI 0.65 / nightly 0.7）+ <code>mode</code> 参数 + <code>THRESHOLDS</code> 表 + 20 题宽容/50 题硬阈值</td></tr>
+<tr><td>r1-2026-06-11: P0-6 已修 · trace_id API 改 <code>from langfuse import get_client; get_client().get_current_trace_id()</code> + try/except 包装（C-2 联动）</td></tr>
+<tr><td>r1-2026-06-11: P1-1 已修 · runner 重试缩到 graph 外部异常；节点失败显式抛 <code>GraphNodeError</code> 由 tenacity 重试（M7 P0-8 safe_node 联动）</td></tr>
+<tr><td>r1-2026-06-11: P1-2 已修 · golden set 5 chitchat 题 + <code>include_chitchat: bool</code> 开关 + chitchat 路径只算 <code>answer_relevancy</code>（M7 P0-6 chitchat 联动）</td></tr>
+<tr><td>r1-2026-06-11: P1-3 已修 · <code>GoldenItem.reference_contexts: list[str]</code> 字段 + schema 必填校验（factual/summary/multi_hop 至少 1 个 ref）</td></tr>
+<tr><td>r1-2026-06-11: P1-4 已修 · judge LLM 偏差风险表已记 + DoD 加 judge-human diff 测试（5 题人工 ≤ 0.1） + <code>judge.yaml</code> temperature=0.0</td></tr>
+<tr><td>r1-2026-06-11: P1-5 已修 · <code>EvalSettings</code> 加 <code>cost_budget_usd_per_run=5.0</code> / <code>cost_budget_usd_per_week=20.0</code> + report <code>cost_usd</code> 字段 + 超 budget warning</td></tr>
+<tr><td>r1-2026-06-11: P1-6 已修 · report 命名 <code>{timestamp}_{git_sha}.json</code> + <code>git_sha</code>/<code>timestamp</code>/<code>mode</code> 字段 + <code>--baseline</code> CLI 选项 + HTML diff 列</td></tr>
+<tr><td>r1-2026-06-11: P1-7 已修 · runner 不直接调 retriever，从 <code>state[&quot;chunks&quot;]</code> 取（双 fallback 兼容 <code>state[&quot;sources&quot;]</code>，M7 P1-6 联动）</td></tr>
+<tr><td>r1-2026-06-11: P1-8 已修 · fixture 单一 50 题文件（CI 前 20 / nightly 全部）+ <code>mode</code> 参数决定 sample_size</td></tr>
+<tr><td>r1-2026-06-11: P2-1 已修 · 契约表明示&quot;假设 M7 P0-3 修后 <code>get_graph()</code> 返已 compile graph&quot;</td></tr>
+<tr><td>r1-2026-06-11: P2-2 已修 · 风险表明示&quot;safe_node 节点失败 → RAGAS 全 0 → gate 挂是正确捕获，不是 CI 抖动&quot;</td></tr>
+<tr><td>r1-2026-06-11: P2-3 已修 · md 拼接抽 <code>_build_markdown</code> 让单测可独立测（V1 短期 OK，V2 再改 jinja2）</td></tr>
+<tr><td>r1-2026-06-11: P2-4 已修 · <code>make_judge_llm</code> 显式 <code>with_config({&quot;callbacks&quot;: []})</code> 剥离 Langfuse callback（评测不污染业务 trace）</td></tr>
+<tr><td>r1-2026-06-11: P2-5 已修 · 加 <code>test_m11_golden_set_docs_exist.py</code> 校验 doc_id 真实索引（warning 不挂）+ fixture expected_doc_id optional</td></tr>
+<tr><td>r2-2026-06-12: 新-1 已修 · fixture 重排 q001-q005 chitchat + q006-q050 rag，CI 前 20 = q001-q020 包含 5 chitchat + 15 rag（chitchat 路径 CI 覆盖目标达成）</td></tr>
+<tr><td>r2-2026-06-12: 新-2 已修 · <code>_compute_cost_usd</code> 改从 langchain callback 拿 usage（不再依赖 <code>result.to_pandas()</code>，RAGAS 0.2.10 不返回 usage 列）+ 手动 per 题 try/except 替代 <code>raise_exceptions=False</code> skipna 行为；报告补 <code>cost_per_item</code> + <code>failed_items</code> 字段</td></tr>
+<tr><td>r2-2026-06-12: 新-3 已修 · <code>judge.py</code> 显式断言 <code>isinstance(judge, RunnableBinding)</code>（M3 工厂 <code>with_config</code> 返回 RunnableBinding 非 ChatAnthropic 原类）；新增 <code>test_with_config_callbacks_empty_returns_runnable_binding</code> RED + GREEN 段</td></tr>
+<tr><td>r2-2026-06-12: 新-4 已修 · <code>--baseline</code> 改 type=str（不再 <code>click.Path(exists=True)</code>），V1.1 时改用 git tag <code>v0.1.0</code> 作 baseline</td></tr>
+<tr><td>r2-2026-06-12: 新-5 已修 · 同新-1 fixture 重排消化</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

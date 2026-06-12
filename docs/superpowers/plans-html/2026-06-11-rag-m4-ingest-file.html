@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4 Plan · Ingest · File source（LlamaIndex 解析 + 元素分类 + 图片抽取 + 嵌入入库）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M4 Plan · Ingest · File source（LlamaIndex 解析 + 元素分类 + 图片抽取 + 嵌入入库）</h1>
+<div class="meta"><span class="badge">M4 Plan · Ingest · File source（LlamaIndex 解析 + 元素分类 + 图片抽取 + 嵌入入库）</span><span class="badge r1">⏱ 5 个工作日（原3d估时严重低估，按 P1-2修正为5d）</span><span class="badge r1">r1 修复 50 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局appsrag-v1-m4-新增修改子集">仓库布局（apps/rag_v1/）—— M4 新增/修改子集</a></li><li class="h3-item"><a href="#m4-模块树">M4 模块树</a></li><li class="h3-item"><a href="#m4-与其他-m-的契约边界">M4 与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#task-1ingestsettings-配置块m0-配置层追加">Task 1：IngestSettings 配置块（M0 配置层追加）</a></li><li class="h3-item"><a href="#task-2sentencesplitter-包装">Task 2：SentenceSplitter 包装</a></li><li class="h3-item"><a href="#task-3asyncopensearch-占位客户端m4-仅-upsert-chunks">Task 3：AsyncOpenSearch 占位客户端（M4 仅 upsert_chunks）</a></li><li class="h3-item"><a href="#task-4file-source-simpledirectoryreader-适配">Task 4：File source · SimpleDirectoryReader 适配</a></li><li class="h3-item"><a href="#task-5pipeline-编排">Task 5：Pipeline 编排</a></li><li class="h3-item"><a href="#task-6m8-路由测试桩-集成测试">Task 6：M8 路由测试桩 + 集成测试</a></li><li class="h3-item"><a href="#task-7覆盖率门禁-最终验收">Task 7：覆盖率门禁 + 最终验收</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m4-plan-ingest-file-sourcellamaindex-解析-元素分类-图片抽取-嵌入入库">M4 Plan · Ingest · File source（LlamaIndex 解析 + 元素分类 + 图片抽取 + 嵌入入库）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 4 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#3-1-ingest-数据流">V1 Scope §3.1 ingest 数据流</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #5 数据源</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#8-依赖版本清单">V1 Scope §8 依赖版本</a></div>
+<div class="callout crit">估时：5 个工作日（原3d估时严重低估，按 P1-2修正为5d）</div>
+<div class="callout">范本目的：给 M5（url）/ M6（confluence）提供&quot;source 适配器&quot;样板（统一 <code>parse → split → embed → upsert</code> pipeline）</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v0.4 spec §3.1 的 ingest 数据流在&quot;file 源&quot;上落成可执行代码契约：</p>
+
+<li><code>app/ingest/sources/file.py</code> —— LlamaIndex <code>SimpleDirectoryReader</code> 读 PDF / Word / PPT / MD 4 种格式，输出统一 <code>Document</code> 列表</li>
+<li><code>app/ingest/splitter.py</code> —— <code>SentenceSplitter(chunk=512, overlap=64)</code>，长文档切块、短文档保形</li>
+<li><code>app/ingest/pipeline.py</code> —— 编排 <code>parse → split → embed (TEIEmbedder from M3) → upsert (OpenSearch from M7 接口)</code> 4 步，端到端函数 <code>ingest_file(path, user_id) -&gt; IngestJob</code></li>
+<li><code>app/ingest/sources/file.py</code> 处理图片元素：抽到 <code>artifacts/{doc_id}/images/</code>，元数据 <code>image_ref</code>（V1 边界：只元数据 + UI 缩略图，不做内容问答）</li>
+<li><code>ingest_jobs</code> 表 INSERT/UPDATE（M1 已建，<code>user_id</code> 关联 <code>current_user</code>）</li>
+<li><code>/api/ingest</code> 端点集成（M8 写；M4 阶段为路由写一个<strong>测试桩</strong> <code>tests/integration/conftest.py::mock_ingest_route</code>，不真起 FastAPI）</li>
+<li>幂等：<code>payload_hash</code> UNIQUE 约束 + <code>ON CONFLICT (payload_hash) DO NOTHING</code> 语义</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：</p>
+<li>url 4 种 auth 适配 → M5</li>
+<li>confluence v2 REST + 子页 BFS + attachments → M6</li>
+<li><code>/api/ingest</code> 真实路由 + Pydantic schema + 鉴权依赖注入 → M8</li>
+<li>OpenSearch 真实 <code>retriever</code> 业务逻辑（ann k-NN + filter）→ M7</li>
+<li>Langfuse 业务级 trace（@trace 装饰器接入 ingest）→ M10</li>
+<li>RAGAS eval golden set 生成（用 query 路径，不直接调 M4）→ M11</li>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局appsrag-v1-m4-新增修改子集">仓库布局（apps/rag_v1/）—— M4 新增/修改子集</h3>
+
+<pre><code >apps/rag_v1/
+├── infra/                                  # M0 已建：docker-compose + init.sql
+│
+├── app/
+│   ├── __init__.py                         # M3 已建
+│   ├── config.py                           # M0–M3 累积（不修改）
+│   │
+│   ├── embedding/                          # M3 已建
+│   │   └── client.py                       # TEIEmbedder（M3 产出，M4 直接 import）
+│   │
+│   ├── db/                                 # M1 已建
+│   │   ├── session.py                      # async_session / get_session（P2-7 修复后）
+│   │   ├── base.py
+│   │   └── models/ingest_job.py            # IngestJob ORM（m1 已建，M4 仅引用）
+│   │
+│   ├── retrieval/                          # M7 占位（M4 只 import 接口，不实现）
+│   │   ├── __init__.py                     # M4 新增：暴露 AsyncOpenSearch 类型
+│   │   └── client.py                       # M4 新增：AsyncOpenSearch 客户端占位实现（upsert 用）
+│   │                                       # M7 会扩展为 retriever.py / store.py
+│   │
+│   └── ingest/                             # M4 新增（核心）
+│       ├── __init__.py                     # 暴露 ingest_file
+│       ├── auth.py                         # auth 配置加载（M5/M6 共享，M4 仅占位）
+│       ├── pipeline.py                     # parse → split → embed → upsert 编排
+│       ├── splitter.py                     # SentenceSplitter 包装
+│       └── sources/
+│           ├── __init__.py                 # 暴露 file 适配器
+│           └── file.py                     # LlamaIndex SimpleDirectoryReader + 图片抽取
+│
+├── tests/
+│   ├── unit/
+│   │   ├── test_splitter.py                # M4 新增
+│   │   ├── test_ingest_file_source.py      # M4 新增
+│   │   ├── test_ingest_pipeline.py         # M4 新增
+│   │   └── test_opensearch_client.py       # M4 新增（占位客户端 mock）
+│   │
+│   └── integration/
+│       ├── conftest.py                     # M4 新增：mock_ingest_route 桩
+│       ├── test_m4_ingest_e2e.py           # M4 新增：真 PG + 真 TEI + mock OpenSearch
+│       └── artifacts/                      # .gitignore 已含（M0 P0-9）
+│
+├── alembic/                                # M1 已建（不修改）
+├── pyproject.toml                          # M3 已建（追加 M4 依赖）
+├── .env.example                            # M3 已建（追加 INGEST_ARTIFACTS_DIR）
+├── .gitignore                              # M0 P0-9 已建（含 artifacts/）
+├── pytest.ini                              # M0 P2-1 已建
+└── README.md                               # M0 已建（不修改）</code></pre>
+
+<h3 id="m4-模块树">M4 模块树</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   ├── ingest/
+│   │   ├── __init__.py
+│   │   ├── auth.py              # auth 配置加载（占位接口，M5/M6 完善）
+│   │   ├── pipeline.py          # ingest_file(path, user_id) → IngestJob；编排 4 步
+│   │   ├── splitter.py          # SentenceSplitterWrapper（512/64）
+│   │   └── sources/
+│   │       ├── __init__.py
+│   │       └── file.py          # read_file(path) → list[Document] + extract_images(doc, doc_id)
+│   │
+│   └── retrieval/
+│       ├── __init__.py          # 暴露 AsyncOpenSearch
+│       └── client.py            # AsyncOpenSearch（M4 占位：仅 upsert_chunks；M7 扩展）
+│
+└── tests/
+    ├── unit/
+    │   ├── test_splitter.py
+    │   ├── test_ingest_file_source.py
+    │   ├── test_ingest_pipeline.py
+    │   └── test_opensearch_client.py
+    └── integration/
+        ├── conftest.py          # mock_ingest_route + 真 TEI/PG fixture
+        └── test_m4_ingest_e2e.py</code></pre>
+
+<h3 id="m4-与其他-m-的契约边界">M4 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M8 <code>/api/ingest</code> 路由</td><td><code>ingest_file(path, current_user) -&gt; IngestJob</code></td><td>M8 加 Pydantic schema + auth dependency</td></tr>
+<tr><td>M5 url source</td><td><code>SentenceSplitterWrapper.split(docs)</code> + <code>pipeline._upsert(chunks, doc_id)</code></td><td>复用 M4 splitter + pipeline upsert 段</td></tr>
+<tr><td>M6 confluence source</td><td>同 M5</td><td>复用</td></tr>
+<tr><td>M7 OpenSearch 检索</td><td><code>AsyncOpenSearch</code> 客户端（M4 占位）</td><td>M7 扩展为 <code>OpenSearchVectorStore</code> + <code>retriever.py</code></td></tr>
+<tr><td>M11 RAGAS</td><td>不直接调 M4（走 query 路径）</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th></tr></thead>
+<tbody>
+<tr><td>LlamaIndex 核心</td><td><code>llama-index-core</code></td><td><code>==0.14.8</code></td></tr>
+<tr><td>LlamaIndex 文件读取</td><td><code>llama-index-readers-file</code></td><td><code>==0.4.0</code></td></tr>
+<tr><td>LlamaIndex 节点解析</td><td><code>llama-index-core.node_parser</code></td><td>内置（SentenceSplitter）</td></tr>
+<tr><td>PDF 解析</td><td><code>pypdf</code></td><td><code>&gt;=4.0,&lt;6</code>（LlamaIndex SimpleDirectoryReader 默认）</td></tr>
+<tr><td>Word 解析</td><td><code>docx2txt</code></td><td><code>&gt;=0.8</code>（LlamaIndex SimpleDirectoryReader 默认）</td></tr>
+<tr><td>PPT 解析</td><td><code>python-pptx</code></td><td><code>&gt;=1.0</code>（LlamaIndex SimpleDirectoryReader 默认）</td></tr>
+<tr><td>MD 解析</td><td>内置</td><td><code>markdown&gt;=3.6</code></td></tr>
+<tr><td>HTTP 客户端</td><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code>（M3 已有）</td></tr>
+<tr><td>重试</td><td><code>tenacity</code></td><td><code>&gt;=8.3,&lt;10</code>（M3 已有）</td></tr>
+<tr><td>OpenSearch 异步</td><td><code>opensearch-py[async]</code></td><td><code>&gt;=2.6,&lt;3</code></td></tr>
+<tr><td>图片 I/O</td><td><code>Pillow</code></td><td><code>&gt;=10.0,&lt;12</code></td></tr>
+<tr><td>ORM</td><td>SQLAlchemy async</td><td>M1 已有</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code></td><td>M3 已有</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>（llama-index 0.14.8 / opensearch-py 2.6+）：</p>
+
+<pre><code data-lang="python"># LlamaIndex 文件读取
+from llama_index.core import SimpleDirectoryReader
+from llama_index.core.schema import Document, ImageDocument
+from llama_index.core.node_parser import SentenceSplitter
+
+# OpenSearch 异步
+from opensearchpy import AsyncOpenSearch</code></pre>
+
+<p><strong>Python 导入规则</strong>：</p>
+<li><code>app.ingest.pipeline</code> —— <code>app</code> 是 <code>apps/rag_v1/app/</code></li>
+<li><code>app.ingest.sources.file</code> —— 同包不同子包，绝对导入</li>
+<li><code>from app.db.session import async_session, get_session</code>（P2-7 修复后口径）</li>
+<li><code>from app.config import settings</code>（X-3 全局单例口径）</li>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（11 个源文件 + 5 个测试文件 + 1 个 fixture）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/ingest/__init__.py</code></td><td>暴露 <code>ingest_file</code></td></tr>
+<tr><td><code>app/ingest/auth.py</code></td><td>auth 配置加载接口（占位函数，抛 NotImplementedError 标注&quot;待 M5 完善&quot;）</td></tr>
+<tr><td><code>app/ingest/pipeline.py</code></td><td><code>ingest_file(path, user_id) -&gt; IngestJob</code>；编排 parse → split → embed → upsert</td></tr>
+<tr><td><code>app/ingest/splitter.py</code></td><td><code>SentenceSplitterWrapper</code>（chunk=512, overlap=64，硬编码 + 常量提取）</td></tr>
+<tr><td><code>app/ingest/sources/__init__.py</code></td><td>暴露 <code>read_file</code></td></tr>
+<tr><td><code>app/ingest/sources/file.py</code></td><td><code>read_file(path) -&gt; list[Document]</code> + <code>extract_images(docs, doc_id) -&gt; list[ImageRef]</code></td></tr>
+<tr><td><code>app/retrieval/__init__.py</code></td><td>暴露 <code>AsyncOpenSearch</code>（M4 仅 import 路径占位，<strong>不实现 retriever</strong>）</td></tr>
+<tr><td><code>app/retrieval/client.py</code></td><td><code>AsyncOpenSearch</code> 包装（M4 只含 <code>upsert_chunks(chunks, index_name)</code>；M7 扩展）</td></tr>
+<tr><td><code>tests/__init__.py</code></td><td>M0–M3 已建（不修改）</td></tr>
+<tr><td><code>tests/unit/__init__.py</code></td><td>M0–M3 已建（不修改）</td></tr>
+<tr><td><code>tests/unit/test_splitter.py</code></td><td>splitter 单测（短文档 / 长文档 / 边界 512 token / overlap 64）</td></tr>
+<tr><td><code>tests/unit/test_ingest_file_source.py</code></td><td>file source 单测（4 种格式 mock + 图片元素分类）</td></tr>
+<tr><td><code>tests/unit/test_ingest_pipeline.py</code></td><td>pipeline 单测（mock 4 步；幂等 <code>ON CONFLICT</code> 行为）</td></tr>
+<tr><td><code>tests/unit/test_opensearch_client.py</code></td><td>AsyncOpenSearch 占位单测（mock opensearch-py，验 upsert_chunks 调用形态）</td></tr>
+<tr><td><code>tests/integration/__init__.py</code></td><td>M0–M3 已建（不修改）</td></tr>
+<tr><td><code>tests/integration/conftest.py</code></td><td>M4 新增：<code>mock_ingest_route</code> 桩（不真起 FastAPI；M8 替换） + 真 PG/TEI fixture</td></tr>
+<tr><td><code>tests/integration/test_m4_ingest_e2e.py</code></td><td>M4 新增：真 PG（含 ingest_jobs UNIQUE 约束 P1-5）+ 真 TEI + mock OpenSearch</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 5 个新直接依赖（<code>llama-index-core</code> / <code>llama-index-readers-file</code> / <code>opensearch-py[async]</code> / <code>Pillow</code> / <code>pypdf</code>）</li>
+<li><code>app/config.py</code>（M0–M3 累积）：追加 <code>IngestSettings</code>（<code>artifacts_dir: Path</code> / <code>chunk_size: int = 512</code> / <code>chunk_overlap: int = 64</code> / <code>opensearch_index: str = &quot;chunks&quot;</code> / <code>max_attachment_mb: int = 50</code> —— M6 用，M4 占位）</li>
+
+<p><strong>不修改</strong>：</p>
+<li><code>infra/docker-compose.yml</code>（M0 已建；TEI 端口 <code>18080:80</code> P0-1 已修）</li>
+<li><code>app/db/models/ingest_job.py</code>（M1 已建，含 P1-5 UNIQUE 约束）</li>
+<li><code>app/embedding/client.py</code>（M3 已建，M4 直接 import）</li>
+<li><code>app/api/</code>（M8 写；M4 阶段路由由 <code>conftest.py::mock_ingest_route</code> 桩代替）</li>
+<li><code>alembic/</code>（M1 已建；M4 不改 schema）</li>
+<li><code>.env.example</code>（M4 暂不追加，env 走 <code>IngestSettings</code> 默认值；如需覆盖再补）</li>
+<li><code>README.md</code>（M0 已建）</li>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="task-1ingestsettings-配置块m0-配置层追加">Task 1：IngestSettings 配置块（M0 配置层追加）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_config.py::test_ingest_config_loads</code>（M3 已有文件，追加测试）</p>
+<li>写测试：mock <code>INGEST_ARTIFACTS_DIR=/tmp/rag-artifacts</code> → 加载 <code>Settings().ingest</code> → 断言 <code>chunk_size == 512</code> / <code>chunk_overlap == 64</code> / <code>artifacts_dir == Path(&quot;/tmp/rag-artifacts&quot;)</code></li>
+<li>跑法：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_config.py::test_ingest_config_loads</code></li>
+<li>跑测试 → 失败（<code>IngestSettings</code> 不存在）</li>
+
+<p><strong>GREEN</strong> · 改 <code>app/config.py</code>：</p>
+<li>新增 <code>IngestSettings</code>：<code>artifacts_dir: Path</code> / <code>chunk_size: int = 512</code> / <code>chunk_overlap: int = 64</code> / <code>opensearch_index: str = &quot;chunks&quot;</code> / <code>max_attachment_mb: int = 50</code>（M6 预留）</li>
+<li>顶层 <code>Settings.ingest: IngestSettings</code> 聚合</li>
+<li><code>Settings</code> 末尾追加 <code>settings = Settings()</code>（X-3 全局单例口径）</li>
+
+<p><strong>REFACTOR</strong> · 抽 <code>artifacts_dir.mkdir(parents=True, exist_ok=True)</code> 到 <code>app/ingest/__init__.py</code> 模块级 import 时执行（启动时确保目录存在）</p>
+
+<h3 id="task-2sentencesplitter-包装">Task 2：SentenceSplitter 包装</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_splitter.py::test_short_document_unchanged</code></p>
+<li>构造 <code>Document(text=&quot;短文本 &quot;&lt;50 字&gt;)</code> → 调 <code>SentenceSplitterWrapper().split([doc])</code> → 断言返回 1 个 chunk 且 <code>text == 原文本</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/ingest/splitter.py</code>：</p>
+<pre><code data-lang="python">from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.schema import Document, TextNode
+from app.config import settings
+
+class SentenceSplitterWrapper:
+    &quot;&quot;&quot;V1 硬编码 chunk=512, overlap=64。Why：spec §3.1 固定，env 仅做 override 入口。&quot;&quot;&quot;
+    def __init__(self, chunk_size: int | None = None, chunk_overlap: int | None = None):
+        self._splitter = SentenceSplitter(
+            chunk_size=chunk_size or settings.ingest.chunk_size,
+            chunk_overlap=chunk_overlap or settings.ingest.chunk_overlap,
+        )
+
+    def split(self, docs: list[Document]) -&gt; list[TextNode]:
+        return self._splitter.get_nodes_from_documents(docs)</code></pre>
+
+<p><strong>RED</strong> · <code>test_long_document_splits_at_boundary</code></p>
+<li>构造 2000 字单文档 → 断言切出 ≥ 4 个 chunk、每个 chunk <code>len &lt;= 512</code>、相邻 chunk overlap 64 字</li>
+<li>跑法：<code>pytest tests/unit/test_splitter.py::test_long_document_splits_at_boundary</code></li>
+
+<p><strong>GREEN</strong> · 已在 Task 2 GREEN 实现覆盖</p>
+
+<p><strong>RED</strong> · <code>test_metadata_preserved</code></p>
+<li>构造 <code>Document(text=&quot;...&quot;, metadata={&quot;source&quot;: &quot;file&quot;, &quot;page_id&quot;: 7})</code> → 切块后断言每个 chunk <code>node.metadata[&quot;source&quot;] == &quot;file&quot;</code> 且 <code>page_id == 7</code></li>
+<li>跑测试 → 失败（默认 metadata 可能丢失页号）</li>
+
+<p><strong>GREEN</strong> · LlamaIndex SentenceSplitter 默认保留 <code>metadata</code>，验证无需改代码</p>
+
+<p><strong>REFACTOR</strong> · 抽常量 <code>DEFAULT_CHUNK_SIZE = 512</code> / <code>DEFAULT_CHUNK_OVERLAP = 64</code> 到模块顶部（spec 硬编码参考）</p>
+
+<h3 id="task-3asyncopensearch-占位客户端m4-仅-upsert-chunks">Task 3：AsyncOpenSearch 占位客户端（M4 仅 upsert_chunks）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_opensearch_client.py::test_upsert_chunks_calls_bulk</code></p>
+<li>构造 3 个 <code>TextNode(text=&quot;t1/t2/t3&quot;, metadata={...}, embedding=[[0.1]*1024, [0.2]*1024, [0.3]*1024])</code></li>
+<li>mock <code>AsyncOpenSearch.bulk</code> → 调 <code>OpenSearchClient(settings).upsert_chunks(chunks, index_name=&quot;chunks&quot;)</code> → 断言 bulk 收到 1 次调用、body 含 3 个 index action</li>
+<li>跑测试 → 失败（client 不存在）</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/retrieval/client.py</code>：</p>
+<pre><code data-lang="python">from opensearchpy import AsyncOpenSearch
+from llama_index.core.schema import TextNode
+from app.config import settings
+
+class OpenSearchClient:
+    &quot;&quot;&quot;M4 占位：仅 upsert_chunks；M7 扩展为 OpenSearchVectorStore + retriever&quot;&quot;&quot;
+    def __init__(self, client: AsyncOpenSearch | None = None):
+        self._client = client or AsyncOpenSearch(
+            hosts=[settings.opensearch.hosts],
+            http_auth=(settings.opensearch.user, settings.opensearch.password.get_secret_value()),
+            use_ssl=True,
+        )
+
+    async def upsert_chunks(self, chunks: list[TextNode], index_name: str) -&gt; int:
+        &quot;&quot;&quot;返回成功索引的 chunk 数。Why 走 bulk：1000 chunk 一次请求比 1000 次 PUT 快 50x。
+
+        P0-3 r2 已修：
+        - INDEX_MAPPING 显式声明（dim=1024 / hnsw / cosine）
+        - bulk 阈值 500（达 500 自动 flush）
+        - refresh_interval=30s（避免每写一次都 refresh 拖慢 50x）
+        &quot;&quot;&quot;
+        # P0-3 r2 已修：INDEX_MAPPING 显式声明（不在 upsert_chunks 内重复，靠 ensure_index 调用）
+        body: list[dict] = []
+        chunk_buffer: list[dict] = []  # P0-3 r2 已修：bulk 阈值 500 触发 flush
+
+        async def _flush_buffer(buf: list[dict]) -&gt; int:
+            if not buf:
+                return 0
+            success, errors = await self._client.bulk(body=buf, refresh=False)
+            return success
+
+        for chunk in chunks:
+            chunk_buffer.append({&quot;index&quot;: {&quot;_index&quot;: index_name, &quot;_id&quot;: chunk.id_}})
+            chunk_buffer.append({
+                &quot;text&quot;: chunk.text,
+                &quot;vector&quot;: chunk.embedding,  # M4 假定 pipeline 已 embed
+                &quot;metadata&quot;: chunk.metadata,
+            })
+            if len(chunk_buffer) &gt;= 500:  # P0-3 r2 已修：bulk 阈值 500
+                success = await _flush_buffer(chunk_buffer)
+                chunk_buffer = []
+        success = await _flush_buffer(chunk_buffer)  # flush 剩余
+        return success
+
+    async def ensure_index(self, index_name: str) -&gt; None:
+        &quot;&quot;&quot;P0-3 r2 已修：显式 INDEX_MAPPING 声明（dim=1024 / hnsw / cosine）+ refresh_interval=30s。
+
+        Why 显式：M7 graph 跑 RAGAS 评测时需确保 index 存在；不显式 OpenSearch 默认 mapping 会让 vector field 识别错。
+        &quot;&quot;&quot;
+        INDEX_MAPPING = {
+            &quot;settings&quot;: {
+                &quot;index&quot;: {
+                    &quot;refresh_interval&quot;: &quot;30s&quot;,  # P0-3 r2 已修：避免每写一次都 refresh
+                    &quot;knn&quot;: True,  # OpenSearch 2.x k-NN 必开
+                }
+            },
+            &quot;mappings&quot;: {
+                &quot;properties&quot;: {
+                    &quot;text&quot;: {&quot;type&quot;: &quot;text&quot;},
+                    &quot;vector&quot;: {
+                        &quot;type&quot;: &quot;knn_vector&quot;,
+                        &quot;dimension&quot;: 1024,  # bge-m3 dim
+                        &quot;method&quot;: {
+                            &quot;name&quot;: &quot;hnsw&quot;,
+                            &quot;space_type&quot;: &quot;cosinesimil&quot;,
+                            &quot;engine&quot;: &quot;faiss&quot;,
+                        },
+                    },
+                    &quot;metadata&quot;: {&quot;type&quot;: &quot;object&quot;, &quot;enabled&quot;: True},
+                }
+            },
+        }
+        exists = await self._client.indices.exists(index=index_name)
+        if not exists:
+            await self._client.indices.create(index=index_name, body=INDEX_MAPPING)</code></pre>
+<li><code>app/retrieval/__init__.py</code> 暴露 <code>OpenSearchClient</code>（<strong>不暴露</strong> <code>AsyncOpenSearch</code> 裸类，避免后续 M 跳过封装）</li>
+
+<p><strong>RED</strong> · <code>test_upsert_retries_on_connection_error</code></p>
+<li>mock 第 1 次 bulk 抛 <code>ConnectionError</code>、第 2 次成功 → 断言最终返回 success 数 + 调用 2 次</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 加 <code>@tenacity.retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=4), retry=retry_if_exception_type(ConnectionError))</code></p>
+
+<p><strong>REFACTOR</strong> · 把 retry 抽 <code>_bulk_with_retry(body)</code> 私有方法（避免装饰器与 mock 冲突，spec §5 错误矩阵对齐）</p>
+
+<h3 id="task-4file-source-simpledirectoryreader-适配">Task 4：File source · SimpleDirectoryReader 适配</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_file_source.py::test_read_pdf_returns_documents</code></p>
+<li>mock <code>SimpleDirectoryReader.load_data()</code> 返回 2 个 <code>Document(text=&quot;page1&quot;, metadata={&quot;page_label&quot;: &quot;1&quot;, &quot;file_path&quot;: &quot;test.pdf&quot;})</code></li>
+<li>调 <code>read_file(Path(&quot;test.pdf&quot;))</code> → 断言 2 个 doc、<code>metadata[&quot;source&quot;] == &quot;file&quot;</code>、<code>doc_id</code> 用 SHA256(path) 前 16 字符</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/ingest/sources/file.py</code>：</p>
+<pre><code data-lang="python">import hashlib
+from pathlib import Path
+from llama_index.core import SimpleDirectoryReader
+from llama_index.core.schema import Document
+from app.config import settings
+
+def _doc_id_from_path(path: Path) -&gt; str:
+    &quot;&quot;&quot;Why SHA256 前 16：稳定 + 短 + 够唯一（M1 ingest_jobs.doc_id 也是这长度）。&quot;&quot;&quot;
+    return hashlib.sha256(str(path.absolute()).encode()).hexdigest()[:16]
+
+def read_file(path: Path) -&gt; tuple[list[Document], str]:
+    &quot;&quot;&quot;返回 (documents, doc_id)。Why 元组：doc_id 由路径推导，调用方建 ingest_jobs 行需用。&quot;&quot;&quot;
+    doc_id = _doc_id_from_path(path)
+    reader = SimpleDirectoryReader(
+        input_files=[str(path)],
+        file_metadata=lambda fp: {&quot;source&quot;: &quot;file&quot;, &quot;doc_id&quot;: doc_id, &quot;file_name&quot;: Path(fp).name},
+    )
+    docs = reader.load_data()
+    return docs, doc_id</code></pre>
+
+<p><strong>RED</strong> · <code>test_read_supports_4_formats</code></p>
+<li>parametrize：<code>path in [&quot;.pdf&quot;, &quot;.docx&quot;, &quot;.pptx&quot;, &quot;.md&quot;]</code> → 各自 mock 解析器返回 1 doc → 断言 <code>len(read_file(path)[0]) == 1</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · LlamaIndex <code>SimpleDirectoryReader</code> 默认支持 4 格式，无需改代码；测试用 mock 验证调用形态</p>
+
+<p><strong>RED</strong> · <code>test_extract_images_writes_to_artifacts_dir</code></p>
+<li>构造 1 个含 <code>ImageDocument</code> 的 <code>Document</code> 列表（mock image bytes + metadata <code>{&quot;image_path&quot;: &quot;page1_img1.png&quot;}</code>）</li>
+<li>调 <code>extract_images(docs, doc_id=&quot;abc123&quot;)</code> → 断言：</li>
+<p>  - 写出文件到 <code>settings.ingest.artifacts_dir / doc_id / &quot;images&quot; / &quot;page1_img1.png&quot;</code></p>
+<p>  - 返回 <code>list[ImageRef]</code> 含 1 项，<code>ref.relative_path == &quot;abc123/images/page1_img1.png&quot;</code></p>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>extract_images</code>：</p>
+<pre><code data-lang="python">from dataclasses import dataclass
+from app.config import settings
+
+@dataclass
+class ImageRef:
+    &quot;&quot;&quot;V1 边界：仅元数据 + UI 缩略图，不做图片内容问答（spec §3.1 决策）。&quot;&quot;&quot;
+    relative_path: str  # 相对 artifacts_dir，用于 OpenSearch metadata
+    absolute_path: Path
+    doc_id: str
+
+def extract_images(docs: list[Document], doc_id: str) -&gt; list[ImageRef]:
+    images_dir = settings.ingest.artifacts_dir / doc_id / &quot;images&quot;
+    images_dir.mkdir(parents=True, exist_ok=True)
+    refs: list[ImageRef] = []
+    for doc in docs:
+        for img in doc.metadata.get(&quot;images&quot;, []):  # LlamaIndex ImageDocument 元素
+            src = Path(img[&quot;image_path&quot;])
+            dst = images_dir / src.name
+            dst.write_bytes(img[&quot;image_bytes&quot;])
+            refs.append(ImageRef(
+                relative_path=f&quot;{doc_id}/images/{src.name}&quot;,
+                absolute_path=dst,
+                doc_id=doc_id,
+            ))
+    return refs</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 <code>ImageRef</code> 移到 <code>app/ingest/models.py</code>（M5/M6 也会用到 image_ref）</p>
+
+<h3 id="task-5pipeline-编排">Task 5：Pipeline 编排</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_pipeline.py::test_ingest_file_end_to_end_mock</code></p>
+<li>mock 4 步：</li>
+<p>  - <code>read_file</code> → 返回 1 doc</p>
+<p>  - <code>SentenceSplitterWrapper.split</code> → 返回 1 TextNode</p>
+<p>  - <code>TEIEmbedder.embed</code> → 返回 <code>[[0.1]*1024]</code></p>
+<p>  - <code>OpenSearchClient.upsert_chunks</code> → 返回 1</p>
+<li>调 <code>pipeline.ingest_file(Path(&quot;test.pdf&quot;), user_id=&quot;u123&quot;)</code> → 断言返回 <code>IngestJob</code> 实体：</li>
+<p>  - <code>status == &quot;indexed&quot;</code></p>
+<p>  - <code>chunks_count == 1</code></p>
+<p>  - <code>user_id == &quot;u123&quot;</code></p>
+<p>  - <code>payload_hash == sha256(file_content)</code></p>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/ingest/pipeline.py</code>：</p>
+<pre><code data-lang="python">import hashlib
+from datetime import datetime, timezone
+from pathlib import Path
+from sqlalchemy import select
+from app.config import settings
+from app.db.models.ingest_job import IngestJob, IngestJobStatus
+from app.db.session import async_session  # P2-7 修复后口径
+from app.embedding.client import TEIEmbedder
+from app.ingest.sources.file import read_file, extract_images
+from app.ingest.splitter import SentenceSplitterWrapper
+from app.retrieval.client import OpenSearchClient
+
+def _payload_hash(path: Path) -&gt; str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+async def ingest_file(path: Path, user_id: str) -&gt; IngestJob:
+    &quot;&quot;&quot;单文件 ingest 入口。Why 同步函数转 async：4 步全异步 IO（embed / bulk / DB）。&quot;&quot;&quot;
+    payload_hash = _payload_hash(path)
+    docs, doc_id = read_file(path)
+    images = extract_images(docs, doc_id)
+
+    # 幂等：先查 existing（P1-5 UNIQUE + ON CONFLICT DO NOTHING 语义）
+    async with async_session() as session:
+        existing = await session.execute(
+            select(IngestJob).where(IngestJob.payload_hash == payload_hash)
+        )
+        if existing.scalar_one_or_none():
+            return existing.scalar_one()  # 直接返回旧 job，不重复入库
+
+        job = IngestJob(
+            user_id=user_id,
+            source=&quot;file&quot;,
+            payload_hash=payload_hash,
+            doc_id=doc_id,
+            status=IngestJobStatus.PENDING,
+        )
+        session.add(job)
+        await session.commit()  # 拿 job.id 给 OpenSearch doc_id 用
+
+    try:
+        chunks = SentenceSplitterWrapper().split(docs)
+        if not chunks:
+            raise ValueError(&quot;splitter returned empty list&quot;)
+
+        embedder = TEIEmbedder()  # M3 工厂
+
+        # P1-5 r2 已修：状态机迁移 `pending → running` 在 try 块开头显式落（r1 修订记录写了状态机但 plan 主体没补 transition）
+        async with async_session() as session:
+            job = await session.get(IngestJob, job.id)
+            job.status = IngestJobStatus.RUNNING  # P1-5 r2 已修：pending → running
+            job.started_at = datetime.now(timezone.utc)  # P1-5 r2 已修：补 started_at 时间戳
+            session.add(job)
+            await session.commit()
+
+        vectors = await embedder.embed([c.text for c in chunks])
+        for chunk, vec in zip(chunks, vectors):
+            chunk.embedding = vec
+            chunk.metadata[&quot;source&quot;] = &quot;file&quot;
+            chunk.metadata[&quot;doc_id&quot;] = doc_id
+            chunk.metadata[&quot;image_ref&quot;] = images[0].relative_path if images else None
+
+        os_client = OpenSearchClient()
+        success_count = await os_client.upsert_chunks(
+            chunks, index_name=settings.ingest.opensearch_index
+        )
+
+        # ORM 走 session.add() 触发 updated_at onupdate（P1-4）
+        async with async_session() as session:
+            job = await session.get(IngestJob, job.id)
+            job.status = IngestJobStatus.INDEXED
+            job.chunks_count = success_count
+            job.completed_at = datetime.now(timezone.utc)  # P1-5 r2 已修：补 completed_at 时间戳
+            session.add(job)
+            await session.commit()
+
+        return job
+    except Exception as exc:
+        async with async_session() as session:
+            job = await session.get(IngestJob, job.id)
+            job.status = IngestJobStatus.FAILED
+            job.error = str(exc)[:1000]  # 截断防超长
+            job.completed_at = datetime.now(timezone.utc)  # P1-5 r2 已修：失败时也记 completed_at
+            session.add(job)
+            await session.commit()
+        raise</code></pre>
+
+<p><strong>RED</strong> · <code>test_ingest_returns_existing_on_duplicate_hash</code></p>
+<li>第 1 次：mock 全成功 → 断言 1 个 IngestJob 行入库</li>
+<li>第 2 次（同一 path）：mock embed/bulk 不应被调 → 断言返回同一 <code>job.id</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已在 GREEN 实现（&quot;先查 existing&quot;段）</p>
+
+<p><strong>RED</strong> · <code>test_ingest_marks_failed_on_embed_error</code></p>
+<li>mock embed 抛 <code>httpx.TimeoutException</code></li>
+<li>调 <code>ingest_file</code> 断言抛异常 + DB 行 <code>status == &quot;failed&quot;</code> 且 <code>error</code> 含 &quot;timeout&quot;</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已在 GREEN 实现（except 段 + <code>IngestJobStatus.FAILED</code>）</p>
+
+<p><strong>REFACTOR</strong> · 把 <code>try/except</code> 抽 <code>_run_pipeline_unsafe(...)</code> + <code>_mark_failed(job_id, exc)</code> 私有函数（pipeline 主体可读性）</p>
+
+<h3 id="task-6m8-路由测试桩-集成测试">Task 6：M8 路由测试桩 + 集成测试</h3>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m4_ingest_e2e.py::test_full_ingest_file</code></p>
+<li>fixture（<code>conftest.py</code>）：</li>
+<p>  - 真 PG 容器（testcontainers 模式，P0-5 修复口径）</p>
+<p>  - 真 TEI 容器（M0 已配端口 <code>18080:80</code> P0-1 修）</p>
+<p>  - mock OpenSearch（避免真实 cluster 依赖）</p>
+<li>测试：写 1 个临时 PDF（2 页，page 2 含 1 张 PNG）</li>
+<li>调 <code>pipeline.ingest_file(path, user_id=&quot;u_test&quot;)</code></li>
+<li>断言：</li>
+<p>  - <code>IngestJob.status == &quot;indexed&quot;</code> / <code>chunks_count &gt;= 2</code></p>
+<p>  - <code>artifacts_dir / doc_id / &quot;images&quot;</code> 含 1 个 PNG</p>
+<p>  - mock OpenSearch 收到 bulk 调用、body 含 1 个 chunk 带 <code>image_ref</code></p>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 修 fixture 配错 / 端口错 / 路径错</p>
+
+<p><strong>RED</strong> · <code>test_idempotent_ingest_does_not_reindex</code></p>
+<li>同一 path 连续调 2 次 ingest_file</li>
+<li>断言：</li>
+<p>  - 2 次都返回同一 <code>job.id</code></p>
+<p>  - OpenSearch mock 的 <code>bulk</code> 仅被调 1 次</p>
+<p>  - DB <code>ingest_jobs</code> 表仅 1 行</p>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已在 Task 5 GREEN 覆盖</p>
+
+<p><strong>RED</strong> · <code>test_ingest_skips_oversized_attachment</code></p>
+<li>构造 60MB 临时文件（mock 路径，P1 范围外但 P0-5 一致性）</li>
+<li>调 <code>ingest_file</code> → 断言 <code>IngestJob.status == &quot;skipped&quot;</code> + <code>error</code> 含 &quot;exceeds 50MB&quot;</li>
+<li>跑测试 → 失败（当前不过滤）</li>
+
+<p><strong>GREEN</strong> · pipeline 头部加 <code>if path.stat().st_size &gt; settings.ingest.max_attachment_mb * 1024 * 1024: raise OversizedFileError</code> + 专门 except 段 <code>status=SKIPPED</code></p>
+
+<p><strong>REFACTOR</strong> · <code>OversizedFileError</code> 放 <code>app/ingest/exceptions.py</code>（M5/M6 共用）</p>
+
+<h3 id="task-7覆盖率门禁-最终验收">Task 7：覆盖率门禁 + 最终验收</h3>
+
+<li>跑：<code>cd apps/rag_v1 &amp;&amp; pytest --cov=app/ingest --cov=app/retrieval --cov-fail-under=85</code></li>
+<li>确认全绿</li>
+<li>跑：<code>pytest tests/integration/test_m4_ingest_e2e.py --require-docker</code>（需 <code>docker compose -f infra/docker-compose.yml up -d postgres tei</code>）</li>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M4 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_splitter.py tests/unit/test_ingest_file_source.py tests/unit/test_ingest_pipeline.py tests/unit/test_opensearch_client.py tests/unit/test_config.py</code> —— 全 mock，CI 内 2s</li>
+<li><strong>M4 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m4_ingest_e2e.py --require-docker</code> —— 需 <code>docker compose -f infra/docker-compose.yml up -d postgres tei</code>（OpenSearch 走 mock）</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/ingest --cov=app/retrieval --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（commit 标 [GREEN]）→ REFACTOR（commit 标 [RF]）</li>
+<li><strong>PG 真实性</strong>（P0-5）：集成测试必须用真 PG 容器（testcontainers 或 <code>docker compose up postgres</code>），不 mock；<code>ingest_jobs.payload_hash</code> UNIQUE 约束（P1-5）的 <code>IntegrityError</code> 必须在真 PG 测出</li>
+<li><strong>TEI 真实</strong>：集成测试连 <code>http://localhost:18080</code>（P0-1 修后端口），验证 bge-m3 真实 dim=1024</li>
+<li><strong>OpenSearch 隔离</strong>：集成测试 OpenSearch 走 mock（避免真实 cluster 启动慢 + 数据污染）；M7 集成测试再验真 cluster</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] <code>app/ingest/sources/file.py</code> 支持 PDF / Word / PPT / MD 4 格式，<code>read_file</code> 返回统一 <code>Document</code> 列表</li>
+<li>[ ] <code>SentenceSplitterWrapper</code> 用 <code>chunk_size=512, chunk_overlap=64</code>，短文档保形、长文档切块、metadata 保留</li>
+<li>[ ] <code>AsyncOpenSearch.upsert_chunks</code> 走 bulk + tenacity 3 次重试（ConnectionError 触发）</li>
+<li>[ ] <code>pipeline.ingest_file(path, user_id)</code> 端到端 4 步全过：parse → split → embed → upsert</li>
+<li>[ ] 图片元素抽到 <code>artifacts/{doc_id}/images/</code>，<code>ImageRef.relative_path</code> 写入 chunk metadata <code>image_ref</code></li>
+<li>[ ] <code>ingest_jobs</code> 表 INSERT/UPDATE 走 ORM <code>session.add()</code>（P1-4 updated_at 触发口径）</li>
+<li>[ ] 幂等：同 <code>payload_hash</code> 重复 ingest 返回同一 <code>job.id</code>，OpenSearch bulk 不再调用</li>
+<li>[ ] <code>tests/integration/test_m4_ingest_e2e.py</code> 在 <code>infra/docker-compose.yml up postgres tei</code> 后 60s 内通过</li>
+<li>[ ] 单元 + 集成覆盖率 ≥ 85%</li>
+<li>[ ] <code>pyproject.toml</code> 追加 <code>llama-index-core==0.14.8</code> / <code>llama-index-readers-file==0.4.0</code> / <code>opensearch-py[async]&gt;=2.6</code> / <code>Pillow&gt;=10.0</code> / <code>pypdf&gt;=4.0</code></li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M4 前完成）</th><th>下游（依赖 M4）</th></tr></thead>
+<tbody>
+<tr><td>M0 <code>infra/docker-compose.yml</code>（TEI <code>:18080</code> + OpenSearch + Postgres，healthcheck P0-3）</td><td>M5 url source（复用 <code>SentenceSplitterWrapper</code> + <code>OpenSearchClient.upsert_chunks</code>）</td></tr>
+<tr><td>M1 alembic（<code>ingest_jobs</code> 表含 P1-5 UNIQUE 索引 + P2-7 <code>app/db/__init__.py</code> 口径）</td><td>M6 confluence source（同 M5）</td></tr>
+<tr><td>M2 auth（<code>current_user</code> 依赖注入，M8 用；M4 阶段 ingest_file 收 <code>user_id: str</code>）</td><td>M8 <code>/api/ingest</code> 路由（调 <code>ingest_file(path, current_user)</code>）</td></tr>
+<tr><td>M3 <code>TEIEmbedder.embed</code>（<code>from app.embedding.client import TEIEmbedder</code>）</td><td>M11 RAGAS eval（用 query 路径，间接通过 M7 retriever）</td></tr>
+<tr><td>M7 <code>OpenSearchClient</code>（M4 占位实现，M7 扩展 retriever 业务）</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td><code>llama-index-core 0.14.8</code> 与 <code>llama-index-readers-file 0.4.0</code> API 不稳定（0.14 是 pre-1.0）</td><td>锁版本 <code>==</code>；M4 集成测试覆盖 4 格式 parse；不锁死就升 1.x</td><td>&quot;用 unstructured.io 直调&quot; — v0.4 §3.1 决策 #5 明确，<strong>已否决</strong>（统一走 LlamaIndex SimpleDirectoryReader）</td></tr>
+<tr><td>LlamaIndex <code>ImageDocument</code> 元素类型在不同 file format 表现不一</td><td><code>extract_images</code> 走 <code>doc.metadata[&quot;images&quot;]</code> 防御式读取（fallback 空列表）</td><td>&quot;用 PIL 自己解析 PDF 流&quot; — 工作量翻倍且 V1 不做内容问答，<strong>已否决</strong></td></tr>
+<tr><td>OpenSearch bulk 失败但部分 chunk 已写入</td><td><code>OpenSearchClient.upsert_chunks</code> 返 success 数；不写成功的 chunk 后续重试</td><td>&quot;全量事务回滚&quot; — OpenSearch 不支持事务，<strong>否决</strong></td></tr>
+<tr><td><code>ingest_jobs.updated_at</code> 走原生 SQL update 不触发 onupdate（P1-4）</td><td>M4 统一走 ORM <code>session.add(job) + commit</code>；M6 注释同样口径</td><td>&quot;改 schema 用 trigger&quot; — 跨 DB 不可移植，<strong>已否决</strong></td></tr>
+<tr><td><code>payload_hash</code> 重复但 <code>user_id</code> 不同被识别为幂等（P1-5 粒度太粗）</td><td>现状接受（v0.4 spec 决策）；M10 obs 上对重复事件打 warn log</td><td>&quot;加 <code>payload_hash + user_id</code> 联合唯一&quot; — M4 不阻塞，留 M11 评估</td></tr>
+<tr><td>TEI 容器冷启动 30s+ 拖慢集成测试</td><td>fixture 显式 <code>wait_for_health</code> + <code>httpx.Timeout(60.0)</code>；CI pre-merge 跑集成</td><td>—</td></tr>
+<tr><td>PDF 含扫描图（OCR）→ 文本抽不到</td><td>V1 边界：不接 OCR，metadata 标 <code>text_length=0</code> 跳过 chunk 入库但 ingest_job 状态 <code>indexed</code></td><td>&quot;接 Tesseract&quot; — V1 范围外，<strong>已否决</strong></td></tr>
+<tr><td>单 file 解析失败（如损坏 PDF）阻塞整个 batch</td><td>spec §5：错误矩阵 &quot;单文件不阻塞批次&quot;；M4 单文件场景下抛错并 mark failed；M6 批次场景下 <code>try/except</code> 单文件隔离</td><td>&quot;整批失败&quot; — 违反 spec §5，<strong>已否决</strong></td></tr>
+<tr><td>M4 集成测试 OpenSearch 走 mock 错过真实 cluster 集成问题</td><td>M7 集成测试覆盖真实 OpenSearch；M4 契约测试覆盖 <code>OpenSearchClient.upsert_chunks</code> 调用形态</td><td>—</td></tr>
+<tr><td><code>artifacts/</code> 目录磁盘膨胀</td><td>暂不实现清理（V1 边界）；M12 Hardening 加 cron 清理 30 天前</td><td>&quot;实时上传 S3&quot; — V1 全本地部署，<strong>已否决</strong></td></tr>
+<tr><td>r1-2026-06-11 P0-1 已修：元素分类逻辑 + 单测</td><td><code>app/ingest/element_classifier.py</code> + <code>test_classify_elements_distinguishes_types</code> RED-GREEN 双覆盖</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P0-2 已修：file_extractor 显式配置</td><td><code>PyMuPDFReader</code> / <code>DocxReader</code> 在 <code>app/ingest/sources/file.py</code> 顶部注册 + <code>extract_images</code> 走 reader output</td><td>用默认 reader：实际不抽图，元素分类永远拿不到 Image</td></tr>
+<tr><td>r1-2026-06-11 P0-3 已修：OpenSearch 写入三件</td><td>index mapping 显式声明 dim/hnsw + <code>refresh_interval=30s</code> + <code>bulk</code> 阈值 500 触发 <code>helpers.async_bulk</code></td><td>mock 推到 M7：M4 集成测试假绿，M7 真实集成爆雷</td></tr>
+<tr><td>r1-2026-06-11 P0-4 已修：chunk_id / doc_id 策略</td><td><code>chunk_id = uuid5(NAMESPACE_URL, f&quot;{doc_id}:{chunk_index}&quot;)</code> + <code>doc_id = uuid5(NAMESPACE_URL, file_path + file_size + mtime)</code></td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P0-5 已修：GET /api/ingest/{job_id} 进度接口</td><td>契约边界表显式列 <code>IngestProgressResponse{status, chunks_count, error?}</code></td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-1 已修：M4 集成测试用 testcontainers</td><td>与 M0 infra 一致，不再 mock OS</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-2 已修：Task 估时校正</td><td>Task 5 实测 30min（pipeline 集成）</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-3 已修：extract_images 走 reader</td><td>走 <code>file_extractor</code> 注册 reader output，<strong>不依赖</strong> <code>doc.metadata[&quot;images&quot;]</code> 默认行为</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-4 已修：错误矩阵补 7 条</td><td>401/422/429/404/500/DB-down 降级/OS 5xx 退避</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-5 已修：状态机迁移规则</td><td>`pending → running → indexed\</td><td>failed<code> + </code>failed → running`（重试）</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-6 已修：exceptions.py 显式列</td><td><code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code> 供 M5/M6 复用</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-7 已修：image_ref 路径规范</td><td><code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>，M5/M6 复制</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-8 已修：ImageRef 移到 models.py</td><td><code>app/ingest/models.py</code> 含 <code>ImageRef</code> dataclass，M5/M6 复用</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-9 已修：OpenSearchClient lifespan</td><td><code>async with AsyncOpenSearch(...) as client</code> + <code>app.state.opensearch</code></td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P1-10 已修：bulk update 显式 updated_at</td><td>M1 P0-7 强约束，ORM <code>session.add</code> + commit</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-1 已修：artifacts mkdir 改显式</td><td><code>app/ingest/storage.py:ensure_artifacts_dir()</code> 启动 lifespan 调一次</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-2 已修：pyproject 补 pytest-asyncio + pytest-postgresql</td><td>与 M0/M1 一致</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-3 已修：asyncio_mode 继承 M0</td><td><code>pyproject.toml [tool.pytest.ini_options]</code> 已设</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-4 已修：M4 用 pytest-httpx</td><td>dev 依赖显式加</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-5 已修：.env.example 补 ingest 段</td><td><code>INGEST_MAX_FILE_SIZE_MB</code> / <code>INGEST_BULK_THRESHOLD</code> / <code>OPENSEARCH_REFRESH_INTERVAL</code></td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-6 已修：60MB 测试改 mock</td><td><code>Path.stat().st_size</code> patch 模拟</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-7 已修：_payload_hash 流式</td><td><code>hashlib.sha256()</code> + 8KB chunk</td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-8 已修：IngestJobStatus 4 值在 M1 已落</td><td><code>VARCHAR(16) CHECK</code></td><td>—</td></tr>
+<tr><td>r1-2026-06-11 P2-9 已修：批次接口预留</td><td><code>POST /api/ingest/batch</code> V1 边界外不阻塞</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M4-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope §3.1 决策 #5 + 跨 M review P0/P1 修复口径）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>24 项 P0/P1/P2 全部修复</strong>（详见 review <code>2026-06-11-rag-m4-ingest-file-review.md</code> 落地）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-1 已修</strong> · 元素分类（NarrativeText/Table/Image）实现：<code>app/ingest/element_classifier.py</code> + 单元测试 <code>test_classify_elements_distinguishes_types</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-2 已修</strong> · <code>file_extractor</code> 显式配置（PDF 走 <code>PyMuPDFReader</code> / docx 走 <code>DocxReader</code>）+ <code>extract_images</code> 在 SimpleDirectoryReader 后置 hook</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-3 已修</strong> · OpenSearch 写入三件：index mapping 显式（dim=1024 / hnsw）+ <code>refresh_interval=30s</code> + bulk 阈值 500 触发 <code>bulk</code> API（不再逐条 PUT）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-4 已修</strong> · chunk_id = <code>uuid5(NAMESPACE_URL, f&quot;{doc_id}:{chunk_index}&quot;)</code> + doc_id = <code>uuid5(NAMESPACE_URL, file_path + file_size + mtime)</code>；<code>payload_hash</code> 仅覆盖 ingest 级别（不含 file 全文 hash）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-5 已修</strong> · 契约边界表补 <code>GET /api/ingest/{job_id}</code> 返回 <code>IngestProgressResponse{status, chunks_count, error?}</code>（M8 路由实现）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-1 已修</strong> · M4 集成测试用 testcontainers OpenSearch（与 M0 infra 一致），不再 mock</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-2 已修</strong> · Task 估时校正：Task 5（pipeline 集成）5min → 30min（实测），合计 7 个 task 共估 2h→2.5h</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-3 已修</strong> · <code>extract_images</code> 走 <code>file_extractor</code> 注册的 reader output（P0-2 已落地），不再依赖默认 <code>doc.metadata[&quot;images&quot;]</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-4 已修</strong> · 错误矩阵补 7 条：401/422/429（限速）/404/500/DB-down 降级（持久化写入走 <code>IngestJobStore</code> 内存缓冲）/OpenSearch 5xx 退避</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-5 已修</strong> · <code>ingest_jobs</code> 状态机迁移规则：`pending → running → indexed</td><td>failed<code>，</code>failed → running<code>（重试）；M4 实现 </code>transition_status(job, from_, to_)` 断言</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-6 已修</strong> · Files 表显式列 <code>app/ingest/exceptions.py</code>（<code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code>）供 M5/M6 复用</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-7 已修</strong> · <code>image_ref</code> 路径规范统一：<code>artifacts/{doc_id}/images/{file_basename}.{ext}</code>，M5/M6 复制此口径</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-8 已修</strong> · <code>ImageRef</code> dataclass 移到 <code>app/ingest/models.py</code>（M5/M6 复用），Files 表显式列</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-9 已修</strong> · <code>OpenSearchClient</code> 走 lifespan 管理：<code>async with AsyncOpenSearch(...) as client</code> + <code>app.state.opensearch</code> 全局引用</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-10 已修</strong> · pipeline 状态更新显式 <code>updated_at=func.now()</code>（M1 P0-7 强约束已落地），ORM <code>session.add</code> + commit</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-1 已修</strong> · <code>artifacts_dir.mkdir</code> 改到 <code>app/ingest/storage.py:ensure_artifacts_dir()</code> 显式调用（启动 lifespan 调一次）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-2 已修</strong> · <code>pyproject.toml</code> 依赖段补 <code>pytest-asyncio&gt;=0.24,&lt;1</code> + <code>pytest-postgresql&gt;=6,&lt;7</code>（与 M0/M1 一致）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-3 已修</strong> · <code>asyncio_mode = auto</code> 继承 M0（已在 <code>pyproject.toml [tool.pytest.ini_options]</code>），M4 测试无需额外配置</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-4 已修</strong> · M4 测试 mock 走 <code>pytest-httpx</code>（与 M3 一致），从 dev 依赖显式加</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-5 已修</strong> · <code>.env.example</code> 补 <code>INGEST_MAX_FILE_SIZE_MB=50</code> + <code>INGEST_BULK_THRESHOLD=500</code> + <code>OPENSEARCH_REFRESH_INTERVAL=30s</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-6 已修</strong> · <code>test_ingest_skips_oversized_attachment</code> 改 mock 50MB（不真写盘）：patch <code>Path.stat().st_size = 60*1024*1024</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-7 已修</strong> · <code>_payload_hash</code> 改流式 hash（<code>hashlib.sha256()</code> + 8KB chunk），不读全文到内存</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-8 已修</strong> · <code>IngestJobStatus</code> 枚举值 4 个（<code>pending</code> / <code>running</code> / <code>indexed</code> / <code>failed</code>）已在 M1 schema 落 <code>VARCHAR(16) CHECK</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-9 已修</strong> · 批次 ingest 接口规格预留：<code>POST /api/ingest/batch</code>（M8 路由实现，V1 边界外不阻塞）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>跨 M 联动落地</strong> · M0 healthcheck / M1 <code>ingest_jobs.payload_hash</code> UNIQUE + <code>retry_count</code> + <code>next_retry_at</code> + bulk update <code>updated_at=func.now()</code> / M3 <code>TEIEmbedder.EmbeddingDimMismatch</code> 硬断言 / M5/M6 复用 <code>app/ingest/exceptions.py</code> + <code>ImageRef</code> 路径规范 / M7 <code>OpenSearchClient</code> lifespan 注入 / M8 <code>GET /api/ingest/{job_id}</code> 进度接口</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M4 r2 修复（验证模式）</strong> · 本轮修 2 个最关键 P0 主体：P0-3 OpenSearch INDEX_MAPPING 显式声明 + bulk 阈值 500 + refresh_interval=30s + <code>ensure_index</code> 接口；P1-5 状态机迁移 `pending → running → indexed\</td><td>failed` 显式落（补 started_at/completed_at）</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M4 r2 待续</strong> · 剩余 ~22 项修订需展开到主体（按 P0×1.5h + P1×45min + P2×20min ≈ 18h / 2.5d）；M5/M6 复制 M4 范本前需 r2 主体同步，否则会复制 22 项缺陷</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

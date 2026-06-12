@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5 Plan · Ingest URL 源（4 种 Auth 模式）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M5 Plan · Ingest URL 源（4 种 Auth 模式）</h1>
+<div class="meta"><span class="badge">M5 Plan · Ingest URL 源（4 种 Auth 模式）</span><span class="badge r1">⏱ 4-5 个工作日（P2-3 修正：原估时 3d 偏紧）</span><span class="badge r2">r2 修复 10 处</span><span class="badge r1">r1 修复 20 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局m5-增量">仓库布局（M5 增量）</a></li><li class="h3-item"><a href="#m5-模块树">M5 模块树</a></li><li class="h3-item"><a href="#m5-数据流">M5 数据流</a></li><li class="h3-item"><a href="#m5-与其他-m-的契约边界">M5 与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#taskstask-1-3-5-10min-task-4-5-20-30min-task-6-9-10-15min-p2-3-修正">Tasks（Task 1-3: 5-10min · Task 4-5: 20-30min · Task 6-9: 10-15min · P2-3 修正）</a></li><li class="h3-item"><a href="#task-1pydantic-配置块ingestsettings">Task 1：Pydantic 配置块（IngestSettings）</a></li><li class="h3-item"><a href="#task-2authconfig-数据类4-模式-authtype-枚举">Task 2：AuthConfig 数据类（4 模式 + AuthType 枚举）</a></li><li class="h3-item"><a href="#task-3authconfig-httpx-参数适配">Task 3：AuthConfig → httpx 参数适配</a></li><li class="h3-item"><a href="#task-4ssrf-白名单含-ipv4-mapped-转换-url-格式校验-长度限制">Task 4：SSRF 白名单（含 IPv4-mapped 转换 + URL 格式校验 + 长度限制）</a></li><li class="h3-item"><a href="#task-5fetch-url-抓取层含-p0-1-redirect-二次校验-p2-2-4xx-不重试">Task 5：fetch_url 抓取层（含 P0-1 redirect 二次校验 + P2-2 4xx 不重试）</a></li><li class="h3-item"><a href="#task-6trafilaturawebreader-解析层含-p1-1-解析失败处理">Task 6：TrafilaturaWebReader 解析层（含 P1-1 解析失败处理）</a></li><li class="h3-item"><a href="#task-7ingest-url-主入口串联-pipeline-写-ingest-jobs-p0-2-外层-try-p1-6-含-user-id">Task 7：ingest_url 主入口（串联 pipeline + 写 ingest_jobs + P0-2 外层 try + P1-6 含 user_id）</a></li><li class="h3-item"><a href="#task-84-种-auth-端到端集成测试">Task 8：4 种 auth 端到端集成测试</a></li><li class="h3-item"><a href="#task-9mock-apiingest-路由集成测试用">Task 9：mock /api/ingest 路由（集成测试用）</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m5-plan-ingest-url-源4-种-auth-模式">M5 Plan · Ingest URL 源（4 种 Auth 模式）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 5 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#31-ingest-数据流">V1 Scope §3.1 ingest 数据流</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #4/#15</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#5-错误矩阵">§5 错误矩阵</a></div>
+<div class="callout">范本：M3 plan L1-319（11 段结构）</div>
+<div class="callout">脑暴基线：v0.4 spec 决策 #4 数据源 / 决策 #15 URL auth 四模式</div>
+<div class="callout">估时：4-5 个工作日（P2-3 修正：原估时 3d 偏紧）</div>
+<div class="callout crit">Review 避雷：P0-1（端口 18080） / P0-5（真 PG） / P1-5（payload_hash UNIQUE） / <strong>P-新增</strong>（SSRF 白名单） / <strong>M5 r1</strong>：P0-1 SSRF redirect bypass / P0-2 pipeline 失败残留 pending / P1-6 payload_hash 含 user_id</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v1-scope 决策 #4（数据源含 url）和 #15（url auth 4 模式）落成可执行代码契约：</p>
+
+<li>一个 <code>app/ingest/auth.py</code>：4 种 auth 配置数据类 + 加载函数（bearer / basic / cookie / header）</li>
+<li>一个 <code>app/ingest/sources/url.py</code>：用 <code>httpx</code> + <code>TrafilaturaWebReader</code> 抓取 URL，串联 M4 pipeline</li>
+<li>URL 白名单防 SSRF：拒绝 127.0.0.1、localhost、私有 IP 段、IPv4-mapped IPv6（<code>::ffff:10.0.0.1</code>）、redirect 目标二次校验</li>
+<li>错误处理矩阵：httpx 超时 60s / 5xx 指数退避 3 次 / 4xx 立即失败 / 301-302 跟随最多 3 次 / Trafilatura 解析失败 / pipeline 失败</li>
+<li>幂等键：<code>payload_hash = sha256(url + auth_type + user_id)</code>，沿用 M1 ingest_jobs UNIQUE 约束</li>
+<li>集成端到点：mock <code>/api/ingest</code> 路由（真路由 M8 写）→ <code>ingest_url(url, auth_config, user_id)</code> → upsert chunks</li>
+<li>URL 格式校验：长度 ≤ 2048 / scheme=http(s) / hostname 非空（与 SSRF 校验分离）</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：</p>
+<li>M4 ingest pipeline 主体（parse → split → embed → upsert）—— M5 <strong>复用</strong> M4 的 <code>pipeline.run(docs, user_id, job_id)</code> 接口</li>
+<li>M6 confluence 源 —— M6 复用本 M5 的 <code>app/ingest/auth.py</code> 加载机制</li>
+<li>M8 <code>/api/ingest</code> 真实路由 —— M5 集成测试只 mock 路由</li>
+<li>OAuth 流程 / 浏览器渲染 / JS 抓取 —— V1 不做（V1.1 才加 Playwright 后端）</li>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局m5-增量">仓库布局（M5 增量）</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   └── ingest/
+│       ├── __init__.py
+│       ├── sources/
+│       │   ├── file.py            # M4（已存在）
+│       │   ├── url.py             # M5 新增
+│       │   └── confluence.py      # M6 复用 M5 的 auth.py
+│       ├── auth.py                # M5 新增（4 种 auth 加载 + AuthType enum）
+│       ├── pipeline.py            # M4（复用，不改）
+│       ├── splitter.py            # M4（复用，不改）
+│       └── ssrf.py                # M5 新增（URL 白名单 + IPv4-mapped 转换 + redirect 二次校验）
+├── tests/
+│   ├── unit/
+│   │   ├── test_ingest_auth.py            # M5 新增
+│   │   ├── test_ingest_ssrf.py            # M5 新增
+│   │   └── test_ingest_url.py             # M5 新增
+│   └── integration/
+│       └── test_m5_ingest_url.py          # M5 新增（真 PG + mock 路由 + pytestmark asyncio）
+├── pyproject.toml                # 追加 trafilatura / llama-index-readers-web
+└── .env.example                  # 追加 INGEST_URL_TIMEOUT=60 / MAX_REDIRECTS=3 / RETRY_MAX=3 / USER_AGENT</code></pre>
+
+<h3 id="m5-模块树">M5 模块树</h3>
+
+<pre><code >apps/rag_v1/
+├── app/ingest/
+│   ├── sources/url.py        fetch_url(url, auth_config) -&gt; list[Document]
+│   │                          ingest_url(url, auth_config, user_id) -&gt; job_id
+│   │                          parse_url_to_documents(url, html) -&gt; list[Document]
+│   ├── auth.py               AuthType (StrEnum: bearer/basic/cookie/header)
+│   │                          AuthConfig (Union[BearerAuth|BasicAuth|CookieAuth|HeaderAuth])
+│   │                          load_auth_config(payload: dict) -&gt; AuthConfigUnion
+│   │                          to_httpx_kwargs(auth) -&gt; dict
+│   └── ssrf.py               assert_safe_url(url) -&gt; None  # 抛 UnsafeURLError
+│                              validate_url_format(url) -&gt; None  # 抛 ValueError（P1-2）
+└── tests/
+    ├── unit/
+    │   ├── test_ingest_auth.py        4 种 auth 模式独立 RED/GREEN
+    │   ├── test_ingest_ssrf.py        黑名单 / 私有 IP / IPv6 loopback / IPv4-mapped / DNS rebinding
+    │   └── test_ingest_url.py         fetch / 重试(4xx 不重试) / 重定向 / pipeline 串联 / parse 失败
+    └── integration/
+        └── test_m5_ingest_url.py      真 PG + mock /api/ingest + mock httpbin
+                                       (pytestmark = pytest.mark.asyncio)</code></pre>
+
+<h3 id="m5-数据流">M5 数据流</h3>
+
+<pre><code >POST /api/ingest   (M8 写；M5 集成测试 mock 这个路由)
+  body: { source: &quot;url&quot;, payload: {url, auth_type, ...auth_value}, user_id }
+  ↓
+ingest_url(url, auth_config, user_id)        [app/ingest/sources/url.py]
+  ├── validate_url_format(url)              [app/ingest/ssrf.py · P1-2 格式校验]
+  ├── assert_safe_url(url)                  [app/ingest/ssrf.py · SSRF]
+  ├── payload_hash = sha256(url + auth_type + user_id)   [P1-6 含 user_id]
+  ├── INSERT ingest_jobs (status=pending)   [复用 M4 model]
+  ├── 外层 try/except 包裹 fetch + parse + pipeline（P0-2）
+  │   ├── 失败 → ingest_jobs.status=failed, error 字段记录原因
+  │   │   ├── SSRF: UnsafeURLError → &quot;SSRF: ...&quot;
+  │   │   ├── 4xx: httpx.HTTPStatusError → &quot;HTTP 401&quot;
+  │   │   ├── 5xx 重试耗尽: RetryableHTTPError → &quot;HTTP 500 after N retries&quot;
+  │   │   ├── Trafilatura 解析失败: ValueError → &quot;Trafilatura parse failed: ...&quot;
+  │   │   └── pipeline 失败: 任意 Exception → str(e)[:1000]
+  │   └── 成功 → ingest_jobs.status=indexed
+  └── return job_id</code></pre>
+
+<h3 id="m5-与其他-m-的契约边界">M5 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M8 <code>/api/ingest</code> 路由</td><td><code>ingest_url(url: str, auth_payload: dict, user_id: UUID) -&gt; UUID</code></td><td>M5 暴露函数；M8 转 payload dict → AuthConfig</td></tr>
+<tr><td>M6 confluence</td><td><code>load_auth_config(payload)</code> + <code>to_httpx_kwargs(auth)</code> + <code>AuthType</code> enum 复用</td><td>4 种 auth 模式直接照搬；M6 plan 修订记录已标&quot;复用 M5 SSRF 防护&quot;</td></tr>
+<tr><td>M4 pipeline</td><td><code>pipeline.run(docs, user_id, job_id)</code></td><td>复用 M4 已有接口，不改</td></tr>
+<tr><td>M7 retrieval</td><td><code>OpenSearchClient.upsert_chunks(chunks)</code></td><td>M5 调用；M7 实现</td></tr>
+<tr><td>M1 ingest_jobs</td><td>model + UNIQUE(payload_hash)</td><td>幂等靠 DB 约束 + <code>ON CONFLICT DO NOTHING</code>；payload_hash 含 user_id（P1-6）</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>HTTP 客户端</td><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code></td><td>M3 已装；M5 复用</td></tr>
+<tr><td>HTML 解析</td><td><code>trafilatura</code></td><td><code>&gt;=1.12,&lt;2</code></td><td>M5 新增；M4 用 <code>unstructured</code> 处理 file，M5 URL 用 trafilatura</td></tr>
+<tr><td>重试</td><td><code>tenacity</code></td><td><code>&gt;=8.3,&lt;10</code></td><td>M3 已装；M5 复用；4xx 不触发重试（仅 RetryableHTTPError/Timeout/ConnectError）</td></tr>
+<tr><td>SSRF 检测</td><td><code>ipaddress</code> (stdlib)</td><td>—</td><td>不引外部库，stdlib <code>ipaddress.ip_address</code> 够用；含 IPv4-mapped IPv6 转换</td></tr>
+<tr><td>URL 解析</td><td><code>urllib.parse</code> (stdlib)</td><td>—</td><td>不引 <code>tldextract</code> / <code>validators</code></td></tr>
+<tr><td>URL 格式校验</td><td><code>urllib.parse</code> (stdlib)</td><td>—</td><td>P1-2 新增：长度 ≤ 2048 / scheme 限制 / hostname 非空</td></tr>
+<tr><td>LlamaIndex Reader</td><td><code>llama-index-readers-web</code></td><td><code>&gt;=0.3,&lt;0.4</code></td><td>M5 新增；带 <code>TrafilaturaWebReader</code>；版本区间收紧（P2-5 修正）</td></tr>
+<tr><td>AuthType 枚举</td><td><code>enum.StrEnum</code> (stdlib)</td><td>—</td><td>P1-10 抽出集中定义，避免 M6 复用时复制魔数</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code></td><td>见 §测试</td><td>复用 M3；集成测试显式 <code>pytestmark = pytest.mark.asyncio</code>（P2-6 修正）</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>：</p>
+
+<pre><code data-lang="python"># 抓取
+import httpx
+from llama_index.readers.web import TrafilaturaWebReader
+
+# 重试
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+# SSRF
+import ipaddress
+from urllib.parse import urlparse
+
+# Pydantic 配置
+from pydantic import BaseModel, Field, SecretStr, HttpUrl
+
+# AuthType 枚举（P1-10）
+from enum import StrEnum</code></pre>
+
+<p><strong>依赖追加</strong>（<code>pyproject.toml</code> 完整片段，P2-4 修正）：</p>
+<pre><code data-lang="toml">dependencies = [
+  # ... M3 已装（httpx&gt;=0.27,&lt;1 / tenacity&gt;=8.3,&lt;10 / pydantic&gt;=2,&lt;3 / sqlalchemy[asyncio]&gt;=2,&lt;3 等）...
+  &quot;trafilatura&gt;=1.12,&lt;2&quot;,
+  &quot;llama-index-readers-web&gt;=0.3,&lt;0.4&quot;,  # P2-5 收紧版本区间
+]
+
+[project.optional-dependencies]
+dev = [
+  # ... M3 已装（pytest&gt;=8 / pytest-asyncio&gt;=0.23 / pytest-httpx&gt;=0.30 / pytest-cov&gt;=5）...
+  &quot;testcontainers[postgresql]&gt;=4.8&quot;,  # P0-5 真 PG 强制
+]</code></pre>
+
+<p><strong>Python 导入规则</strong>：</p>
+<li><code>app.ingest.sources.url</code> —— <code>app</code> 是 <code>apps/rag_v1/app/</code></li>
+<li><code>tests.unit.test_ingest_url</code> —— 跑测试时 <code>cd apps/rag_v1 &amp;&amp; pytest</code></li>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（5 个源文件 + 3 个测试文件）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/ingest/exceptions.py</code></td><td><strong>r2 NP-5 新增</strong> · M5 异常类收口：<code>UnsafeURLError</code> / <code>URLFormatError</code> / <code>RetryableHTTPError</code>（M4 r1 review P1-6 已建此文件，M5 <strong>复用不新建</strong>——本行 M5 显式声明）</td></tr>
+<tr><td><code>app/ingest/sources/__init__.py</code></td><td>暴露 <code>ingest_url</code></td></tr>
+<tr><td><code>app/ingest/sources/url.py</code></td><td><code>fetch_url</code> + <code>parse_url_to_documents</code> + <code>ingest_url</code> 主入口（含 P0-2 外层 try/except + P0-1 redirect 二次校验）；<strong>r2 NP-5 修正</strong>：<code>RetryableHTTPError</code> 改为 <code>from app.ingest.exceptions import RetryableHTTPError</code></td></tr>
+<tr><td><code>app/ingest/auth.py</code></td><td>4 种 AuthConfig Pydantic 模型 + <code>AuthType</code> StrEnum（P1-10）+ 加载 + <code>to_httpx_kwargs</code>；<strong>r2 NP-2 修正</strong>：4 子类统一加 <code>model_config = ConfigDict(extra=&quot;forbid&quot;)</code> 强制互斥字段</td></tr>
+<tr><td><code>app/ingest/ssrf.py</code></td><td><code>assert_safe_url</code> + <code>validate_url_format</code>（P1-2）+ IPv4-mapped 转换（P2-1）；<strong>r2 NP-5 修正</strong>：<code>UnsafeURLError</code> / <code>URLFormatError</code> 类定义从本文件<strong>移到</strong> <code>app/ingest/exceptions.py</code>，本文件只 <code>from app.ingest.exceptions import UnsafeURLError, URLFormatError</code></td></tr>
+<tr><td><code>app/ingest/__init__.py</code></td><td>暴露 <code>ingest_url</code> / <code>load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>URLFormatError</code> / <code>UnsafeURLError</code> / <code>RetryableHTTPError</code>（<strong>r2 NP-5</strong>：M6 复用统一从 <code>app.ingest</code> 入口 import）</td></tr>
+<tr><td><code>tests/unit/test_ingest_auth.py</code></td><td>4 种 auth 模式独立测试 + AuthType 枚举测试</td></tr>
+<tr><td><code>tests/unit/test_ingest_ssrf.py</code></td><td>SSRF 黑名单 / 私有 IP / IPv6 / IPv4-mapped（P2-1）/ DNS rebinding / URL 格式校验（P1-2/P1-3）/ redirect 二次校验（P0-1）</td></tr>
+<tr><td><code>tests/unit/test_ingest_url.py</code></td><td>fetch / 重试(4xx 不重试,P2-2) / 重定向(SSRF 二次校验) / pipeline 串联 / parse 失败（P1-1）</td></tr>
+<tr><td><code>tests/integration/test_m5_ingest_url.py</code></td><td>真 PG + mock 路由 + mock httpbin；<code>pytestmark = pytest.mark.asyncio</code>（P2-6）</td></tr>
+<tr><td><code>.env.example</code></td><td>追加 <code>INGEST_URL_TIMEOUT=60</code>（P1-5 默认 60s）/ <code>INGEST_MAX_REDIRECTS=3</code> / <code>INGEST_RETRY_MAX=3</code> / <code>INGEST_USER_AGENT=rag-v1-ingest/0.1</code>（P1-8）/ auth secrets 注释指导（P1-4）</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 <code>trafilatura&gt;=1.12,&lt;2</code> / <code>llama-index-readers-web&gt;=0.3,&lt;0.4</code>（P2-5 收紧）到 <code>[project.dependencies]</code>；给完整 toml 片段（P2-4）</li>
+<li><code>app/config.py</code>（M0-M3 已有）：追加 <code>IngestSettings</code>（<code>url_timeout: int = 60</code> / <code>max_redirects: int = 3</code> / <code>retry_max_attempts: int = 3</code> / <code>user_agent: str = &quot;rag-v1-ingest/0.1&quot;</code>）；P1-5 默认 60s</li>
+<li><code>pytest.ini</code>（如未存在）：设 <code>asyncio_mode = auto</code>（P2-6 兜底）</li>
+
+<p><strong>不修改</strong>：</p>
+<li><code>app/ingest/pipeline.py</code>（M4 共用）—— M5 只调用，不改</li>
+<li><code>app/ingest/splitter.py</code>（M4 共用）</li>
+<li><code>app/embedding/client.py</code>（M3）—— M5 通过 M4 pipeline 间接调用</li>
+<li><code>app/db/models.py</code>（M1）—— M1 已有 <code>ingest_jobs</code> model，M5 直接 import</li>
+
+<p>---</p>
+
+<h2 id="taskstask-1-3-5-10min-task-4-5-20-30min-task-6-9-10-15min-p2-3-修正">Tasks（Task 1-3: 5-10min · Task 4-5: 20-30min · Task 6-9: 10-15min · P2-3 修正）</h2>
+
+<h3 id="task-1pydantic-配置块ingestsettings">Task 1：Pydantic 配置块（IngestSettings）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_config.py::test_ingest_settings_loads</code>（M0 已有 test_config.py，M5 追加）</p>
+<li>mock env vars → 加载 <code>Settings().ingest</code> → 断言 <code>url_timeout == 60</code>（P1-5 默认 60s）/ <code>max_redirects == 3</code> / <code>retry_max_attempts == 3</code> / <code>user_agent == &quot;rag-v1-ingest/0.1&quot;</code></li>
+<li>跑测试 → 失败（配置不存在）</li>
+<li>跑法：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_config.py::test_ingest_settings_loads</code></li>
+
+<p><strong>GREEN</strong> · 改 <code>app/config.py</code>：</p>
+<li>新增 <code>IngestSettings</code>：<code>url_timeout: int = 60</code>（P1-5 默认 60s）/ <code>max_redirects: int = 3</code> / <code>retry_max_attempts: int = 3</code> / <code>user_agent: str = &quot;rag-v1-ingest/0.1&quot;</code>（P1-8 显式列 .env）</li>
+<li>顶层 <code>Settings</code> 聚合（X-1 拆分 configs/ 是后续轮次，本 M 先在 <code>app/config.py</code> 追加）</li>
+
+<p><strong>REFACTOR</strong> · 无（M5 只加一个配置块，不触其他子配置）</p>
+
+<p>---</p>
+
+<h3 id="task-2authconfig-数据类4-模式-authtype-枚举">Task 2：AuthConfig 数据类（4 模式 + AuthType 枚举）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_auth.py::test_load_bearer_auth</code></p>
+<li>传 <code>{&quot;auth_type&quot;: &quot;bearer&quot;, &quot;token&quot;: &quot;abc123&quot;}</code> → 断言 <code>load_auth_config(payload)</code> 返回 <code>BearerAuth(token=SecretStr(&quot;abc123&quot;))</code></li>
+<li>跑测试 → 失败（模块不存在）</li>
+
+<p><strong>GREEN</strong> · <code>app/ingest/auth.py</code>：</p>
+<pre><code data-lang="python">from enum import StrEnum
+from typing import Literal, Union
+from pydantic import BaseModel, ConfigDict, SecretStr, Field  # r2 NP-2：追加 ConfigDict
+
+class AuthType(StrEnum):
+    &quot;&quot;&quot;P1-10 集中定义 auth 类型字符串，避免散落魔数（M6 复用时也引用此枚举）。&quot;&quot;&quot;
+    BEARER = &quot;bearer&quot;
+    BASIC = &quot;basic&quot;
+    COOKIE = &quot;cookie&quot;
+    HEADER = &quot;header&quot;
+
+class AuthConfig(BaseModel):
+    # r2 NP-2 修正：父类即开 extra=&quot;forbid&quot;，子类继承——避免&quot;bearer + 偷塞 username/password&quot;被静默接受
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    auth_type: AuthType
+
+class BearerAuth(AuthConfig):
+    auth_type: Literal[AuthType.BEARER] = AuthType.BEARER
+    token: SecretStr
+
+class BasicAuth(AuthConfig):
+    auth_type: Literal[AuthType.BASIC] = AuthType.BASIC
+    username: str
+    password: SecretStr
+
+class CookieAuth(AuthConfig):
+    auth_type: Literal[AuthType.COOKIE] = AuthType.COOKIE
+    name: str
+    value: SecretStr
+
+class HeaderAuth(AuthConfig):
+    auth_type: Literal[AuthType.HEADER] = AuthType.HEADER
+    name: str
+    value: SecretStr
+
+AuthConfigUnion = Union[BearerAuth, BasicAuth, CookieAuth, HeaderAuth]
+
+def load_auth_config(payload: dict) -&gt; AuthConfigUnion:
+    &quot;&quot;&quot;根据 auth_type 字段 dispatch 到对应子类。
+
+    r2 NP-2：依赖 Pydantic `extra=&quot;forbid&quot;`，多余字段（如 bearer 同时带 username/password）抛 ValidationError。
+    &quot;&quot;&quot;
+    auth_type = payload.get(&quot;auth_type&quot;)
+    cls = {
+        AuthType.BEARER: BearerAuth,
+        AuthType.BASIC: BasicAuth,
+        AuthType.COOKIE: CookieAuth,
+        AuthType.HEADER: HeaderAuth,
+    }.get(AuthType(auth_type)) if auth_type else None
+    if cls is None:
+        raise ValueError(f&quot;Unknown auth_type: {auth_type}&quot;)
+    return cls.model_validate(payload)  # r2 NP-2：extra=&quot;forbid&quot; 在此处触发</code></pre>
+
+<p><strong>RED</strong> · <code>test_load_basic_auth</code> / <code>test_load_cookie_auth</code> / <code>test_load_header_auth</code>（3 个独立测试）</p>
+<li>各自传 dict → 断言返回对应子类，<code>SecretStr</code> 不在 repr 泄露</li>
+
+<p><strong>GREEN</strong> · 上面 <code>load_auth_config</code> 4 路径全 GREEN</p>
+
+<p><strong>RED</strong> · <code>test_load_auth_config_rejects_unknown_type</code></p>
+<li>传 <code>{&quot;auth_type&quot;: &quot;oauth&quot;}</code> → 断言 <code>ValueError</code></li>
+<li>跑测试 → 失败（无 raise）</li>
+
+<p><strong>GREEN</strong> · 加 raise</p>
+
+<p><strong>RED</strong> · <code>test_load_auth_config_rejects_missing_required_field</code></p>
+<li>bearer 缺 <code>token</code> → 断言 <code>ValidationError</code></li>
+
+<p><strong>GREEN</strong> · Pydantic 自动校验，0 额外代码</p>
+
+<p><strong>RED</strong> · <code>test_authtype_enum_values</code>（P1-10 验证枚举）</p>
+<li>断言 <code>AuthType.BEARER.value == &quot;bearer&quot;</code> 等 4 个值；<code>AuthType(&quot;bearer&quot;) is AuthType.BEARER</code> 解析正确</li>
+
+<p><strong>RED</strong> · <code>test_auth_modes_mutually_exclusive</code>（r2 NP-2 新增）</p>
+<li>4 个独立断言：传 <code>BearerAuth + username/password</code> / <code>BasicAuth + token</code> / <code>CookieAuth + token</code> / <code>HeaderAuth + username/password</code>，各断言 <code>ValidationError</code>（Pydantic <code>extra=&quot;forbid&quot;</code> 触发）</li>
+<li>跑测试 → 失败（默认 Pydantic 接受多余字段，r0 未开 forbid）</li>
+
+<p><strong>GREEN</strong> · 父类 <code>AuthConfig.model_config = ConfigDict(extra=&quot;forbid&quot;)</code> 已加，子类继承——4 个 RED 全 GREEN，0 额外代码</p>
+
+<p>---</p>
+
+<h3 id="task-3authconfig-httpx-参数适配">Task 3：AuthConfig → httpx 参数适配</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_auth.py::test_bearer_to_httpx_headers</code></p>
+<li>构造 <code>BearerAuth(token=&quot;abc&quot;)</code> → 断言 <code>to_httpx_kwargs(BearerAuth(...)) == {&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer abc&quot;}}</code></li>
+
+<p><strong>GREEN</strong> · <code>app/ingest/auth.py</code> 追加：</p>
+<pre><code data-lang="python">def to_httpx_kwargs(auth: AuthConfigUnion) -&gt; dict:
+    &quot;&quot;&quot;把 AuthConfig 转成 httpx.AsyncClient 接受的 kwargs。
+
+    P1-4 安全注意：调用方应避免在 trace/log/异常栈中打印整个 kwargs dict；
+    M12 hardening 阶段会加 secrets.redact() 过滤器。
+    &quot;&quot;&quot;
+    if isinstance(auth, BearerAuth):
+        return {&quot;headers&quot;: {&quot;Authorization&quot;: f&quot;Bearer {auth.token.get_secret_value()}&quot;}}
+    if isinstance(auth, BasicAuth):
+        return {&quot;auth&quot;: (auth.username, auth.password.get_secret_value())}
+    if isinstance(auth, CookieAuth):
+        return {&quot;cookies&quot;: {auth.name: auth.value.get_secret_value()}}
+    if isinstance(auth, HeaderAuth):
+        return {&quot;headers&quot;: {auth.name: auth.value.get_secret_value()}}</code></pre>
+
+<p><strong>RED</strong> · <code>test_basic_to_httpx_auth_tuple</code> / <code>test_cookie_to_httpx_cookies_dict</code> / <code>test_header_to_httpx_headers_dict</code>（3 个独立测试）</p>
+<li>各自验证 key/value 类型正确</li>
+
+<p><strong>GREEN</strong> · 上面 <code>to_httpx_kwargs</code> 4 路径全 GREEN</p>
+
+<p>---</p>
+
+<h3 id="task-4ssrf-白名单含-ipv4-mapped-转换-url-格式校验-长度限制">Task 4：SSRF 白名单（含 IPv4-mapped 转换 + URL 格式校验 + 长度限制）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_ssrf.py::test_rejects_localhost</code></p>
+<li><code>assert_safe_url(&quot;http://localhost/admin&quot;)</code> → 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · <code>app/ingest/ssrf.py</code>（<strong>r2 NP-5 修正</strong>：<code>UnsafeURLError</code> / <code>URLFormatError</code> 类定义移到 <code>app/ingest/exceptions.py</code>，本文件只 import）：</p>
+<pre><code data-lang="python">import ipaddress
+from urllib.parse import urlparse
+import socket
+from app.ingest.exceptions import UnsafeURLError, URLFormatError  # r2 NP-5 异常类收口
+
+MAX_URL_LENGTH = 2048  # P1-3 长度上限
+
+# r2 NP-5：以下类定义从本文件移到 app/ingest/exceptions.py（M4 r1 review P1-6 已建），本文件不再定义
+# class UnsafeURLError(ValueError): ...        # 已移到 exceptions.py
+# class URLFormatError(ValueError): ...        # 已移到 exceptions.py
+
+_PRIVATE_NETS = [
+    ipaddress.ip_network(&quot;10.0.0.0/8&quot;),
+    ipaddress.ip_network(&quot;172.16.0.0/12&quot;),
+    ipaddress.ip_network(&quot;192.168.0.0/16&quot;),
+    ipaddress.ip_network(&quot;127.0.0.0/8&quot;),
+    ipaddress.ip_network(&quot;169.254.0.0/16&quot;),   # link-local（含云元数据 169.254.169.254）
+    ipaddress.ip_network(&quot;0.0.0.0/8&quot;),
+    ipaddress.ip_network(&quot;::1/128&quot;),
+    ipaddress.ip_network(&quot;fc00::/7&quot;),          # IPv6 ULA
+    ipaddress.ip_network(&quot;fe80::/10&quot;),         # IPv6 link-local
+]
+
+def validate_url_format(url: str) -&gt; None:
+    &quot;&quot;&quot;P1-2 / P1-3：URL 格式校验（非安全相关）。
+
+    - 长度 1-2048
+    - scheme 必须 http/https
+    - hostname 非空
+    - 格式错误抛 URLFormatError（ValueError 子类），不与 SSRF 混用
+    &quot;&quot;&quot;
+    if not url or len(url) &gt; MAX_URL_LENGTH:
+        raise URLFormatError(f&quot;URL length must be 1-{MAX_URL_LENGTH}, got {len(url) if url else 0}&quot;)
+    parsed = urlparse(url)
+    if parsed.scheme not in (&quot;http&quot;, &quot;https&quot;):
+        raise URLFormatError(f&quot;URL scheme must be http/https, got {parsed.scheme!r}&quot;)
+    if not parsed.hostname:
+        raise URLFormatError(f&quot;URL missing hostname: {url!r}&quot;)
+
+
+def assert_safe_url(url: str) -&gt; None:
+    &quot;&quot;&quot;SSRF 黑名单校验。
+
+    流程：
+    1. scheme 限制 http/https
+    2. hostname 黑名单（localhost / ip6-localhost / ip6-loopback）
+    3. DNS 解析后立即校验 IP（防 DNS rebinding 第一道）
+    4. P2-1：IPv4-mapped IPv6（::ffff:10.0.0.1）转 IPv4 再对比私有网段
+    &quot;&quot;&quot;
+    parsed = urlparse(url)
+    if parsed.scheme not in (&quot;http&quot;, &quot;https&quot;):
+        raise UnsafeURLError(f&quot;scheme must be http/https: {parsed.scheme!r}&quot;)
+    hostname = parsed.hostname
+    if not hostname:
+        raise UnsafeURLError(&quot;missing hostname&quot;)
+    if hostname.lower() in (&quot;localhost&quot;, &quot;ip6-localhost&quot;, &quot;ip6-loopback&quot;):
+        raise UnsafeURLError(f&quot;localhost rejected: {hostname}&quot;)
+    # 解析 hostname → IP（防 DNS rebinding 第一道：解析后立即校验）
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise UnsafeURLError(f&quot;DNS resolution failed: {hostname}&quot;) from e
+    for info in infos:
+        raw = info[4][0]
+        ip = ipaddress.ip_address(raw)
+        # P2-1：IPv4-mapped IPv6 转 IPv4 再对比（::ffff:10.0.0.1 → 10.0.0.1）
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        for net in _PRIVATE_NETS:
+            if ip in net:
+                raise UnsafeURLError(f&quot;private/loopback IP rejected: {raw} in {net}&quot;)</code></pre>
+
+<p><strong>RED</strong> · <code>test_rejects_private_ip_literal</code>（10.0.0.1 / 192.168.1.1 / 172.16.0.1 各一个 case）</p>
+<li>传 <code>http://10.0.0.1/</code> → 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · 上面 <code>_PRIVATE_NETS</code> 已覆盖</p>
+
+<p><strong>RED</strong> · <code>test_rejects_ipv6_loopback</code></p>
+<li><code>http://[::1]/</code> → 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · <code>::1/128</code> 已加</p>
+
+<p><strong>RED</strong> · <code>test_rejects_link_local_169.254</code></p>
+<li><code>http://169.254.169.254/latest/meta-data/</code>（AWS 元数据）→ 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · <code>169.254.0.0/16</code> 已加</p>
+
+<p><strong>RED</strong> · <code>test_rejects_ftp_scheme</code></p>
+<li><code>ftp://example.com/</code> → 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · scheme 检查已加</p>
+
+<p><strong>RED</strong> · <code>test_rejects_dns_rebinding_to_private</code>（mock socket.getaddrinfo 返 127.0.0.1）</p>
+<li>传 <code>http://attacker.com/</code> 但 <code>getaddrinfo</code> mock 返 127.0.0.1 → 断言 <code>UnsafeURLError</code></li>
+
+<p><strong>GREEN</strong> · 上面循环 <code>for info in infos</code> 已覆盖</p>
+
+<p><strong>RED</strong> · <code>test_rejects_ipv4_mapped_ipv6</code>（P2-1）</p>
+<li>mock <code>getaddrinfo</code> 返 <code>(&#x27;::ffff:10.0.0.1&#x27;, ...)</code> → 断言 <code>UnsafeURLError</code>（&quot;10.0.0.1&quot; 出现在错误信息）</li>
+
+<p><strong>GREEN</strong> · 上面 <code>ip.ipv4_mapped</code> 转换已加</p>
+
+<p><strong>RED</strong> · <code>test_accepts_public_ip</code></p>
+<li><code>http://8.8.8.8/</code>（Google DNS 公网）→ 断言不抛</li>
+
+<p><strong>GREEN</strong> · 公网不在 <code>_PRIVATE_NETS</code> 内</p>
+
+<p><strong>RED</strong> · <code>test_validate_url_format_too_long</code>（P1-3）</p>
+<li>传 <code>len &gt; 2048</code> 字符串 → 断言 <code>URLFormatError</code>（非 <code>UnsafeURLError</code>）</li>
+
+<p><strong>RED</strong> · <code>test_validate_url_format_empty</code>（P1-2）</p>
+<li>传 <code>&quot;&quot;</code> → 断言 <code>URLFormatError(&quot;URL length must be 1-2048...&quot;)</code></li>
+
+<p><strong>RED</strong> · <code>test_validate_url_format_ftp_scheme</code>（P1-2）</p>
+<li>传 <code>&quot;ftp://example.com/&quot;</code> → 断言 <code>URLFormatError</code>（不是 UnsafeURLError，便于运营区分）</li>
+
+<p><strong>RED</strong> · <code>test_validate_url_format_missing_hostname</code>（P1-2）</p>
+<li>传 <code>&quot;http://&quot;</code> → 断言 <code>URLFormatError</code></li>
+
+<p>---</p>
+
+<h3 id="task-5fetch-url-抓取层含-p0-1-redirect-二次校验-p2-2-4xx-不重试">Task 5：fetch_url 抓取层（含 P0-1 redirect 二次校验 + P2-2 4xx 不重试）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_url.py::test_fetch_url_returns_html</code></p>
+<li>用 <code>pytest-httpx</code> mock <code>https://example.com/</code> → 响应 <code>&lt;html&gt;...&lt;/html&gt;</code></li>
+<li>调 <code>fetch_url(&quot;https://example.com/&quot;, BearerAuth(token=&quot;x&quot;))</code> → 断言返回 <code>httpx.Response</code> 且 <code>status_code == 200</code></li>
+
+<p><strong>GREEN</strong> · <code>app/ingest/sources/url.py</code>（<strong>r2 NP-5 修正</strong>：<code>RetryableHTTPError</code> 从 <code>app.ingest.exceptions</code> 导入，不再在 url.py 内部定义）：</p>
+<pre><code data-lang="python">import httpx
+from app.ingest.auth import AuthConfigUnion, to_httpx_kwargs
+from app.ingest.ssrf import assert_safe_url, validate_url_format
+from app.ingest.exceptions import RetryableHTTPError  # r2 NP-5 异常类收口
+from app.config import settings
+
+class SSRFRedirectTransport(httpx.AsyncBaseTransport):
+    &quot;&quot;&quot;P0-1：拦截 redirect 目标 URL，在每次重定向前执行 SSRF 校验。
+
+    httpx 自身不会在 follow_redirects=True 时回调用户代码；
+    自定义 transport 包裹真实 transport，在 handle_async_request 阶段对 request.url 校验。
+    &quot;&quot;&quot;
+    def __init__(self, inner: httpx.AsyncBaseTransport):
+        self._inner = inner
+
+    async def handle_async_request(self, request: httpx.Request) -&gt; httpx.Response:
+        # 每个请求（包括 redirect 后的）都校验
+        assert_safe_url(str(request.url))
+        return await self._inner.handle_async_request(request)
+
+async def fetch_url(url: str, auth: AuthConfigUnion) -&gt; httpx.Response:
+    validate_url_format(url)          # P1-2 格式校验先
+    assert_safe_url(url)              # 初始 URL SSRF 校验
+    timeout = httpx.Timeout(settings.ingest.url_timeout)  # P1-5 默认 60s
+    kwargs = to_httpx_kwargs(auth)
+    transport = SSRFRedirectTransport(httpx.AsyncHTTPTransport())
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=timeout,
+        follow_redirects=True,
+        max_redirects=settings.ingest.max_redirects,
+        headers={&quot;User-Agent&quot;: settings.ingest.user_agent},
+    ) as client:
+        resp = await client.get(url, **kwargs)
+    # 方案 B 兜底：手动检查 resp.history 中每个 URL（即使 transport 漏判，history 也会被校验）
+    for r in resp.history:
+        assert_safe_url(str(r.url))
+    return resp</code></pre>
+
+<p><strong>RED</strong> · <code>test_fetch_url_4xx_fails_immediately</code></p>
+<li>mock 401 响应 → 断言 <code>fetch_url</code> 抛 <code>httpx.HTTPStatusError</code> 且<strong>不重试</strong>（用 <code>pytest-httpx</code> 的 <code>assert_called_once</code>）</li>
+
+<p><strong>GREEN</strong> · <code>resp.raise_for_status()</code> 在 client 上下文退出前调</p>
+
+<p><strong>RED</strong> · <code>test_fetch_url_5xx_retries_3_times</code></p>
+<li>mock 前 2 次 500、第 3 次 200 → 断言成功 + httpx 调用 3 次</li>
+
+<p><strong>GREEN</strong> · 加 tenacity 装饰器（P2-2 修正：retry 条件不含 <code>httpx.HTTPStatusError</code>，仅含 <code>RetryableHTTPError</code>）：</p>
+<pre><code data-lang="python">from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+@retry(
+    stop=stop_after_attempt(settings.ingest.retry_max_attempts),
+    wait=wait_exponential(multiplier=1, min=1, max=4),  # 1s/2s/4s
+    # P2-2 修正：不包含 httpx.HTTPStatusError（4xx 不重试）；仅 RetryableHTTPError/Timeout/ConnectError
+    retry=retry_if_exception_type((RetryableHTTPError, httpx.TimeoutException, httpx.ConnectError)),
+    reraise=True,
+)
+async def fetch_url_with_retry(...): ...</code></pre>
+
+<p>注意：tenacity 重试只对 5xx 触发（4xx 不重试），<code>RetryableHTTPError</code> 自定义异常专用于 5xx 区分：</p>
+
+<p><strong>RED</strong> · <code>test_fetch_url_5xx_raises_for_retry</code></p>
+<li>mock 500 → 断言抛 <code>RetryableHTTPError</code>（让 tenacity 接住）且 <code>response.status_code == 500</code></li>
+
+<p><strong>GREEN</strong> · 自定义 <code>RetryableHTTPError</code>（<strong>r2 NP-5 修正</strong>：类定义在 <code>app/ingest/exceptions.py</code>，不在 url.py）：</p>
+<pre><code data-lang="python"># app/ingest/exceptions.py（r2 NP-5 新增片段）
+class RetryableHTTPError(httpx.HTTPStatusError):
+    &quot;&quot;&quot;5xx 专用，触发 tenacity 重试。
+    P2-2：4xx 不抛此异常，而是抛 httpx.HTTPStatusError 且不被 tenacity 接住（retry 条件排除）。
+    r2 NP-5：从 app/ingest/sources/url.py 收口到本文件，M6 复用时 import 路径统一。
+    &quot;&quot;&quot;
+
+# app/ingest/sources/url.py（_maybe_raise_retryable 仍在 url.py）
+def _maybe_raise_retryable(resp: httpx.Response) -&gt; None:
+    if 500 &lt;= resp.status_code &lt; 600:
+        raise RetryableHTTPError(&quot;5xx&quot;, request=resp.request, response=resp)
+    resp.raise_for_status()  # 4xx 立即失败（不重试）</code></pre>
+
+<p><strong>RED</strong> · <code>test_fetch_url_redirect_follows_max_3</code></p>
+<li>链 4 次 302 → 断言抛 <code>httpx.TooManyRedirects</code></li>
+
+<p><strong>GREEN</strong> · <code>max_redirects=3</code> 在 <code>AsyncClient</code> 已配</p>
+
+<p><strong>RED</strong> · <code>test_fetch_url_redirect_ssrf_checked</code>（P0-1 新增）</p>
+<li>mock 域名 <code>attacker.com</code> → 302 → <code>http://127.0.0.1/admin</code> → 断言抛 <code>UnsafeURLError</code>（不是 <code>TooManyRedirects</code>）</li>
+
+<p><strong>GREEN</strong> · <code>SSRFRedirectTransport</code> + <code>resp.history</code> 双重校验已加</p>
+
+<p><strong>RED</strong> · <code>test_fetch_url_timeout_30s</code>（注：实际为 60s，见 P1-5）</p>
+<li>mock <code>httpx.TimeoutException</code> → 断言 tenacity 重试 3 次后 reraise</li>
+
+<p><strong>GREEN</strong> · <code>tenacity</code> 装饰器覆盖 <code>TimeoutException</code></p>
+
+<p>---</p>
+
+<h3 id="task-6trafilaturawebreader-解析层含-p1-1-解析失败处理">Task 6：TrafilaturaWebReader 解析层（含 P1-1 解析失败处理）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ingest_url.py::test_parse_html_to_documents</code></p>
+<li>mock <code>TrafilaturaWebReader.load_data</code> 返回 <code>[Document(text=&quot;Hello world&quot;, metadata={&quot;url&quot;: &quot;...&quot;})]</code></li>
+<li>调 <code>parse_url_to_documents(&quot;https://example.com/&quot;, auth)</code> → 断言返回 1 个 <code>Document</code></li>
+
+<p><strong>GREEN</strong> · <code>app/ingest/sources/url.py</code>：</p>
+<pre><code data-lang="python">from llama_index.core import Document
+from llama_index.readers.web import TrafilaturaWebReader
+
+def parse_url_to_documents(url: str, html: str) -&gt; list[Document]:
+    reader = TrafilaturaWebReader()
+    docs = reader.load_data(urls=[url])  # trafilatura 内部重抓一次；为避免双重抓取，V1 接受这个开销
+    return docs</code></pre>
+
+<p>注：<code>TrafilaturaWebReader</code> 内部会自己用 httpx 抓取。M5 决策：<strong>抓取走我们自己的 <code>fetch_url</code>（带 auth + 重试 + SSRF 防护）→ 把 HTML 写入临时文件 → <code>TrafilaturaWebReader</code> 从文件读</strong>。这避免重复抓取并保留我们的 auth/重试语义。</p>
+
+<p><strong>RED</strong> · <code>test_parse_uses_local_html_not_refetch</code>（mock httpx + 临时文件）</p>
+<li>mock httpx 响应 + 用 <code>tmp_path</code> 写 HTML → 断言 <code>TrafilaturaWebReader</code> 调 <code>load_data(urls=...)</code> 时传入的是 file:// URI，<strong>不再发 httpx 请求</strong></li>
+
+<p><strong>GREEN</strong> · 改 <code>parse_url_to_documents</code>（P1-1 增加空 HTML / 解析失败 / 空 list 处理）：</p>
+<pre><code data-lang="python">import tempfile, os
+from pathlib import Path
+
+def parse_url_to_documents(url: str, html: str) -&gt; list[Document]:
+    # P1-1：空 HTML / 编码错 / 二进制响应都抛 ValueError，让 ingest_url 外层 try 捕到并 mark failed
+    if not html or not html.strip():
+        raise ValueError(f&quot;Empty HTML content from {url}&quot;)
+    with tempfile.NamedTemporaryFile(mode=&quot;w&quot;, suffix=&quot;.html&quot;, delete=False, encoding=&quot;utf-8&quot;) as f:
+        f.write(html)
+        tmp_path = f.name
+    try:
+        reader = TrafilaturaWebReader()
+        try:
+            docs = reader.load_data(urls=[f&quot;file://{tmp_path}&quot;])
+        except (UnicodeDecodeError, ValueError, OSError) as e:
+            # P1-1：trafilatura 解析失败（含编码错）转 ValueError 让外层 catch
+            raise ValueError(f&quot;Trafilatura parse failed for {url}: {e}&quot;) from e
+        if not docs:
+            # P1-1：HTTP 200 但 trafilatura 没提取到任何内容（HTML 太烂 / JS-only 页）
+            raise ValueError(f&quot;Trafilatura failed to extract any content from {url}&quot;)
+        for doc in docs:
+            doc.metadata[&quot;source_url&quot;] = url
+        return docs
+    finally:
+        os.unlink(tmp_path)</code></pre>
+
+<p><strong>RED</strong> · <code>test_parse_empty_html_raises</code>（P1-1）</p>
+<li>传 <code>html=&quot;&quot;</code> → 断言 <code>ValueError(&quot;Empty HTML content...&quot;)</code></li>
+
+<p><strong>RED</strong> · <code>test_parse_non_utf8_raises</code>（P1-1）</p>
+<li>传 <code>html=&quot;\xff\xfe garbage&quot;</code>（非 UTF-8 字节）→ 断言 <code>ValueError(&quot;Trafilatura parse failed...&quot;)</code></li>
+
+<p><strong>RED</strong> · <code>test_parse_trafilatura_returns_empty_raises</code>（P1-1）</p>
+<li>mock <code>TrafilaturaWebReader.load_data</code> 返 <code>[]</code> → 断言 <code>ValueError(&quot;Trafilatura failed to extract...&quot;)</code></li>
+
+<p>---</p>
+
+<h3 id="task-7ingest-url-主入口串联-pipeline-写-ingest-jobs-p0-2-外层-try-p1-6-含-user-id">Task 7：ingest_url 主入口（串联 pipeline + 写 ingest_jobs + P0-2 外层 try + P1-6 含 user_id）</h3>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m5_ingest_url.py::test_ingest_url_creates_job_and_indexes_chunks</code></p>
+<li>启动真 PG（testcontainers 拉 pg:16）→ 建表（M1 alembic 跑过）→ mock httpx 响应 + mock TrafilaturaWebReader</li>
+<li>调 <code>ingest_url(&quot;https://example.com/&quot;, {&quot;auth_type&quot;: &quot;bearer&quot;, &quot;token&quot;: &quot;x&quot;}, user_id=uuid4())</code> → 断言：</li>
+<p>  1. <code>ingest_jobs</code> 表新增 1 行，status=indexed，chunks_count&gt;0</p>
+<p>  2. payload_hash 符合 <code>sha256(&quot;https://example.com/&quot; + &quot;bearer&quot; + str(user_id)).hexdigest()</code>（P1-6 含 user_id）</p>
+
+<p><strong>GREEN</strong> · <code>app/ingest/sources/url.py</code>（P0-2 / P1-6 修正 + <strong>r2 NP-1 显式分 catch</strong> + <strong>r2 NP-5 import 改源</strong>）：</p>
+<pre><code data-lang="python">import hashlib
+from uuid import UUID, uuid4
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
+from app.db.models import IngestJob, JobStatus
+from app.db import async_session
+from app.ingest.sources.url import fetch_url, parse_url_to_documents
+from app.ingest.auth import load_auth_config
+from app.ingest.ssrf import assert_safe_url, validate_url_format
+from app.ingest.exceptions import (  # r2 NP-5 异常类收口
+    UnsafeURLError, URLFormatError, RetryableHTTPError,
+)
+from app.ingest.pipeline import run_pipeline  # M4 提供
+
+async def ingest_url(url: str, auth_payload: dict, user_id: UUID) -&gt; UUID:
+    auth = load_auth_config(auth_payload)
+    # r2 NP-1：先显式分 catch URLFormatError（区别于 UnsafeURLError 便于运营分类）
+    try:
+        validate_url_format(url)  # P1-2 格式校验
+    except URLFormatError as e:
+        # 格式错不打 job（M5 决策：格式错是客户端错误，不浪费 job_id）；运营通过 HTTP 4xx 即可定位
+        raise
+    # r2 NP-1：再显式 catch UnsafeURLError（与 URLFormatError 顺序不可反）
+    try:
+        assert_safe_url(url)
+    except UnsafeURLError as e:
+        raise
+    # P1-6：payload_hash 含 user_id，避免跨用户同 URL+auth_type 幂等误判
+    payload_hash = hashlib.sha256(
+        f&quot;{url}{auth.auth_type}{user_id}&quot;.encode()
+    ).hexdigest()
+    job_id = uuid4()
+    async with async_session() as session:
+        # P1-5 幂等：UNIQUE(payload_hash) + ON CONFLICT DO NOTHING
+        job = IngestJob(
+            id=job_id, user_id=user_id, source=&quot;url&quot;,
+            status=JobStatus.pending, payload_hash=payload_hash,
+            payload=auth_payload,
+        )
+        session.add(job)
+        try:
+            await session.commit()
+        except IntegrityError:
+            # 重复 payload → 复用旧 job_id 返回
+            existing = await session.scalar(select(IngestJob).where(IngestJob.payload_hash == payload_hash))
+            return existing.id
+    # P0-2：外层 try/except 包裹 fetch + parse + pipeline，任一失败都 mark failed
+    try:
+        resp = await fetch_url(url, auth)
+        docs = parse_url_to_documents(url, resp.text)
+        await run_pipeline(docs, user_id=user_id, job_id=job_id)
+    except UnsafeURLError as e:
+        # P1-7：SSRF 错误消息明确标注 &quot;SSRF: &quot; 前缀
+        async with async_session() as session:
+            job = await session.get(IngestJob, job_id)
+            job.status = JobStatus.failed
+            job.error = f&quot;SSRF: {e}&quot;
+            await session.commit()
+        raise
+    except httpx.HTTPStatusError as e:
+        # 4xx 立即失败（不应进 retry，但兜底捕）
+        async with async_session() as session:
+            job = await session.get(IngestJob, job_id)
+            job.status = JobStatus.failed
+            job.error = f&quot;HTTP {e.response.status_code}&quot;
+            await session.commit()
+        raise
+    except ValueError as e:
+        # P1-1：Trafilatura 解析失败 / 空 HTML / 格式错误
+        async with async_session() as session:
+            job = await session.get(IngestJob, job_id)
+            job.status = JobStatus.failed
+            job.error = f&quot;Parse: {e}&quot;
+            await session.commit()
+        raise
+    except Exception as e:
+        # P0-2：pipeline 失败 / 其他任意异常
+        async with async_session() as session:
+            job = await session.get(IngestJob, job_id)
+            job.status = JobStatus.failed
+            job.error = str(e)[:1000]
+            await session.commit()
+        raise
+    return job_id</code></pre>
+
+<p><strong>RED</strong> · <code>test_ingest_url_idempotent_on_repeat</code></p>
+<li>同一 url+auth_type+user_id 调 2 次 → 断言只 1 个 <code>ingest_jobs</code> 行，第二次返回旧 job_id</li>
+<li>同一 url+auth_type + <strong>不同 user_id</strong> → 断言生成 2 个 job（P1-6 跨用户不幂等）</li>
+
+<p><strong>GREEN</strong> · 上面 <code>IntegrityError</code> catch 路径 + P1-6 user_id 加入 hash</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_records_failure_on_4xx</code></p>
+<li>mock 401 → 断言 <code>ingest_jobs.status=failed</code>，<code>error</code> 字段含 &quot;HTTP 401&quot;</li>
+
+<p><strong>GREEN</strong> · <code>except httpx.HTTPStatusError</code> 已加</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_records_failure_on_ssrf</code></p>
+<li>传 <code>http://127.0.0.1/</code> → 断言 <code>UnsafeURLError</code> + <code>ingest_jobs.status=failed</code>，error 含 &quot;SSRF&quot;（P1-7 验证 SSRF 前缀）</li>
+
+<p><strong>GREEN</strong> · <code>except UnsafeURLError</code> 已加</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_marks_failed_on_parse_error</code>（P0-2 + P1-1）</p>
+<li>mock fetch 成功但 trafilatura 解析失败 → 断言 <code>ingest_jobs.status=failed</code>，error 含 &quot;Parse&quot;</li>
+
+<p><strong>RED</strong> · <code>test_ingest_url_marks_failed_on_pipeline_error</code>（P0-2）</p>
+<li>mock fetch + parse 成功但 <code>run_pipeline</code> 抛异常 → 断言 <code>ingest_jobs.status=failed</code></li>
+
+<p><strong>RED</strong> · <code>test_ingest_url_payload_hash_format</code>（P1-6）</p>
+<li>断言 <code>payload_hash == sha256(b&quot;https://example.com/bearer&quot; + str(user_id).encode()).hexdigest()</code></li>
+
+<p><strong>GREEN</strong> · 上面 hash 计算已对</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_rejects_url_too_long</code>（P1-3）</p>
+<li>传 <code>len &gt; 2048</code> URL → 断言 <code>URLFormatError</code>（非 UnsafeURLError）</li>
+
+<p><strong>RED</strong> · <code>test_ingest_url_urlformat_vs_ssrf_distinguished</code>（r2 NP-1 新增）</p>
+<li>传 <code>len &gt; 2048</code> URL → 断言 <code>URLFormatError</code>（<strong>不</strong>进 <code>ingest_jobs</code> 表；M5 决策：格式错是客户端错，不浪费 job_id）</li>
+<li>传 <code>http://127.0.0.1/</code> → 断言 <code>UnsafeURLError</code>（<strong>进</strong> <code>ingest_jobs</code> 表 status=failed，error 含 <code>&quot;SSRF:&quot;</code>）</li>
+<li>跑测试 → 失败（r0 不区分，统一 raise）</li>
+
+<p>---</p>
+
+<h3 id="task-84-种-auth-端到端集成测试">Task 8：4 种 auth 端到端集成测试</h3>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m5_ingest_url.py::test_ingest_url_with_bearer_auth</code></p>
+<li>启真 PG + mock httpx 期望 <code>Authorization: Bearer ***</code> header → 调 <code>ingest_url</code> 成功</li>
+
+<p><strong>GREEN</strong> · 上面的 <code>to_httpx_kwargs</code> 已注入</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_with_basic_auth</code>（断言 httpx 收到 <code>auth=(&quot;user&quot;, &quot;pass&quot;)</code> tuple）</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_with_cookie_auth</code>（断言 httpx 收到 <code>cookies={&quot;session&quot;: &quot;...&quot;}</code>）</p>
+
+<p><strong>RED</strong> · <code>test_ingest_url_with_header_auth</code>（断言 httpx 收到 <code>headers={&quot;X-API-Key&quot;: &quot;...&quot;}</code>）</p>
+
+<p><strong>GREEN</strong> · 4 个测试都走同一个 <code>to_httpx_kwargs</code> 路径，RED 后 GREEN 取决于 Task 3 正确性</p>
+
+<p>---</p>
+
+<h3 id="task-9mock-apiingest-路由集成测试用">Task 9：mock /api/ingest 路由（集成测试用）</h3>
+
+<p>注：M8 写真路由。M5 集成测试用 <code>fastapi.APIRouter</code> 临时挂载：</p>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m5_ingest_url.py::test_api_ingest_url_endpoint</code></p>
+<li>构造 <code>app = FastAPI()</code>，临时挂 <code>app.include_router(make_test_router())</code>（内部调 <code>ingest_url</code>）</li>
+<li><code>TestClient.post(&quot;/api/ingest&quot;, json={&quot;source&quot;: &quot;url&quot;, &quot;payload&quot;: {...}, &quot;user_id&quot;: str(uuid4())})</code> → 断言 202 + <code>{&quot;job_id&quot;: &quot;...&quot;}</code></li>
+
+<p><strong>GREEN</strong> · <code>tests/integration/_helpers.py</code> 写 <code>make_test_router()</code>：</p>
+<pre><code data-lang="python">def make_test_router() -&gt; APIRouter:
+    router = APIRouter()
+    @router.post(&quot;/api/ingest&quot;)
+    async def ingest(req: IngestRequest, background: BackgroundTasks):
+        if req.source != &quot;url&quot;:
+            raise HTTPException(400, &quot;M5 only supports url&quot;)
+        job_id = await ingest_url(req.payload[&quot;url&quot;], req.payload, req.user_id)
+        return {&quot;job_id&quot;: str(job_id)}
+    return router</code></pre>
+
+<p>注：M5 集成测试<strong>不</strong>挂鉴权（M2 范围），M8 真实路由会加。</p>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M5 单元（auth/ssrf/url）</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_ingest_auth.py tests/unit/test_ingest_ssrf.py tests/unit/test_ingest_url.py</code> —— 全 mock（pytest-httpx / 临时文件 / monkeypatch socket.getaddrinfo），CI 内 1s</li>
+<li><strong>M5 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m5_ingest_url.py --require-docker</code> —— 需 testcontainers 真 PG（M1 schema 已 migrate）+ pytest-httpx mock httpbin 风格</li>
+<li><strong>集成测试显式 <code>pytestmark = pytest.mark.asyncio</code></strong>（P2-6 修正：每个集成测试 file 头部声明，避免依赖 pytest.ini 的 <code>asyncio_mode = auto</code>）</li>
+<li><strong>pytest.ini 兜底</strong>（P2-6）：如未配 <code>asyncio_mode = auto</code>，M5 PR 顺手在 <code>pytest.ini</code> 加 <code>[pytest]\nasyncio_mode = auto</code></li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/ingest --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（commit 标 [GREEN]）→ REFACTOR（commit 标 [RF]）</li>
+<li><strong>真 PG 强制</strong>（P0-5 避雷）：M5 集成测试<strong>不用 sqlite</strong>（ingest_jobs.payload 是 JSONB + payload_hash 是 UNIQUE 约束，sqlite 测不出真实语义）</li>
+<li><strong>URL 白名单独立测试</strong>（P-新增 避雷）：test_ingest_ssrf.py 11+ case 覆盖 localhost / 私有 IPv4 / IPv6 loopback / IPv4-mapped（P2-1） / link-local 169.254 / FTP scheme / DNS rebinding / 公网放行 / 长度超限（P1-3） / 格式错（P1-2）</li>
+<li><strong>SSRF redirect 二次校验测试</strong>（P0-1）：test_ingest_url.py::test_fetch_url_redirect_ssrf_checked</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] 4 种 auth 模式（bearer / basic / cookie / header）各有独立 RED/GREEN 单元测试</li>
+<li>[ ] <code>to_httpx_kwargs</code> 把 4 种 AuthConfig 正确转 httpx 接受的 kwargs</li>
+<li>[ ] <code>load_auth_config</code> 拒绝 <code>auth_type=oauth</code> 等未知类型</li>
+<li>[ ] <code>load_auth_config</code> 拒绝必填字段缺失（bearer 缺 token 等）</li>
+<li>[ ] <strong>r2 NP-2</strong> 4 auth 模式互斥：<code>BearerAuth + username/password</code> 等多余字段被 Pydantic <code>extra=&quot;forbid&quot;</code> 拒绝（<code>test_auth_modes_mutually_exclusive</code> 4 个断言）</li>
+<li>[ ] <code>AuthType</code> StrEnum 集中定义（P1-10），M6 复用同一枚举</li>
+<li>[ ] SSRF 白名单拒绝 localhost / 127.0.0.1 / 10.x / 172.16.x / 192.168.x / ::1 / 169.254.x / 私有 IPv6 / IPv4-mapped IPv6（<code>::ffff:10.0.0.1</code> P2-1）/ ftp://</li>
+<li>[ ] SSRF 白名单放行公网 IP（8.8.8.8 等）</li>
+<li>[ ] <strong>SSRF redirect 二次校验</strong>（P0-1）：redirect 到 127.0.0.1 抛 <code>UnsafeURLError</code></li>
+<p>  - <strong>r2 NP-3 边界标注 1</strong>：<code>SSRFRedirectTransport</code> 仅适用于 httpx 客户端；M6 若用 aiohttp 需自实现等价 transport</p>
+<p>  - <strong>r2 NP-3 边界标注 2</strong>：SSRF redirect 校验在 transport.handle_async_request 阶段（<strong>不</strong>重新做 DNS 解析——如果 URL 字符串是 IP literal 立即黑名单命中；如果是域名，依赖初始 <code>assert_safe_url</code> 已做的 DNS 校验）</p>
+<li>[ ] <strong>URL 格式校验</strong>（P1-2/P1-3）：长度 ≤ 2048 / scheme=http(s) / hostname 非空，错误抛 <code>URLFormatError</code>（非 UnsafeURLError）</li>
+<li>[ ] <strong>r2 NP-1</strong> <code>ingest_url</code> 入口显式分 catch <code>URLFormatError</code>（格式错<strong>不</strong>写 <code>ingest_jobs</code> 表，HTTP 4xx 直接返回；客户端错）与 <code>UnsafeURLError</code>（SSRF 错<strong>写</strong> <code>ingest_jobs</code> 表 status=failed，error 含 <code>&quot;SSRF:&quot;</code>）</li>
+<li>[ ] <code>fetch_url</code> 4xx 立即失败（<strong>不重试</strong>，P2-2 修正）+ 5xx 重试 3 次（1s/2s/4s 指数退避）+ 超时重试 3 次</li>
+<li>[ ] <code>fetch_url</code> 301-302 跟随最多 3 次，第 4 次抛 <code>TooManyRedirects</code></li>
+<li>[ ] <code>parse_url_to_documents</code> 走&quot;fetch → 临时文件 → TrafilaturaWebReader 读文件&quot;，<strong>不再二次抓取</strong></li>
+<li>[ ] <code>parse_url_to_documents</code> 解析失败 / 空 HTML / 非 UTF-8 / trafilatura 返空 → 抛 <code>ValueError</code>（P1-1）</li>
+<li>[ ] <code>ingest_url</code> 调一次 → ingest_jobs 表新增 1 行，status=indexed，chunks_count&gt;0</li>
+<li>[ ] <code>ingest_url</code> 重复调（同一 url+auth_type+user_id）→ 幂等返回旧 job_id，DB 不新增（P1-6）</li>
+<li>[ ] <code>ingest_url</code> 同一 url+auth_type + <strong>不同 user_id</strong> → 生成不同 job（P1-6）</li>
+<li>[ ] <code>ingest_url</code> 4xx / 5xx / SSRF / Parse / pipeline 失败 → ingest_jobs.status=failed，error 字段填具体原因（P0-2）</li>
+<li>[ ] SSRF 错误消息含 &quot;SSRF: &quot; 前缀（P1-7），便于前端/运营区分</li>
+<li>[ ] <code>payload_hash = sha256(url + auth_type + user_id)</code>（P1-6）与 M1 ingest_jobs UNIQUE 约束配合</li>
+<li>[ ] 集成测试在真 PG + pytest-httpx 下 30s 内通过；测试 file 头部 <code>pytestmark = pytest.mark.asyncio</code>（P2-6）</li>
+<li>[ ] 单元覆盖率 ≥ 85%</li>
+<li>[ ] <code>.env.example</code> 追加 <code>INGEST_URL_TIMEOUT=60</code>（P1-5 默认 60s）/ <code>INGEST_MAX_REDIRECTS=3</code> / <code>INGEST_RETRY_MAX=3</code> / <code>INGEST_USER_AGENT=rag-v1-ingest/0.1</code>（P1-8）/ auth secrets 注释指导（P1-4）</li>
+<li>[ ] <code>pyproject.toml</code> 追加 <code>trafilatura&gt;=1.12,&lt;2</code> / <code>llama-index-readers-web&gt;=0.3,&lt;0.4</code>（P2-5 收紧）；dev 依赖加 <code>testcontainers[postgresql]&gt;=4.8</code></li>
+<li>[ ] P1-9 REFACTOR 备注：用 Pydantic discriminated union 替换手动 dispatch（<code>Annotated[Union[...], Field(discriminator=&#x27;auth_type&#x27;)]</code>），可选优化</li>
+<li>[ ] <strong>r2 NP-5</strong> M5 异常类（<code>UnsafeURLError</code> / <code>URLFormatError</code> / <code>RetryableHTTPError</code>）收口到 <code>app/ingest/exceptions.py</code>（M4 r1 review P1-6 已建）；<code>ssrf.py</code> / <code>url.py</code> 仅 import，不重新定义；M6 复用时 import 路径统一</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M5 前完成）</th><th>下游（依赖 M5）</th></tr></thead>
+<tbody>
+<tr><td>M0 <code>docker-compose.yml</code>（TEI 18080 + OpenSearch 9200 + PG 5432）</td><td>M6 confluence 复用 <code>app/ingest/auth.py</code>（<code>load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>AuthType</code>）+ <strong>复用 M5 SSRF 防护</strong>（<code>assert_safe_url</code> / <code>validate_url_format</code>，M6 修订记录 r1 已标）</td></tr>
+<tr><td>M1 alembic（<code>ingest_jobs</code> 表 + UNIQUE(payload_hash)）</td><td>M8 <code>/api/ingest</code> 调 <code>ingest_url(url, auth_payload, user_id)</code></td></tr>
+<tr><td>M3 TEI 客户端（embed 调用链）</td><td>M9 端到端 ingest 测试（M9 集成 M4+M5+M6）</td></tr>
+<tr><td>M4 pipeline（<code>pipeline.run</code> 复用）</td><td></td></tr>
+<tr><td>M7 OpenSearch <code>upsert_chunks</code>（M5 调用）</td><td></td></tr>
+</tbody></table>
+
+<p><strong>M5 强依赖 M7</strong>：写 <code>ingest_url</code> 时如果 M7 还没合，测试要 mock <code>upsert_chunks</code>。M7 plan 已起草（2026-06-10-rag-m7-graph.md），但具体 <code>upsert_chunks</code> 接口定义在 M7 plan 里要确认存在；如果 M7 还未实现该接口，M5 集成测试 mock 整个 OpenSearch 调用即可。</p>
+
+<p><strong>跨 M 联动</strong>（M6 复用 M5）：</p>
+<li>M6 confluence source 复用 <code>app/ingest/auth.py</code> 的 4 种 auth 加载（<code>AuthType</code> enum 共享）</li>
+<li>M6 复用 M5 的 <code>assert_safe_url</code> / <code>validate_url_format</code> / <code>SSRFRedirectTransport</code>（Confluence 站点对外，也可能受 SSRF 风险）</li>
+<li>M6 集成测试应覆盖 SSRF（mock confluence response 含 redirect）</li>
+<li><strong>r2 NP-5 跨 M 联动</strong>：M6 复用 M5 异常类时统一从 <code>app.ingest.exceptions</code> 入口 import（<code>UnsafeURLError</code> / <code>URLFormatError</code> / <code>RetryableHTTPError</code>），不再从 <code>app.ingest.ssrf</code> 或 <code>app.ingest.sources.url</code> 零散 import——避免 M6 r2 NP-A 揭示的「异常类未对齐」源头</li>
+<p>  - M6 plan 修订记录需补 1 行：<code>M6 r2 NP-A 已修 · 异常类统一从 app.ingest.exceptions import（源头是 M5 r2 NP-5）</code></p>
+<p>  - M6 集成测试 imports 段需替换 <code>from app.ingest.ssrf import UnsafeURLError</code> → <code>from app.ingest.exceptions import UnsafeURLError</code>（如已写需一并改）</p>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td><strong>SSRF：攻击者传 <code>http://10.0.0.1/admin</code> 抓内网</strong></td><td><strong>M5 主动加白名单</strong>（P-新增）：<code>assert_safe_url</code> 在 <code>fetch_url</code> 第一行；DNS 解析后立即校验 IP，不依赖客户端传值；测 9+ case 覆盖</td><td>v0.4 spec §5 错误矩阵没显式提 SSRF——M5 主动加</td></tr>
+<tr><td><strong>SSRF redirect bypass</strong>（P0-1）</td><td><code>SSRFRedirectTransport</code> 拦截每次 redirect 目标 + <code>resp.history</code> 兜底双重校验；新增 <code>test_fetch_url_redirect_ssrf_checked</code></td><td>仅初始 URL 校验（被绕过）</td></tr>
+<tr><td><strong>Pipeline 失败后 job 残留 pending</strong>（P0-2）</td><td><code>ingest_url</code> 外层 try/except 包裹 fetch + parse + pipeline；任意阶段异常都 mark <code>status=failed</code> 并填 <code>error</code> 字段</td><td>只裹 <code>fetch_url</code>（parse/pipeline 失败残留 pending）</td></tr>
+<tr><td><strong>Trafilatura 解析失败</strong>（P1-1）</td><td><code>parse_url_to_documents</code> 加空 HTML / 编码错 / 空 list 检测，统一抛 <code>ValueError</code> 让外层 catch 标 failed</td><td>让异常直接冒泡（残留 pending）</td></tr>
+<tr><td><strong>URL 格式错误误导 SSRF</strong>（P1-2）</td><td><code>validate_url_format</code> 独立函数，抛 <code>URLFormatError</code>（非 <code>UnsafeURLError</code>）便于前端/运营区分</td><td>全部混用 <code>UnsafeURLError</code>（运营无法分类）</td></tr>
+<tr><td><strong>URL 过长存储爆 / 隐式截断</strong>（P1-3）</td><td>长度限制 2048 字符；<code>validate_url_format</code> 检查</td><td>不检查（DB payload 字段可能爆）</td></tr>
+<tr><td><strong>auth secrets 在 log/trace 泄露</strong>（P1-4）</td><td><code>SecretStr</code> 加密存储 + <code>.env.example</code> 注释指导走 secret manager；M12 hardening 加 <code>secrets.redact()</code> 过滤器</td><td>不处理（生产事故）</td></tr>
+<tr><td><strong>timeout 30s 对大页面不足</strong>（P1-5）</td><td>默认改 60s（与 TEI 60s 对称）；env 可 override</td><td>保持 30s（大页面失败率高）</td></tr>
+<tr><td><strong>payload_hash 跨用户幂等误判</strong>（P1-6）</td><td>hash 拼接 <code>user_id</code>；DB UNIQUE 约束仍生效</td><td>hash 只含 url + auth_type（用户 B 拿用户 A 的 job）</td></tr>
+<tr><td><strong>SSRF 错误消息未标注</strong>（P1-7）</td><td><code>error = f&quot;SSRF: {e}&quot;</code>；DoD 验证 <code>&quot;SSRF&quot; in job.error</code></td><td>通用错误（运营无法分类）</td></tr>
+<tr><td><strong>INGEST_USER_AGENT 未列 .env</strong>（P1-8）</td><td><code>.env.example</code> 追加 <code>INGEST_USER_AGENT=rag-v1-ingest/0.1</code></td><td>不显式列（用户不知可改）</td></tr>
+<tr><td><strong>Union[...] 而非 discriminated union</strong>（P1-9）</td><td>手动 dispatch 已功能正确；REFACTOR 段注 Pydantic discriminated union 替代方案</td><td>不动（功能 OK 但不优雅）</td></tr>
+<tr><td><strong>Literal 字符串散落</strong>（P1-10）</td><td>抽 <code>AuthType</code> StrEnum 集中定义；M6 复用同一枚举</td><td>散落 Literal（M6 复制魔数）</td></tr>
+<tr><td><strong>TrafilaturaWebReader 内部重抓</strong></td><td>改成&quot;我们 fetch → 写临时文件 → reader 读 file://&quot;</td><td>让 reader 自己抓（会丢 auth / 重试 / SSRF 控制）</td></tr>
+<tr><td><strong>DNS rebinding</strong>：首次解析返公网 IP，httpx 实际连接时返 127.0.0.1</td><td>V1 接受这个窗口（解析时校验一次）；V1.1 加&quot;连接后再次 getpeername 校验&quot;</td><td>引入 <code>dnspython</code> 做 pin——过度工程</td></tr>
+<tr><td><strong>5xx 退避时长</strong>：1s/2s/4s 单 job 最高 7s 等</td><td><code>retry_max_attempts=3</code> 配 exponential；ingest_jobs 表 <code>started_at</code> 反映真实耗时</td><td>改 5 次重试（10s+ 阻塞 worker）</td></tr>
+<tr><td><strong>抓取被防火墙拦截 / IP 黑名单</strong></td><td>ingest_jobs.status=failed + error 字段填 <code>httpx.ConnectError</code>；运营侧看 failed job 列表；不自动重试（避免雪崩）</td><td>加代理池（V1.1）</td></tr>
+<tr><td><strong>目标站 JS 渲染</strong>（V1 不支持）</td><td>任务说明 + spec §多模态 V1：图片元数据保留，不做 JS 渲染；如需 Playwright 后端 → V1.1 单独 M 评估</td><td>V1 加 Playwright（增加镜像 ~500MB + 资源开销）</td></tr>
+<tr><td><strong>OAuth 流程 URL</strong>（V1 不支持）</td><td>spec 决策 #15 明确 4 种模式，OAuth 不在内；如需 → M6 之后单独 M</td><td>V1 加 OAuth 流程（state 管理 + 回调 + refresh token，超 V1 scope）</td></tr>
+<tr><td><strong>重复 chunk 索引</strong>（同一页面多次 ingest）</td><td>沿用 payload_hash 幂等：同 url+auth_type+user_id 不重复建 job；同 url 不同 user_id 建不同 job（P1-6）</td><td>改用 chunk 内容 hash（成本高、不解决&quot;auth 改了重抓&quot;语义）</td></tr>
+<tr><td><strong>fetch_url 返回 HTML 含恶意 <code>&lt;script&gt;</code></strong></td><td>trafilatura 默认剥离脚本（main content extraction 行为）；M5 不做额外 XSS 防护（输入是 trusted internal URL）</td><td>v0.4 spec §3.1 没要求；M5 加 BeautifulSoup sanitize 是过度工程</td></tr>
+<tr><td><strong>X-1 config.py 拆分</strong>（review X-1 警告）</td><td>M5 暂只在 <code>app/config.py</code> 追加 <code>IngestSettings</code>（1 个新块 4 字段，不破坏现有 8 块）；M5 REFACTOR 不动；下轮 M0/M1 实际改代码时统一拆</td><td>M5 顺便拆 configs/——超出 3 天估时</td></tr>
+<tr><td><strong>P0-5 集成测试用 sqlite</strong>（review 警告）</td><td>M5 集成测试<strong>强制 testcontainers 真 PG</strong>；pyproject <code>dev</code> 依赖加 <code>testcontainers[postgresql]&gt;=4.8</code></td><td>用 sqlite 测（假绿）</td></tr>
+<tr><td><strong>IPv4-mapped IPv6 绕过 SSRF</strong>（P2-1）</td><td><code>assert_safe_url</code> 检测前先转 <code>ip.ipv4_mapped</code>；新增 <code>test_rejects_ipv4_mapped_ipv6</code></td><td>不转（<code>::ffff:10.0.0.1</code> 漏放）</td></tr>
+<tr><td><strong>tenacity 4xx 也重试</strong>（P2-2）</td><td><code>retry_if_exception_type</code> 只含 <code>RetryableHTTPError</code> / <code>TimeoutException</code> / <code>ConnectError</code>，不含 <code>httpx.HTTPStatusError</code></td><td>含 <code>HTTPStatusError</code>（4xx 费 3 次重试）</td></tr>
+<tr><td><strong>估时偏紧</strong>（P2-3）</td><td>估时改 4-5d；Tasks 段分粒度标</td><td>3d（实际不够）</td></tr>
+<tr><td><strong>pyproject 依赖片段不完整</strong>（P2-4）</td><td>给完整 toml 片段含 dev 依赖</td><td>只写追加行（新人不知格式）</td></tr>
+<tr><td><strong>llama-index-readers-web 版本过宽</strong>（P2-5）</td><td><code>&gt;=0.3,&lt;0.4</code> 收紧</td><td><code>&gt;=0.3,&lt;1</code>（意外 0.4 break 升级）</td></tr>
+<tr><td><strong>集成测试缺 asyncio mark</strong>（P2-6）</td><td>测试 file 头部 <code>pytestmark = pytest.mark.asyncio</code>；pytest.ini 兜底 <code>asyncio_mode = auto</code></td><td>依赖默认（async 测试不执行）</td></tr>
+<tr><td>P0-1 已修：SSRFRedirectTransport + resp.history</td><td>r1 双重校验已加</td><td>「仅初始 URL 校验」——r0 漏洞：302→127.0.0.1 绕过</td></tr>
+<tr><td>P0-2 已修：ingest_url try/except 包裹三阶段</td><td>r1 全阶段 catch 已加</td><td>「只 catch fetch_url」——r0 漏洞：parse/pipeline 失败残留 pending</td></tr>
+<tr><td>P1-1~10 已修：parse 失败/URL 格式/长度/auth 安全/timeout60s/payload_hash含user_id/SSRF前缀/UA/Pydantic discriminated/AuthType enum</td><td>r1 逐项落地（详见修订记录 L929-944）</td><td>r0 漏洞：trafilatura 异常残留 / 格式错混用 SSRF 错 / URL 无长度限制 / SecretStr 散落 / timeout 30s 不足 / payload_hash 不含 user_id 跨用户误判 / SSRF 错无前缀 / UA 未显式列 / 手动 dispatch 不优雅 / 字符串魔数散落</td></tr>
+<tr><td>P2-1~6 已修：IPv4-mapped转换/4xx不重试/估时4-5d/toml完整/版本&lt;0.4/pytestmark asyncio</td><td>r1 逐项落地（详见修订记录 L929-944）</td><td>r0 漏洞：<code>::ffff:10.0.0.1</code> 漏放 / 4xx 费 3 次重试 / 3d 估时偏紧 / toml 片段不完整 / 版本过宽意外 break / async 测试不执行</td></tr>
+<tr><td><strong>r2 NP-1 已修（r2-2026-06-12）：<code>URLFormatError</code> 与 <code>UnsafeURLError</code> 入口显式分 catch</strong></td><td>ingest_url 入口先 except URLFormatError（格式错不写 job，HTTP 4xx 直接返）再 except UnsafeURLError（SSRF 错写 job+<code>SSRF:</code> 前缀）</td><td>「统一 except ValueError」——r1 漏洞：两个异常都是 ValueError 子类，调用方仍需 isinstance 区分</td></tr>
+<tr><td><strong>r2 NP-2 已修（r2-2026-06-12）：4 auth 模式 Pydantic <code>extra=&quot;forbid&quot;</code> 互斥</strong></td><td>AuthConfig 父类 <code>model_config = ConfigDict(extra=&quot;forbid&quot;)</code>，4 子类继承；新增 <code>test_auth_modes_mutually_exclusive</code> 4 断言</td><td>「Pydantic 默认 extra=&quot;ignore&quot;」——r1 漏洞：bearer + 偷塞 username/password 被静默接受，运维审计无法定位</td></tr>
+<tr><td><strong>r2 NP-3 已修（r2-2026-06-12）：<code>SSRFRedirectTransport</code> 语义 DoD 显式标注</strong></td><td>DoD 追加 2 条边界：仅适用 httpx 客户端（M6 aiohttp 需自实现）+ 不重新做 DNS 解析</td><td>「DoD 只写外层行为」——r1 漏洞：M6 复用时易踩 aiohttp transport 不适用坑</td></tr>
+<tr><td><strong>r2 NP-4 已修（r2-2026-06-12）：本表 r1 行「曾被否决的替代方案」列填实际 r0 漏洞描述</strong></td><td>4 行 r1 cosmetic 全部填实际方案 + r0 漏洞对比</td><td>「写 r1-2026-06-11 字符串」——r1 cosmetic bug：列内容无意义（与 M4 r2 报告同模式）</td></tr>
+<tr><td><strong>r2 NP-5 已修（r2-2026-06-12）：M5 异常类 3 个收口到 <code>app/ingest/exceptions.py</code></strong></td><td><code>UnsafeURLError</code> / <code>URLFormatError</code> / <code>RetryableHTTPError</code> 从 ssrf.py / url.py 移到 exceptions.py（M4 r1 P1-6 已建）；ssrf.py / url.py 仅 import；Files 表 + DoD 同步</td><td>「异常类分散在 2 个文件」——r1 漏洞：M6 复用时需从 2 个不同模块 import（M6 r2 NP-A 揭示的源头）</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M5-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope §3.1 / 决策 #4 / #15）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-1 已修：SSRFRedirectTransport + resp.history 双重校验</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-2 已修：ingest_url try/except 包裹 fetch+parse+pipeline</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-1 已修：parse_url_to_documents 三类失败检测</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-2 已修：validate_url_format + URLFormatError</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-3 已修：MAX_URL_LENGTH=2048</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-4 已修：to_httpx_kwargs docstring + .env.example auth 注释</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-5 已修：url_timeout 默认 30→60</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-6 已修：payload_hash 含 user_id</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-7 已修：DoD 追加 &quot;SSRF:&quot; 前缀验证</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-8 已修：.env.example 加 INGEST_USER_AGENT</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-9 已修：REFACTOR 段注 discriminated union 替代方案</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-10 已修：抽 AuthType StrEnum</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-1 已修：IPv4-mapped IPv6 转 IPv4</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-2 已修：tenacity retry 排除 HTTPStatusError</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-3 已修：估时 3d→4-5d + Tasks 粒度</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-4 已修：pyproject.toml 完整 toml 片段</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-5 已修：llama-index-readers-web 版本收紧 &lt;0.4</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-6 已修：pytestmark = pytest.mark.asyncio</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td>NP-1 已修 · <code>ingest_url</code> 入口显式分 catch <code>URLFormatError</code>（格式错不写 job，HTTP 4xx 直返）与 <code>UnsafeURLError</code>（SSRF 错写 job+<code>SSRF:</code> 前缀）；新增 <code>test_ingest_url_urlformat_vs_ssrf_distinguished</code>；DoD 追加 r2 NP-1 行</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td>NP-2 已修 · 4 auth 模式 Pydantic <code>extra=&quot;forbid&quot;</code> 互斥：<code>AuthConfig</code> 父类加 <code>model_config = ConfigDict(extra=&quot;forbid&quot;)</code>，4 子类继承；新增 <code>test_auth_modes_mutually_exclusive</code> 4 断言（BearerAuth+username/password / BasicAuth+token / CookieAuth+token / HeaderAuth+username/password）；DoD 追加 r2 NP-2 行</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td>NP-3 已修 · <code>SSRFRedirectTransport</code> 语义 DoD 显式标注 2 条边界：(1) 仅适用 httpx 客户端，M6 若用 aiohttp 需自实现等价 transport；(2) transport.handle_async_request 阶段不重新做 DNS 解析——IP literal 立即黑名单命中，域名依赖初始 assert_safe_url 已做 DNS 校验</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td>NP-4 已修 · 风险表 4 行 r1 cosmetic 全部填实际 r0 漏洞描述（「仅初始 URL 校验」/「只 catch fetch_url」/r0 漏洞列项 + r1 逐项落地指向修订记录 L929-944 等），不再写 <code>r1-2026-06-11</code> 无意义字符串；与 M4 r2 报告 cosmetic bug 同模式</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td>NP-5 已修 · M5 异常类 3 个收口到 <code>app/ingest/exceptions.py</code>（M4 r1 P1-6 已建，M5 复用不新建）：<code>UnsafeURLError</code> / <code>URLFormatError</code> 从 <code>ssrf.py</code> 移出，<code>RetryableHTTPError</code> 从 <code>url.py</code> 移出；ssrf.py / url.py 仅 import；Files 表新增 <code>exceptions.py</code> 行 + DoD 追加 r2 NP-5 行；M6 复用统一从 <code>app.ingest.exceptions</code> 入口 import，消化 M6 r2 NP-A 揭示的「异常类未对齐」源头</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

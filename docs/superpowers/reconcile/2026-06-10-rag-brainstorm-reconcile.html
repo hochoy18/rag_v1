@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 项目脑暴 Reconcile 报告</title>
+<style>
+  :root {
+    --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+    --border: #30363d; --border-soft: #21262d;
+    --text-0: #e6edf3; --text-1: #b1bac4; --text-2: #7d8590;
+    --accent: #58a6ff; --accent-2: #79c0ff;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+    --green-bg: rgba(63,185,80,.1); --yellow-bg: rgba(210,153,34,.1); --red-bg: rgba(248,81,73,.1);
+    --code-bg: #0b1020; --radius: 6px;
+    --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-0); color: var(--text-0); font-family: var(--sans); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; max-width: 1400px; margin: 0 auto; }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; background: var(--bg-1); border-right: 1px solid var(--border); padding: 28px 20px; font-size: 14px; }
+  nav.toc h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-2); margin: 0 0 16px 0; font-weight: 600; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: toc; }
+  nav.toc ol li { counter-increment: toc; margin: 4px 0; }
+  nav.toc a { display: block; color: var(--text-1); text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: all .15s; }
+  nav.toc a:hover { background: var(--bg-2); color: var(--accent); }
+  nav.toc a::before { content: counter(toc, decimal-leading-zero) " "; color: var(--text-2); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+  nav.toc .section-head { color: var(--purple); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 4px; font-weight: 600; }
+  main { padding: 48px 64px 96px; max-width: 980px; }
+  header.doc-header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header.doc-header h1.title { font-size: 32px; margin: 0 0 8px 0; color: var(--text-0); font-weight: 700; }
+  header.doc-header .meta { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--text-2); flex-wrap: wrap; margin-top: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+  .badge.status  { background: rgba(63,185,80,.12); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+  .badge.session { background: rgba(188,140,255,.12); color: var(--purple); border: 1px solid rgba(188,140,255,.3); }
+  .badge.date    { background: var(--bg-2); color: var(--text-1); border: 1px solid var(--border); }
+  blockquote.callout { background: var(--bg-1); border-left: 3px solid var(--accent); margin: 16px 0; padding: 12px 16px; color: var(--text-1); border-radius: 0 var(--radius) var(--radius) 0; font-size: 14px; }
+  h2 { font-size: 24px; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text-0); font-weight: 600; scroll-margin-top: 24px; }
+  h3 { font-size: 18px; margin: 32px 0 12px; color: var(--text-0); font-weight: 600; }
+  h4 { font-size: 15px; margin: 24px 0 8px; color: var(--accent-2); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  p { margin: 12px 0; color: var(--text-1); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 24px; color: var(--text-1); }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: .88em; color: var(--accent-2); }
+  pre { background: var(--code-bg); padding: 16px 20px; border-radius: var(--radius); overflow-x: auto; border: 1px solid var(--border-soft); margin: 16px 0; }
+  pre code { background: transparent; padding: 0; color: var(--text-0); font-size: 13px; line-height: 1.5; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  th { background: var(--bg-1); color: var(--text-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  td { color: var(--text-1); }
+  tr:hover td { background: var(--bg-1); }
+  .check { color: var(--green); font-weight: 700; }
+  .warn  { color: var(--yellow); font-weight: 700; }
+  .x     { color: var(--red); font-weight: 700; }
+  .item-card { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin: 20px 0; }
+  .item-card .item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .item-card .item-num { font-family: var(--mono); color: var(--purple); font-size: 13px; font-weight: 600; }
+  .item-card h4 { margin: 0; font-size: 15px; }
+  .item-card .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-2); color: var(--text-2); }
+  .item-card .tag.ok   { background: var(--green-bg);  color: var(--green); }
+  .item-card .tag.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .arch-box { background: var(--code-bg); padding: 16px 20px; border-radius: var(--radius); border: 1px solid var(--border-soft); margin: 16px 0; font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--text-1); white-space: pre; overflow-x: auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { position: static; height: auto; } main { padding: 24px 20px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <h1>目录</h1>
+    <ol>
+      <li><a href="#overview">概览</a></li>
+      <li class="section-head">1. 已对齐 (8)</li>
+      <li class="section-head">2. 漂移待修 (5)</li>
+      <li><a href="#drift-21">2.1 langchain 价值评估</a></li>
+      <li><a href="#drift-22">2.2 Checkpointer 后端</a></li>
+      <li><a href="#drift-23">2.3 Confluence 抓取范围</a></li>
+      <li><a href="#drift-24">2.4 Confluence 部署形态</a></li>
+      <li><a href="#drift-25">2.5 V2 启动条件</a></li>
+      <li class="section-head">3. 未传到下游 (0)</li>
+      <li><a href="#drift-31">3.1 表格结构化抽取</a></li>
+      <li><a href="#drift-32">3.2 Confluence 评论/版本</a></li>
+      <li class="section-head">总结</li>
+      <li><a href="#numbers">4.1 数字核对</a></li>
+      <li><a href="#pitfalls">4.2 高频踩坑点</a></li>
+      <li><a href="#next">4.3 下一步</a></li>
+      <li><a href="#changelog">5. 修订记录</a></li>
+    </ol>
+  </nav>
+  <main>
+    <header class="doc-header">
+      <h1 class="title">RAG 项目脑暴 Reconcile 报告</h1>
+      <div class="meta">
+        <span class="badge status">8 项已对齐 / 5 漂移已纠 / 0 未传</span>
+        <span class="badge session">session: 20260608_145040_7202e5</span>
+        <span class="badge date">2026-06-10</span>
+      </div>
+      <blockquote class="callout">
+        范围：session <code>20260608_145040_7202e5</code>（v0.2 推演 → v0.3 → v0.3-pre → v0.4 定稿源头，134 条消息）<br>
+        对照基线：<a href="../specs/2026-06-08-rag-system-design.html">v0.4 spec</a> · <a href="../specs/2026-06-10-rag-v1-scope.html">V1 Scope</a> · <a href="../specs/2026-06-10-rag-v2-todo.html">V2 TODO</a><br>
+        用途：实施 M0–M12 时遇到"诶 session 提过 X 怎么不写"时回查
+      </blockquote>
+    </header>
+
+    <h2 id="overview">概览</h2>
+    <p>本报告把脑暴 session 走过的决策路径与当前 spec/plan 对照，验证是否一致。结论：<strong>spec 是脑暴的精确提炼</strong>，不需要回头改。</p>
+    <ul>
+      <li><span class="check">✅</span> <strong>8 项已对齐</strong> —— 决策点完全一致</li>
+      <li><span class="warn">⚠️</span> <strong>5 项漂移已纠正</strong> —— 脑暴走过弯路，spec 已落定（实施时别回退）</li>
+      <li><span class="check">✅</span> <strong>0 项未传到下游</strong> —— 没有"spec 漏接"的项</li>
+    </ul>
+
+    <h2 id="aligned">1. 已对齐（8 项）</h2>
+    <p>脑暴决策点 ↔ 当前 spec 完全一致：</p>
+    <table>
+      <thead><tr><th>议题</th><th>脑暴决策点</th><th>当前 spec 表述</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td><strong>三库职责</strong></td><td>v0.2 message 160-165 选 A：llamaindex ingest / langchain LLM / langgraph workflow</td><td>V1 Scope §0 #1 同</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>数据源</strong></td><td>v0.3-pre message 195 改飞书 → Confluence</td><td>V1 Scope §0 #4 file + url + confluence</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>Memory 持久化</strong></td><td>v0.3 message 193 换掉 <code>MemorySaver</code> → <code>langgraph-checkpoint-postgres</code></td><td>V1 Scope §0 #12 + 依赖 §8.1</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>鉴权方案</strong></td><td>v0.3-pre message 195 随机 token + DB 查表；v0.4 落 7d 滑/30d 硬</td><td>V1 Scope §0 #14 + §3.2 Auth</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>用户系统</strong></td><td>v0.3 message 193 加 users + chat_sessions + session_id 关联</td><td>V1 Scope §0 #13 + §3.2 Auth + M1 Schema</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>URL auth 4 模式</strong></td><td>v0.3 message 193 bearer/basic/cookie/header</td><td>V1 Scope §0 #15</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>多模态 V1 边界</strong></td><td>v0.3 message 193 元数据 + UI 缩略图，不做内容问答</td><td>V1 Scope §0 #16 + V2 §2.1/2.2 推进</td><td><span class="check">✅</span></td></tr>
+        <tr><td><strong>测试用模型</strong></td><td>v0.3 message 193 改 MiniMax-M3</td><td>V1 Scope §0 #20</td><td><span class="check">✅</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="drift">2. 漂移待修（5 项）</h2>
+    <p>这些<strong>不是 spec 错误</strong>，而是脑暴过程中走过的弯路、最终被纠回 spec。最终 spec 是对的，但 V2 TODO / 实施时可能踩到的认知盲区标这里。</p>
+
+    <div class="item-card" id="drift-21">
+      <div class="item-head">
+        <span class="item-num">DRIFT 2.1</span>
+        <h4>langchain 价值评估的反复</h4>
+        <span class="tag ok">已对齐</span>
+      </div>
+      <table>
+        <thead><tr><th>阶段</th><th>决策</th><th>出处</th></tr></thead>
+        <tbody>
+          <tr><td>v0.3</td><td>砍 langchain，LLM 直调 anthropic SDK</td><td>message 193 §1.1</td></tr>
+          <tr><td>v0.3-pre</td><td><strong>保留 langchain</strong>，砍不砍进 V2 TODO 评估</td><td>message 195 第 1 项</td></tr>
+          <tr><td>v0.4</td><td>保留 langchain，<code>app/llm/factory.py</code> 用 <code>ChatAnthropic</code></td><td>message 209 spec §0 #8</td></tr>
+          <tr><td>V1 Scope §0 #8</td><td>保留 langchain（<code>langchain==1.0.8</code>）</td><td>2026-06-10 落盘</td></tr>
+          <tr><td>V2 TODO §1.1</td><td>评估 langchain 价值 vs 依赖成本</td><td>2026-06-10 落盘</td></tr>
+        </tbody>
+      </table>
+      <p><strong>实施注意</strong>：</p>
+      <ul>
+        <li>M3 工厂实现严格走 langchain <code>ChatAnthropic</code>，<strong>不要</strong>走 <code>anthropic</code> SDK 直调（这是 v0.3 被否决的方案）</li>
+        <li>V2 启动条件达成后，<strong>先评估再砍</strong>（V2 TODO §1.1），不能凭直觉</li>
+      </ul>
+    </div>
+
+    <div class="item-card" id="drift-22">
+      <div class="item-head">
+        <span class="item-num">DRIFT 2.2</span>
+        <h4>Checkpointer 后端选型</h4>
+        <span class="tag ok">已对齐</span>
+      </div>
+      <table>
+        <thead><tr><th>阶段</th><th>决策</th><th>出处</th></tr></thead>
+        <tbody>
+          <tr><td>v0.3</td><td>提议 OpenSearch checkpointer</td><td>message 193 §1.2 提"是否可以用 opensearch"</td></tr>
+          <tr><td>v0.3-pre</td><td><strong>强烈不建议</strong>，列了 5 条理由（事务、写入模式、官方支持等）</td><td>message 195 第 2 项</td></tr>
+          <tr><td>v0.4</td><td>保留 Postgres checkpointer</td><td>message 209 spec §0 #12</td></tr>
+          <tr><td>M7 plan</td><td>Postgres 优先 / SQLite 降级</td><td><a href="../plans/2026-06-10-rag-m7-graph.html">2026-06-10-rag-m7-graph.md</a> §Architecture</td></tr>
+        </tbody>
+      </table>
+      <p><strong>实施注意</strong>：</p>
+      <ul>
+        <li>M7 <code>make_checkpointer()</code> 工厂<strong>只接 PG 和 SQLite 两个后端</strong>，<strong>不要</strong>写 OpenSearch checkpointer 实现</li>
+        <li>如果实施时发现"PG 部署太重"，正确路径是降级 SQLite（plan 已支持），<strong>不是</strong>换 OpenSearch</li>
+      </ul>
+    </div>
+
+    <div class="item-card" id="drift-23">
+      <div class="item-head">
+        <span class="item-num">DRIFT 2.3</span>
+        <h4>Confluence 抓取范围（V1 边界）</h4>
+        <span class="tag ok">已对齐</span>
+      </div>
+      <table>
+        <thead><tr><th>阶段</th><th>决策</th><th>出处</th></tr></thead>
+        <tbody>
+          <tr><td>v0.3</td><td>3.1+3.2+3.3+3.4 全做（400-500 行）</td><td>message 197</td></tr>
+          <tr><td>v0.3-pre</td><td>提 3 选项（A 全部 / B 精炼 / C 折中）</td><td>message 197 末尾</td></tr>
+          <tr><td>v0.3-final</td><td>选 <strong>C 折中</strong>（V1 = 3.1+3.2+3.4 + <strong>3.3 推 V1.1</strong>）</td><td>message 200 确认</td></tr>
+          <tr><td>v0.4 spec</td><td>3.1+3.2+3.4 估 250 行，3.3 进 TODO V1.1</td><td>message 209 spec §6</td></tr>
+        </tbody>
+      </table>
+      <p><strong>实施注意</strong>：</p>
+      <ul>
+        <li>M6 plan 写的是 file/url/confluence 三个 reader，<strong>不</strong>包含整 space CQL</li>
+        <li>V1.1 加 space 抓取时，<strong>复用 M6 的 source 配置</strong>（同 reader 多个 source），<strong>不</strong>重写 reader</li>
+        <li>整 space CQL 估算 60-80 行，孤儿处理 + cursor 翻页 + 限速 token bucket</li>
+      </ul>
+    </div>
+
+    <div class="item-card" id="drift-24">
+      <div class="item-head">
+        <span class="item-num">DRIFT 2.4</span>
+        <h4>Confluence 部署形态</h4>
+        <span class="tag ok">已对齐</span>
+      </div>
+      <table>
+        <thead><tr><th>阶段</th><th>决策</th><th>出处</th></tr></thead>
+        <tbody>
+          <tr><td>v0.3 提议</td><td>Cloud / DC / Server 三选一</td><td>message 195 §4.1</td></tr>
+          <tr><td>v0.3 确认</td><td><strong>Cloud + Basic auth</strong></td><td>message 196</td></tr>
+          <tr><td>v0.4 spec</td><td>"Confluence 取代飞书" + V1 Scope §0 决策 #19</td><td>落盘</td></tr>
+        </tbody>
+      </table>
+      <p><strong>实施注意</strong>：</p>
+      <ul>
+        <li>M6 confluence reader 用 REST v2 + Basic auth，<strong>不</strong>写 Data Center 适配</li>
+        <li>未来如要支持 DC，加 <code>auth.type=pat</code>（personal access token）分支即可，<strong>不</strong>重写 reader</li>
+      </ul>
+    </div>
+
+    <div class="item-card" id="drift-25">
+      <div class="item-head">
+        <span class="item-num">DRIFT 2.5</span>
+        <h4>V2 启动条件（隐含但未明示）</h4>
+        <span class="tag warn">半对齐</span>
+      </div>
+      <table>
+        <thead><tr><th>阶段</th><th>决策</th><th>出处</th></tr></thead>
+        <tbody>
+          <tr><td>v0.3 / v0.4</td><td>V2 TODO 列表一堆，但<strong>没说 V2 什么时候启动</strong></td><td>message 195 + 209</td></tr>
+          <tr><td>V2 TODO 落盘</td><td>顶部加"V2 启动前置条件"段</td><td><a href="../specs/2026-06-10-rag-v2-todo.html">2026-06-10-rag-v2-todo.md</a> §0.0</td></tr>
+        </tbody>
+      </table>
+      <p><strong>状态</strong>：<span class="warn">⚠️</span> 半对齐（V2 启动条件是 V2 TODO 落盘时<strong>新加</strong>的，<strong>不是</strong>脑暴产物）</p>
+      <p><strong>实施注意</strong>：</p>
+      <ul>
+        <li>V1 收尾后不能"立刻"上 V2，必须等 V1 跑稳 ≥ 2 周 + RAGAS ≥ 0.75 + 1 个付费企业客户</li>
+        <li>这条是 V2 TODO §0.0 加的工程纪律，脑暴时没明确，spec 落盘时补的</li>
+      </ul>
+    </div>
+
+    <h2 id="missing">3. 未传到下游（0 项）</h2>
+    <p>脑暴提过但 spec 没接住的项——<strong>没有</strong>。所有脑暴产出都已落到 V1 Scope / V2 TODO / M3-M12 plan。</p>
+
+    <h3 id="drift-31">3.1 表格结构化抽取（V2）</h3>
+    <table>
+      <thead><tr><th>来源</th><th>表述</th></tr></thead>
+      <tbody>
+        <tr><td>脑暴 v0.3 message 193 §1.5</td><td>"表格元素保留表格 HTML/Markdown"（仅说保留结构，未说 LLM 抽取）</td></tr>
+        <tr><td>脑暴 v0.3 message 195 §3</td><td>"V2: 表格结构化抽取 + 表格 embedding 增强"</td></tr>
+        <tr><td>V2 TODO §2.3</td><td>表格结构化抽取（LLM 转 MD + summary + 三维 chunk）</td></tr>
+      </tbody>
+    </table>
+    <p><strong>状态</strong>：<span class="check">✅</span> 已对齐（V2 TODO §2.3 已含）</p>
+    <p><strong>实施注意</strong>：</p>
+    <ul>
+      <li>M4-M6 ingest pipeline 处理表格时，<strong>只做 HTML→MD 转换</strong>，<strong>不</strong>做 LLM 抽取（V2 范畴）</li>
+      <li>V2 §2.3 是 M3 工厂的延伸（M2/M3 LLM 复用）</li>
+    </ul>
+
+    <h3 id="drift-32">3.2 Confluence 评论 / 版本 / 增量同步（V1.1）</h3>
+    <table>
+      <thead><tr><th>来源</th><th>表述</th></tr></thead>
+      <tbody>
+        <tr><td>脑暴 v0.3-pre message 195 §4</td><td>"V1.1: Confluence 评论 / V1.1: Confluence 增量同步 / V1.1: Confluence 页面版本"</td></tr>
+        <tr><td>V1.1 TODO 落盘</td><td>6 项均含（整 space CQL / 评论 / 增量 / 版本 / Playwright / classify 双轨）</td></tr>
+      </tbody>
+    </table>
+    <p><strong>状态</strong>：<span class="check">✅</span> 已对齐</p>
+    <p><strong>实施注意</strong>：</p>
+    <ul>
+      <li>V1.1 启动时，<strong>M6 reader 改 3 处</strong>（加评论 / 加 webhook / 加 CQL），不动 M0-M5</li>
+      <li>不要把 V1.1 项塞进 V1 计划——会撑爆 7 周估时</li>
+    </ul>
+
+    <h2 id="numbers">4.1 数字核对（spec vs 脑暴）</h2>
+    <table>
+      <thead><tr><th>项</th><th>脑暴 v0.4</th><th>V1 Scope</th><th>一致</th></tr></thead>
+      <tbody>
+        <tr><td>三库</td><td>llamaindex + langchain + langgraph</td><td>同</td><td><span class="check">✅</span></td></tr>
+        <tr><td>节点数</td><td>7 节点（classify/rewrite/retrieve/rerank/answer + load/save_memory）</td><td>V1 Scope §1 架构图标的也是 7 个核心 + 1 save_memory 占位</td><td><span class="check">✅</span></td></tr>
+        <tr><td>数据源</td><td>file + url + confluence</td><td>V1 Scope §0 #4</td><td><span class="check">✅</span></td></tr>
+        <tr><td>Memory</td><td>PostgresCheckpointer</td><td>V1 Scope §0 #12</td><td><span class="check">✅</span></td></tr>
+        <tr><td>鉴权</td><td>随机 token + DB 查表</td><td>V1 Scope §0 #14</td><td><span class="check">✅</span></td></tr>
+        <tr><td>LLM 抽象</td><td>langchain BaseChatModel</td><td>V1 Scope §0 #8</td><td><span class="check">✅</span></td></tr>
+        <tr><td>多模态边界</td><td>V1 元数据 + UI 缩略图</td><td>V1 Scope §0 #16</td><td><span class="check">✅</span></td></tr>
+        <tr><td>部署</td><td>Docker Compose 本机</td><td>V1 Scope §0 #6</td><td><span class="check">✅</span></td></tr>
+        <tr><td>测试模型</td><td>MiniMax-M3</td><td>V1 Scope §0 #20</td><td><span class="check">✅</span></td></tr>
+        <tr><td>估时</td><td>M0-M12 ~7 周</td><td>V1 Scope §7 ~7 周</td><td><span class="check">✅</span></td></tr>
+      </tbody>
+    </table>
+    <p><strong>没有任何"已经写进 spec 但脑暴没提过"的项</strong>。spec 是脑暴的精确提炼。</p>
+
+    <h2 id="pitfalls">4.2 实施时的高频踩坑点</h2>
+    <p>按"脑暴走过弯路 + 实施时易忘"排序：</p>
+    <ol>
+      <li><strong>不要砍 langchain</strong>（v0.3 提案被否决）—— M3 工厂严格用 <code>ChatAnthropic</code></li>
+      <li><strong>不要用 OpenSearch 做 checkpointer</strong>（v0.3 提案被否决）—— M7 工厂只接 PG/SQLite</li>
+      <li><strong>V1 不做整 space 抓取</strong>（v0.3 提议被精炼）—— M6 reader 只做单 page + 子页 + attachments</li>
+      <li><strong>V1 不做多模态 VLM 答图</strong>（v0.3 边界已定）—— M4-M6 图片元素仅落元数据</li>
+      <li><strong>V1 不上 JWT</strong>（v0.3 选 DB 查表）—— M2 走 <code>auth_sessions</code> 表，不发 JWT</li>
+      <li><strong>Confluence 走 Cloud Basic auth</strong>（v0.3 部署形态已定）—— M6 reader 不写 DC 适配</li>
+      <li><strong>V2 启动有前置条件</strong>（V2 TODO 落盘时新加的）—— V1 收尾后不能立刻上 V2</li>
+    </ol>
+
+    <h2 id="next">4.3 建议的下一步</h2>
+    <p><strong>不需刷 spec/plan</strong>——脑暴 → spec 已经对齐。</p>
+    <p><strong>可刷</strong>（非必须）：</p>
+    <ul>
+      <li>V1 Scope §0 决策总表加一栏"出处"列，标注每条决策的脑暴 session id（提升可追溯性）</li>
+      <li>M3/M7 plan §风险表 加一栏"曾被否决的替代方案"（如"曾考虑 OpenSearch checkpointer，已否决"）</li>
+      <li>M6 plan §Files 加一句"V1 不含整 space CQL（v0.3 精炼）"</li>
+    </ul>
+    <p>如要刷，告诉我刷哪几份。</p>
+
+    <h2 id="changelog">5. 修订记录</h2>
+    <table>
+      <thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+      <tbody>
+        <tr><td>reconcile-r0</td><td>2026-06-10</td><td>初稿：对照 session <code>20260608_145040_7202e5</code> 134 条消息与 V1 Scope / V2 TODO</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+</body>
+</html>

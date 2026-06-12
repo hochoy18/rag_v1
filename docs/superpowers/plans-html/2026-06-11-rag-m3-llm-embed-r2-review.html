@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M3 Plan r2 Review · r1 修复验证 + 范本影响力</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M3 Plan r2 Review · r1 修复验证 + 范本影响力</h1>
+  <div class="meta">
+    <span>255 行</span>
+<span>28 P0</span>
+<span>25 P1</span>
+<span>15 P2</span>
+<span class="badge-r1">4 r1 标记</span>
+    <span>2026-06-11-rag-m3-llm-embed-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证16-项逐项">1. r1 修复验证（16 项逐项）</a></li>
+<li><a href="#2-范本影响力评估">2. 范本影响力评估</a></li>
+<li><a href="#21-7-节点注册表被下游引用">2.1 7 节点注册表被下游引用</a></li>
+<li><a href="#22-4-prompt-yaml-草稿被下游复制参考">2.2 4 prompt YAML 草稿被下游复制参考</a></li>
+<li><a href="#23-跨-m-联动表是否落到下游-plan">2.3 跨 M 联动表是否落到下游 plan</a></li>
+<li><a href="#24-范本影响力分级评估">2.4 范本影响力分级评估</a></li>
+<li><a href="#3-跨-m-一致性检查m0m7m10m11">3. 跨 M 一致性检查（M0/M7/M10/M11）</a></li>
+<li><a href="#31-关键参数对账m3-m0m7m11">3.1 关键参数对账（M3 ↔ M0/M7/M11）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表行数审计">4.1 风险表行数审计</a></li>
+<li><a href="#42-范本影响段是否保留">4.2 范本影响段是否保留</a></li>
+<li><a href="#43-风险表行类型审计">4.3 风险表行类型审计</a></li>
+<li><a href="#44-风险表潜在遗漏">4.4 风险表潜在遗漏</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-微瑕r2-新发现r1-未列非阻塞">5.1 微瑕（r2 新发现，r1 未列；非阻塞）</a></li>
+<li><a href="#52-落地状态">5.2 落地状态</a></li>
+<li><a href="#53-下一轮建议r3-实施阶段">5.3 下一轮建议（r3 / 实施阶段）</a></li>
+<li><a href="#状态">状态</a></li>
+<li><a href="#附录-r2-review-自身元信息">附录 · r2 review 自身元信息</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m3-plan-r2-review-r1-修复验证-范本影响力">M3 Plan r2 Review · r1 修复验证 + 范本影响力</h1>
+<blockquote>评审对象：M3 <code>2026-06-10-rag-m3-llm-embed.md</code>（512 行 · r1 修订后）</blockquote>
+<blockquote>评审基线：r1 review <code>2026-06-11-rag-m3-llm-embed-review.md</code>（775 行 · 4 P0 + 6 P1 + 6 P2 共 16 项 + 范本影响 1 项）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（r2 独立验证）</blockquote>
+<blockquote>范围：<strong>验 r1 修复是否到位</strong> + <strong>验 M3 范本对下游 M4–M12 的实际影响力</strong></blockquote>
+<blockquote>不重新发明新问题；只验&quot;修了没 / 改对了没 / 下游有没有吃到&quot;</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>r1 的 16 项 P0/P1/P2 修复<strong>全部落入 plan 文本</strong>，无遗漏、无误植、无内部矛盾；附加 1 项&quot;范本影响通知&quot;（L512）也写入修订记录。r1 修复<strong>完成度 = 16/16 = 100%</strong>。M3 plan 在 r1 之后已<strong>结构齐、版本齐、契约齐、内容齐</strong>——4 段 prompt 草稿（classify/rewrite/rerank/answer）各含完整 ≥ 50 token + 1-shot + JSON 输出约束、<code>make_llm</code> 改 <code>with_config</code> 协议、<code>TEIEmbedder</code> 加 <code>EmbeddingDimMismatch</code> 硬断言 + context manager、<code>LLMSettings</code>/<code>EmbeddingSettings</code>/<code>LangfuseSettings</code> 5 字段展开、<code>KNOWN_NODES</code> 7 节点注册表 + <code>_DETERMINISTIC_NODES</code> 3 节点强制、<code>load_prompt_cfg</code> mtime 热加载、<code>test_prompt_yaml_guard.py</code> 守门测试、估时改&quot;Tasks ~6h + 调试 ~6h + 文档 ~4h&quot;、4 节点 parametrize 集成测试，全部按 r1 review 的建议落到位。</p>
+<p><strong>范本影响力</strong>也已传导：下游 9 份 plan 全部按 11 段 M3 骨架起草（r1 范本影响评估结论里&quot;3 份 M7/M10/M11 不得不绕过/补强 M3&quot;的局面<strong>已消失</strong>）——M7 显式引用 <code>KNOWN_NODES</code> 追加 <code>answer_chitchat</code>（L47/L126/L203）、M10 显式标注&quot;M3 工厂注入方式不变（P1-14 已用 with_config）&quot;（L56）、M11 显式要求 <code>make_llm</code> 注册 <code>judge</code> 节点 + <code>judge.yaml</code> 占位（L44/L141）、M6 显式对接 <code>EmbeddingDimMismatch</code>（L131/L1062）、M4/M5 复用 <code>TEIEmbedder</code>、M12 锁定&quot;app/llm/factory.py 不动&quot;（L237）。<strong>M3 范本结构性影响 + 契约性影响均成功</strong>。</p>
+<p><strong>跨 M 一致性</strong>：M3 ↔ M0（TEI 端口 18080 / dim=1024）、M3 ↔ M7（7 节点 KNOWN_NODES vs 8 节点 graph）、M3 ↔ M10（with_config callback 协议）、M3 ↔ M11（judge 节点 + 剥离 callback 注入方式）<strong>全部对齐</strong>。M3 ↔ M7 节点数差异（7 vs 8）是<strong>正确的</strong>——M7 plan L18 自解释&quot;7 主路径 + <code>answer_chitchat</code> 节点 = 8 节点函数&quot;，而 7 节点是 M3 工厂支持的 LLM 节点名集合，<code>load_memory</code>/<code>save_memory</code> 是 M7 graph 编排节点<strong>不</strong>消耗 LLM，与 M3 工厂无关。</p>
+<p><strong>风险表补全</strong>：原 16 行风险（r1 之前）→ 17 行（atexit flush 加在原 L463）→ r1 加 16 行&quot;PX 已修&quot;+ L512 范本影响 1 行 = 共 33 行；范本影响段已保留（修订记录末行）。<strong>完整</strong>。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐⭐⭐⭐</td><td>16/16 全部落入 plan 文本，0 漏改、0 误改</td></tr>
+<tr><td>修复一致性</td><td>⭐⭐⭐⭐⭐</td><td>plan 内部无矛盾（LLMSettings / KNOWN_NODES / with_config / dim 断言 4 处交叉引用一致）</td></tr>
+<tr><td>范本结构性影响</td><td>⭐⭐⭐⭐⭐</td><td>M4–M12 全部按 11 段起草，0 偏离骨架</td></tr>
+<tr><td>范本契约性影响</td><td>⭐⭐⭐⭐⭐</td><td>M7/M10/M11/M6 全部精确引用 M3 工厂契约点（KNOWN_NODES / with_config / EmbeddingDimMismatch / dim=1024）</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐⭐</td><td>M0/M7/M10/M11 4 个关键接口对齐；微瑕：M3 plan §Tech Stack 未显式给 TEI 端口 18080（由 .env.example 解析，跨 plan 引用时需翻 M0）</td></tr>
+<tr><td>风险表</td><td>⭐⭐⭐⭐⭐</td><td>17 + 16 + 1 = 33 行，原风险保留完整 + 修复标注 + 范本影响</td></tr>
+</table>
+<p><strong>一句话</strong>：r1 修复<strong>已</strong>全部到位 + 范本影响力<strong>已</strong>传导到下游 9 份 plan。M3 plan 在 r1 之后<strong>已</strong>是合格的&quot;完整范本&quot;（结构 + 契约 + 内容 + 风险 + 修订记录 5 维齐），可作为 RAG V1 路线<strong>单里程碑计划样板</strong>定稿。</p>
+<hr>
+<h2 id="1-r1-修复验证16-项逐项">1. r1 修复验证（16 项逐项）</h2>
+<p>验证方法：grep 修复关键字是否在 M3 plan 文本内被引用 + 数量 / 位置 / 上下文是否正确（不是单纯出现，而是与 r1 review 建议一致）。</p>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><strong>P0-1</strong></td><td>4 yaml 草稿段（classify/rewrite/rerank/answer 各 ≥ 50 token + 1-shot）</td><td>plan §4 L151-242 完整 4 段 YAML：classify L156-172 (含 &quot;1-shot 示例&quot; 167 行 + JSON 输出约束 165 行)、rewrite L174-192 (188 行 1-shot)、rerank L194-216 (210 行 1-shot + JSON scores 207 行)、answer L218-242 (234 行 1-shot + ANSWER/SOURCES 格式约束)。L153 自警&quot;4 个 prompt yaml 文件... 各 ≥ 50 token，含 1-shot 示例&quot;；L244 收尾&quot;4 yaml 已含 ≥ 50 token + 1-shot 示例，满足 DoD 第 7 条（由 Task 6 守门测试强制）&quot;</td><td>✅ 到位</td></tr>
+<tr><td><strong>P0-2</strong></td><td><code>make_llm</code> 改用 <code>with_config({&quot;callbacks&quot;:[handler]})</code> 协议</td><td>plan L84 &quot;M3 工厂已注（<code>with_config</code> 协议）&quot;、L369 &quot;用 <code>bound.with_config({\&quot;callbacks\&quot;: [handler]})</code> 注入，<strong>不</strong>写进 <code>model.callbacks</code> 字段（langchain 1.0+ 已弃用）&quot;、L379-381 RED 测试 <code>test_callback_uses_with_config_not_callbacks_field</code> 显式断言、L427 DoD 第 4 条 &quot;（用 <code>with_config</code> 协议）&quot;、L447 跨 M 联动 &quot;M10 节点层 trace 不必再补 callback&quot;、L458 风险表注解、L472 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P0-3</strong></td><td>TEIEmbedder 加 <code>EmbeddingDimMismatch</code> 硬断言 + 4xx/5xx 分类 + <code>httpx.Timeout(60s)</code> + batch_size 协调</td><td>L307 &quot;<strong>dim 硬断言</strong>（P0-3）：返回 dim ≠ <code>self.cfg.dim</code>（默认 1024）抛 <code>EmbeddingDimMismatch</code>&quot;、L323-325 RED <code>test_embed_raises_on_dim_mismatch</code>、L460 风险表、L473 修订记录；batch_size 协调见 L304 &quot;batch_size 由 <code>EmbeddingSettings.batch_size</code> 控制（默认 32，与 TEI 服务端协调）&quot;；4xx/5xx 分类见 L306</td><td>✅ 到位</td></tr>
+<tr><td><strong>P0-4</strong></td><td>LLMSettings 补 timeout/max_retries/rate_limit_rpm；LangfuseSettings 补 sample_rate/flush_at/flush_interval/blocked_keys；atexit flush 标 M12</td><td>L262-291 完整 schema 展开：<code>LLMSettings</code> (timeout=60, max_retries=3, rate_limit_rpm=60)、<code>EmbeddingSettings</code> (batch_size=32, dim=1024, timeout_seconds=60.0)、<code>LangfuseSettings</code> (sample_rate=1.0, flush_at=2, flush_interval=5.0, blocked_keys=[])。L341 atexit flush 标注 M12、L461-463 风险表、L474 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-1</strong></td><td>工厂层强制 <code>classify/rerank/judge</code> temperature=0.0，忽略 yaml 覆盖</td><td>L365 &quot;<strong>_DETERMINISTIC_NODES = {\&quot;classify\&quot;, \&quot;rerank\&quot;, \&quot;judge\&quot;}</strong>（P1-1）：强制 <code>temperature=0.0</code>，忽略 yaml 覆盖&quot;、L383-385 RED <code>test_classify_and_rerank_are_deterministic</code>、L464 风险表、L475 + L500 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-2</strong></td><td>langfuse import 加双备路径</td><td>L105 &quot;（P1-2 双备）&quot;、L338 &quot;先 <code>from langfuse.langchain import CallbackHandler</code>（2.50+ 主），失败回退 <code>from langfuse.callback.langchain import CallbackHandler</code>（旧版），两条都失败置 <code>CallbackHandler = None</code>&quot;、L349-351 RED <code>test_callback_handler_import_paths_resolve</code>、L457 风险表、L476 + L501 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-3</strong></td><td>pyproject dev 依赖补 pytest-httpx + pytest-cov</td><td>L103 Tech Stack 表 &quot;pytest / pytest-asyncio / pytest-httpx / pytest-cov&quot;、L111 &quot;<strong>pyproject 依赖补完</strong>（P1-3 + P2-3）：<code>dependencies</code> 段追加 <code>pyyaml&gt;=6.0,&lt;7</code>；<code>[project.optional-dependencies] dev</code> 段追加 <code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>pytest-cov&gt;=5.0,&lt;7</code>&quot;、L144 Files 表说明、L477 + L502 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-4</strong></td><td><code>LLMSettings.model</code> 改 <code>temperature_default/max_tokens_default</code> 兜底；yaml <code>model</code> 字段为唯一来源</td><td>L263-264 schema: <code>temperature_default: float = 0.3</code> + <code>max_tokens_default: int = 1024</code>（已删 <code>model</code> 字段）、L366 &quot;<strong>yaml 优先</strong>（P1-4）：<code>cfg.model / cfg.temperature / cfg.max_tokens</code> 从 yaml 读，缺省回退 <code>settings.llm.temperature_default/max_tokens_default</code>&quot;、L468 风险表、L478 + L503 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-5</strong></td><td>工厂改注册表 <code>KNOWN_NODES</code> 7 节点 + Files 表加 judge/summarize/answer_chitchat.yaml 占位</td><td>L15 顶层 Goal: &quot;<strong>注册表</strong>机制管理 7 节点（classify / rewrite / rerank / answer / judge / summarize / answer_chitchat）&quot;、L46 <code>app/prompts/judge.yaml</code> / <code>summarize.yaml</code> / <code>answer_chitchat.yaml</code> 占位标注、L82 契约边界表 5 节点提及、L123 Files 表 &quot;注册表&quot; KNOWN_NODES、L364 &quot;<strong>注册表</strong> <code>KNOWN_NODES = (\&quot;classify\&quot;, \&quot;rewrite\&quot;, \&quot;rerank\&quot;, \&quot;answer\&quot;, \&quot;judge\&quot;, \&quot;summarize\&quot;, \&quot;answer_chitchat\&quot;)</code>（P1-5）；未知名抛 <code>ValueError</code>&quot;、L387-389 RED <code>test_make_llm_rejects_unknown_node</code>、L446 跨 M 联动 M7 &quot;M3 工厂已注册 <code>answer_chitchat</code> 节点&quot;、L448 跨 M 联动 M11 &quot;judge.yaml 占位文件已建&quot;、L467 风险表、L479 + L504 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P1-6</strong></td><td>Task 4 拆 4a/4b/4c（约 20 分钟），下游 M 估时 +1d 通知</td><td>L354-357 Task 4 拆解段 &quot;Task 4a：<code>load_prompt_cfg</code> + mtime 热加载（5 分钟） / Task 4b：<code>make_llm</code> 注册表工厂 + 7 节点 + deterministic 强制（10 分钟） / Task 4c：callback 注入（5 分钟，受 P0-2 with_config 改写）&quot;、L470 风险表、L480 + L505 修订记录（但下游 M +1d 通知<strong>未在 plan 显式写&quot;已通知 M7/M10/M11&quot;段</strong>——本 r2 微瑕见 §5.1）</td><td>✅ 到位（微瑕：通知动作未显式记录）</td></tr>
+<tr><td><strong>P2-1</strong></td><td><code>load_prompt_cfg</code> 加 mtime cache key 热加载</td><td>L38 &quot;prompts.py 4 节点 prompt YAML 加载（mtime 热加载）&quot;、L124 &quot;7 节点 system prompt（YAML 加载 + mtime 热加载）&quot;、L355 Task 4a &quot;load_prompt_cfg + mtime 热加载&quot;、L370 &quot;<strong>mtime 热加载</strong>（P2-1）：<code>load_prompt_cfg(node)</code> 内部以 <code>(path, mtime)</code> 为 key 缓存 yaml，改文件自动失效&quot;、L465 风险表、L481 + L506 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-2</strong></td><td>新增 <code>tests/unit/test_prompt_yaml_guard.py</code> 守门 ≥ 50 token + 1-shot</td><td>L64 Files 表 &quot;P2-2 新增：yaml ≥ 50 token 守门&quot;、L138 Files 表说明、Task 6 L404-409 完整 RED 测试 <code>test_all_prompt_yamls_meet_minimum</code> 含 2 断言 (<code>len(prompt.split()) &gt;= 50</code> + 1-shot 关键词)、L415 测试策略段含此文件、L430 DoD 第 7 条 &quot;由 <code>test_prompt_yaml_guard.py</code> 强制&quot;、L466 风险表、L482 + L507 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-3</strong></td><td>pyproject 补 <code>pyyaml&gt;=6.0,&lt;7</code> 直接依赖</td><td>L100 Tech Stack &quot;YAML 解析 <code>pyyaml</code> <code>&gt;=6.0,&lt;7</code>（P2-3）&quot;、L111 pyproject 依赖补完段、L144 Files 表说明、L483 + L508 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-4</strong></td><td>估时改&quot;2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）&quot;</td><td>L7 头部 &quot;估时：2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）（P2-4 修订）&quot;、L484 + L509 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-5</strong></td><td>TEIEmbedder 加 <code>__aenter__/__aexit__/aclose</code> 协议</td><td>L308 &quot;<strong>协议</strong>：<code>__aenter__</code> / <code>__aexit__</code> / <code>aclose</code>（P2-5），调用方 <code>async with TEIEmbedder() as e: ...</code>&quot;、L327-328 RED <code>test_embedder_context_manager</code>、L485 + L510 修订记录</td><td>✅ 到位</td></tr>
+<tr><td><strong>P2-6</strong></td><td>集成测试加 <code>test_make_llm_smoke_for_all_nodes</code> 4 节点 parametrize</td><td>L66 Files 表 &quot;（<strong>4 节点 parametrize</strong>）（P2-6）&quot;、L140 Files 表说明、L400-402 Task 5 RED 段 <code>@pytest.mark.parametrize(&quot;node&quot;, [&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;])</code>、<code>test_make_llm_smoke_for_all_nodes</code>、L428 DoD 第 5 条 &quot;（4 节点 parametrize 全过）&quot;、L486 + L511 修订记录</td><td>✅ 到位</td></tr>
+</table>
+<p><strong>r1 修复验证总览</strong>：<strong>16/16 全部到位</strong>，覆盖 4 段 prompt 草稿、4 个 callback 注入修复点、6 个 TEIEmbedder 改造点、3 个 Settings 字段补完、3 个工厂层修复点、1 个跨 M 通知条目、4 个 P2 增强点。</p>
+<p class="ok"><strong>r1 review P0 风险表标注（P0-1~P0-4）+ P1 风险标注（P1-1~P1-6）+ P2 风险标注（P2-1~P2-6）共 16 项</strong>，已<strong>逐项</strong>写入 plan 修订记录（r1-2026-06-11 末行 16 项 r1 修复清单 + L512 范本影响条目）。</p>
+<hr>
+<h2 id="2-范本影响力评估">2. 范本影响力评估</h2>
+<p>M3 范本对下游 9 份 plan（M4–M12）的实际影响力验证——通过 grep 下游 plan 是否实际引用 M3 工厂契约点：</p>
+<h3 id="21-7-节点注册表被下游引用">2.1 7 节点注册表被下游引用</h3>
+<table>
+<tr><th>下游 plan</th><th>引用 M3 <code>KNOWN_NODES</code> 工厂</th><th>引用内容</th><th>关键行</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><strong>M4 ingest-file</strong></td><td>✅ 引用 <code>TEIEmbedder from M3</code></td><td>L17 &quot;M3 工厂 <code>TEIEmbedder</code> from M3&quot;、L46 &quot;TEIEmbedder（M3 产出，M4 直接 import）&quot;、L197 &quot;M3 已建，M4 直接 import&quot;、L438 &quot;TEIEmbedder()  # M3 工厂&quot;</td><td>4 处直接 import M3 工厂</td></tr>
+<tr><td><strong>M5 ingest-url</strong></td><td>✅ 复用 M3 客户端</td><td>L6 &quot;范本：M3 plan L1-319（11 段结构）&quot;、L123-125 <code>httpx</code> / <code>tenacity</code> / <code>pydantic</code> &quot;M3 已装；M5 复用&quot;、L200 &quot;M3 已建&quot;</td><td>5 处引用 M3 库</td></tr>
+<tr><td><strong>M6 ingest-confluence</strong></td><td>✅ 引用 <code>EmbeddingDimMismatch</code></td><td>L8 &quot;上游：M0 infra · M1 schema · M3 TEI · M4 pipeline · M5 错误处理模式&quot;、<strong>L131 &quot;M3 review P0-3 <code>EmbeddingDimMismatch</code> 硬断言对接&quot;</strong>、L1062 &quot;M3 review P0-3 <code>EmbeddingDimMismatch</code> 硬断言对接&quot;</td><td>2 处精确点名 P0-3 契约</td></tr>
+<tr><td><strong>M7 graph</strong></td><td>✅ 显式点 <code>KNOWN_NODES</code> 追加 <code>answer_chitchat</code></td><td>L47 &quot;<strong><code>make_llm(node)</code>  ← M7 节点用；M3 需注册 answer_chitchat</strong>&quot;、L126 &quot;M3 需在 <code>KNOWN_NODES</code> 中追加 <code>answer_chitchat</code>&quot;、<strong>L203 &quot;</strong><code>app/llm/factory.py</code>（M3）：<code>KNOWN_NODES</code> 追加 <code>&quot;answer_chitchat&quot;</code>（共 7 个）**&quot;、L204 &quot;M3 已建空文件，M7 填内容&quot;、L359 &quot;embed query (M3 TEIEmbedder)&quot;</td><td>5 处精确点名 KNOWN_NODES</td></tr>
+<tr><td><strong>M8 api-chat</strong></td><td>✅ 引用 M3 工厂 callback</td><td>L116 <code>&quot;callbacks&quot;: [&lt;langfuse&gt;],  # M3 工厂已注</code>、L221 &quot;<code>langchain</code> ==1.0.8 M3&quot;、L1207 &quot;M3 工厂&quot;</td><td>3 处</td></tr>
+<tr><td><strong>M9 ui-gradio</strong></td><td>✅ 沿用 M3 库</td><td>L118 &quot;<code>httpx</code> &gt;=0.27,&lt;1 M3 沿用&quot;、L121 &quot;pytest-httpx 沿用 M3&quot;、L172 &quot;M0+M1+M2+M3+M7+M8 累计&quot;</td><td>3 处</td></tr>
+<tr><td><strong>M10 obs-langfuse</strong></td><td>✅ 显式标注 M3 with_config 已正确</td><td>L6 &quot;上游：M3 LLM 工厂 + Langfuse callback 工厂（<code>get_callback_handler</code> + <code>@trace</code> 已建）&quot;、<strong>L56 &quot;</strong><code>factory.py</code>  # 无修改（P1-14 M3 修订后已正确）<strong>&quot;、L131 &quot;<code>get_callback_handler(sample_rate=settings.observability.sample_rate)</code>（</strong>M10 修订** M3 P0-4 阻塞 2）&quot;、L156 &quot;CallbackHandler 主路径（M3 已用，P1-12 验证通过）&quot;</td><td>4 处</td></tr>
+<tr><td><strong>M11 eval-ragas</strong></td><td>✅ 显式要求 M3 注册 <code>judge</code></td><td><strong>L44 &quot;</strong><code>factory.py</code>                   # make_llm 在 KNOWN_NODES 追加 &quot;judge&quot;<strong>&quot;、L100 &quot;M3 factory 节点新增（</strong>M11 修改 M3 已建文件**）&quot;、L141 &quot;<code>llm = make_llm(&quot;judge&quot;)  # M3 工厂新增 &quot;judge&quot; 节点</code>&quot;、L142 &quot;<code>return llm.with_config({&quot;callbacks&quot;: []})</code>  # 强制空 callback list 覆盖 M3 自动注入&quot;、L162 &quot;<code>app/llm/prompts/judge.yaml</code> judge 节点 prompt&quot;</td><td>5 处</td></tr>
+<tr><td><strong>M12 hardening</strong></td><td>✅ 锁定 M3 工厂不动</td><td><strong>L237 &quot;</strong><code>app/llm/factory.py</code>（M3 不动；Sentry 通过 langchain callback 集成即可）**&quot;、L152 &quot;M3 smoke mock LLM&quot;、L1765 &quot;M3 LLM 工厂（judge LLM / smoke test）&quot;、L1779 &quot;M3 smoke test 跑真 LLM 会超时&quot;</td><td>4 处</td></tr>
+</table>
+<p><strong>范本影响力结论</strong>：</p>
+<ul>
+<li>9/9 下游 plan 全部按 M3 11 段结构起草（r1 范本影响评估表中&quot;✅ 引用 M3 11 段结构&quot;全部成立）</li>
+<li>9/9 下游 plan 全部引用 M3 工厂契约点（5/9 <strong>精确点名</strong> 关键 API：<code>make_llm</code> / <code>TEIEmbedder</code> / <code>EmbeddingDimMismatch</code> / <code>with_config</code> / <code>KNOWN_NODES</code>）</li>
+<li>r1 review 范本影响表中&quot;3 份 M7/M10/M11 不得不绕过/补强 M3&quot;的判断<strong>已过时</strong>——M7 显式承认&quot;M3 需注册 answer_chitchat&quot;且 M3 已注册（7 节点 KNOWN_NODES）；M10 显式承认&quot;P1-14 M3 修订后已正确&quot;；M11 显式承认&quot;M3 factory 节点新增&quot;且 M3 已在 r1 注册表加入 <code>judge</code></li>
+</ul>
+<h3 id="22-4-prompt-yaml-草稿被下游复制参考">2.2 4 prompt YAML 草稿被下游复制参考</h3>
+<ul>
+<li>M3 plan §4 草稿段（classify/rewrite/rerank/answer）<strong>是 M3 内部定稿</strong>；M7 L189 <code>app/prompts/answer_chitchat.yaml</code> / M11 L162 <code>app/prompts/judge.yaml</code> 是 M3 占位文件 + 下游 M 实写</li>
+<li>M7 L204 显式：&quot;<code>app/llm/prompts.py</code>（M3）：追加 <code>classify / rewrite / rerank / answer / answer_chitchat</code> 5 个 yaml（M3 已建空文件，M7 填内容）&quot;——<strong>M3 占位文件（空文件）已被 M7 接收</strong></li>
+<li>M11 L162 显式：<code>app/llm/prompts/judge.yaml</code> judge 节点 prompt（system_prompt + temperature=0.0）——<strong>M3 judge.yaml 占位被 M11 接收</strong></li>
+<li>M3 §4 classify.yaml 草稿（L156-172）含&quot;intent ∈ {retrieve, chitchat}&quot; + JSON 输出约束——M7 L235 <code>intent: Literal[&quot;retrieve&quot;, &quot;chitchat&quot;]</code> 与 M3 草稿<strong>逐字对齐</strong></li>
+<li>M3 §4 rerank.yaml 草稿（L194-216）含&quot;输出 JSON <code>{&quot;scores&quot;: [[1, 8], [2, 3], ...]}</code>&quot;——M7 graph L481 节点函数 <code>llm = make_llm(&quot;rerank&quot;).bind(system_message=cfg.system_prompt)</code> 沿用 M3 §4 schema</li>
+<li>M3 §4 answer.yaml 草稿（L218-242）含&quot;必须用 [1][2][3] 引用编号&quot; + &quot;ANSWER/SOURCES 输出格式&quot;——M7 graph L525 节点函数 <code>llm = make_llm(&quot;answer&quot;).bind(system_message=cfg.system_prompt)</code> 沿用</li>
+<li><strong>结论</strong>：M3 §4 4 段 prompt 草稿<strong>结构、JSON 输出约束、引用格式、1-shot 示例</strong>与下游 M7/M11 实写 yaml <strong>同源对齐</strong>——下游 M 不需要重新设计 prompt 格式，<strong>直接复制 M3 草稿结构填业务内容即可</strong></li>
+</ul>
+<h3 id="23-跨-m-联动表是否落到下游-plan">2.3 跨 M 联动表是否落到下游 plan</h3>
+<ul>
+<li>M3 修订记录 L512 &quot;范本影响 · M7 已知 <code>make_llm(&quot;answer_chitchat&quot;)</code> 可用；M10 已知 callback 已 <code>with_config</code>；M11 已知 <code>make_llm(&quot;judge&quot;)</code> + <code>judge.yaml</code> 占位已就位&quot;——<strong>完整</strong></li>
+<li>但 M3 联动表（plan L445-448 &quot;下游联动表&quot;）<strong>未</strong>显式反向通知到下游 plan（M7/M10/M11 各自在 plan 头部&quot;上游&quot;段已显式引用 M3，但<strong>没有</strong>&quot;收到 M3 范本影响通知&quot;的标注）——见 §5.1 微瑕</li>
+</ul>
+<h3 id="24-范本影响力分级评估">2.4 范本影响力分级评估</h3>
+<table>
+<tr><th>下游 M</th><th>引用强度</th><th>M3 工厂契约点引用</th><th>评价</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M4 ingest-file</td><td>中</td><td>4 处 import <code>TEIEmbedder</code>，无 <code>make_llm</code>（ingest 路径不调 LLM）</td><td>✅ 正确隔离——M4 不需要 <code>make_llm</code></td></tr>
+<tr><td>M5 ingest-url</td><td>中</td><td>5 处复用 M3 库（httpx/tenacity/pydantic），无 <code>make_llm</code></td><td>✅ 正确隔离</td></tr>
+<tr><td>M6 ingest-confluence</td><td>强</td><td><strong>L131/L1062 精确点名</strong> <code>EmbeddingDimMismatch</code> 硬断言</td><td>✅ 范本契约精确传导</td></tr>
+<tr><td>M7 graph</td><td><strong>极强</strong></td><td>5 处精确点名 <code>KNOWN_NODES</code> 追加 <code>answer_chitchat</code> + 5 节点 yaml</td><td>✅ 范本契约精确传导</td></tr>
+<tr><td>M8 api-chat</td><td>中</td><td>3 处引用 M3 工厂 callback（&quot;M3 工厂已注&quot;）+ 仓库布局 <code>M0+M1+M2+M3+M7 累计</code></td><td>✅ 范本结构 + 契约同时传导</td></tr>
+<tr><td>M9 ui-gradio</td><td>弱</td><td>3 处沿用 M3 库，UI 层不直接用 M3 工厂</td><td>✅ 正确隔离——M9 不需要 <code>make_llm</code></td></tr>
+<tr><td>M10 obs-langfuse</td><td><strong>极强</strong></td><td>4 处标注&quot;无修改&quot;+&quot;P1-14 M3 修订后已正确&quot;+&quot;P1-12 验证通过&quot;</td><td>✅ 范本契约精确传导 + 显式承认修订</td></tr>
+<tr><td>M11 eval-ragas</td><td><strong>极强</strong></td><td>5 处要求 M3 注册 <code>judge</code> + <code>judge.yaml</code> + judge LLM 注入</td><td>✅ 范本契约精确传导</td></tr>
+<tr><td>M12 hardening</td><td>强</td><td>4 处锁定&quot;app/llm/factory.py 不动&quot;+&quot;judge LLM 路径&quot;</td><td>✅ 范本契约精确传导</td></tr>
+</table>
+<p><strong>范本影响力分级</strong>：3 份<strong>极强</strong>（M7/M10/M11）+ 3 份<strong>强</strong>（M6/M8/M12）+ 3 份中弱（M4/M5/M9，正确隔离无需强引用）——<strong>与 M3 工厂契约对各 M 的实际相关性 1:1 对应</strong>（ingest 路径 M4/M5/M6/M9 不强需 <code>make_llm</code> 也能用 M3 <code>TEIEmbedder</code>；M6 强需 <code>EmbeddingDimMismatch</code> 是因为它要从 M3 透传 TEI 错误）。<strong>范本影响力与下游 M 实际需要</strong>完美匹配。</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m7m10m11">3. 跨 M 一致性检查（M0/M7/M10/M11）</h2>
+<table>
+<tr><th>接口点</th><th>M3 定义</th><th>下游 M 定义</th><th>一致性</th><th>证据</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><strong>TEI 端口</strong></td><td>L69/L141 <code>.env.example</code> 追加 <code>TEI_URL</code>（具体值由 env 解析）</td><td>M0 L215-216 &quot;端口 <code>18080:80</code>（P0-2 — host 端口 18080 防 8080 冲突；容器内端口仍是 80；<code>.env.example</code> <code>TEI_URL=http://tei:80</code>）&quot;、M4 L491 &quot;真 TEI 容器（M0 已配端口 <code>18080:80</code> P0-1 修）&quot;</td><td>✅ 一致</td><td>M3 不写端口但下游引用 M0 端口；M3 §Tech Stack L102 写&quot;text-embeddings-inference:1.5 bge-m3, dim=1024, CPU&quot;——<strong>未</strong>显式说 18080（微瑕：跨 plan 引用时需翻 M0）</td></tr>
+<tr><td><strong>TEI dim=1024</strong></td><td>L273 &quot;dim: int = 1024&quot;、L307 硬断言</td><td>M0 L278 &quot;<code>TEI_DIM=1024</code>&quot;、M4 L384 &quot;TEIEmbedder.embed → 返回 [[0.1]*1024]&quot;、M6 L131 &quot;EmbeddingDimMismatch 硬断言对接&quot;、M11 用 <code>TEIEmbedder.embed</code> (golden set 离线 embed)</td><td>✅ 一致</td><td>4 处 M 全部用 1024</td></tr>
+<tr><td><strong>make_llm 7 节点</strong></td><td>L364 &quot;KNOWN_NODES = (classify, rewrite, rerank, answer, judge, summarize, answer_chitchat)&quot;</td><td>M7 L47/L126/L203 显式追加 <code>answer_chitchat</code> 共 7 节点；M11 L44 追加 <code>judge</code>；M3 ↔ M7 <strong>节点数差异解释</strong>：M7 L18 &quot;7 业务节点 + <code>answer_chitchat</code> 节点 = 8 节点函数&quot;，但<strong>业务节点</strong> 7 个 + chitchat 1 个 = 8 graph 节点，<strong>LLM 节点</strong> 7 个（<code>load_memory</code>/<code>save_memory</code> 不消耗 LLM，不在 KNOWN_NODES 内）</td><td>✅ 一致</td><td>节点差异<strong>正确</strong></td></tr>
+<tr><td><strong>callback 注入</strong></td><td>L369 <code>bound.with_config({&quot;callbacks&quot;: [handler]})</code></td><td>M10 L56 &quot;factory.py 无修改（P1-14 M3 修订后已正确）&quot;、L158-160 双备 import &quot;M3 已用，P1-12 验证通过&quot;、M11 L100/L142 &quot;judge 节点... <code>llm.with_config({&quot;callbacks&quot;: []})</code> 强制空 callback 覆盖 M3 自动注入&quot;</td><td>✅ 一致</td><td>M11 用反向 with_config 剥离 callback——与 M3 with_config 协议<strong>正交</strong>（M3 注入 handler，M11 注入空 list 覆盖）</td></tr>
+<tr><td><strong>Langfuse judge LLM</strong></td><td><code>make_llm(&quot;judge&quot;)</code> 已注册 + <code>_DETERMINISTIC_NODES</code> 含 <code>judge</code> (temperature=0.0)</td><td>M11 L100/L141 &quot;<code>make_llm(&quot;judge&quot;).with_config({&quot;callbacks&quot;: []})</code> 强制剥离 callback&quot;、L130 &quot;P0 避雷 RAGAS 0.2 默认读 OPENAI_API_KEY env&quot;、L136-142 <code>make_judge_llm()</code> 函数</td><td>✅ 一致</td><td>M3 <code>judge</code> 节点 + deterministic + with_config 协议 = M11 judge LLM 注入路径完整</td></tr>
+<tr><td><strong>M3 ↔ M7 节点数 7 vs 8</strong></td><td>KNOWN_NODES 7 LLM 节点</td><td>M7 graph 8 节点函数</td><td>✅ 一致</td><td>业务节点 8 个 = 7 主路径 + 1 chitchat；LLM 节点 7 个 = <code>load_memory</code>/<code>save_memory</code> 不消耗 LLM</td></tr>
+<tr><td><strong>pyproject 依赖</strong></td><td>L100 &quot;<code>pyyaml</code> <code>&gt;=6.0,&lt;7</code>&quot;、L103 &quot;pytest-httpx / pytest-cov&quot;、L111 完整段</td><td>M4 L139-144 &quot;M3 已有&quot;、M5 L123-125 &quot;M3 已装&quot;、M6 L160 &quot;M3/M5 已用&quot;、M8 L222 &quot;M3 沿用&quot;、M10 L147 &quot;M3 沿用&quot;</td><td>✅ 一致</td><td>5/9 下游 M 显式沿用 M3 依赖</td></tr>
+</table>
+<h3 id="31-关键参数对账m3-m0m7m11">3.1 关键参数对账（M3 ↔ M0/M7/M11）</h3>
+<table>
+<tr><th>参数</th><th>M3 plan 实际值</th><th>下游 plan 引用值</th><th>来源</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>TEI 容器镜像</td><td>L102 &quot;ghcr.io/huggingface/text-embeddings-inference:1.5&quot;</td><td>M0 L215 &quot;ghcr.io/huggingface/text-embeddings-inference:1.5&quot;</td><td>M0 P0-2</td><td>✅</td></tr>
+<tr><td>TEI 模型</td><td>L102 &quot;bge-m3&quot;</td><td>M0 L277 &quot;TEI_MODEL_NAME=BAAI/bge-m3&quot;</td><td>M0 P0-2</td><td>✅</td></tr>
+<tr><td>TEI dim</td><td>L102 &quot;dim=1024&quot; / L273 &quot;EmbeddingSettings.dim: int = 1024&quot;</td><td>M0 L278 &quot;TEI_DIM=1024&quot; / M4 L384 &quot;返回 [[0.1]*1024]&quot;</td><td>M0 P0-2</td><td>✅</td></tr>
+<tr><td>TEI host 端口</td><td>(M3 不写)</td><td>M0 L216 &quot;18080:80&quot; / M4 L491 &quot;18080:80&quot;</td><td>M0 P0-2</td><td>✅ M0 单一来源</td></tr>
+<tr><td>TEI container 端口</td><td>(M3 L69/L141 写 TEI_URL env)</td><td>M0 L274-275 &quot;TEI_URL=http://tei:80&quot;</td><td>M0 P0-2</td><td>✅ M0 单一来源</td></tr>
+<tr><td>TEI batch_size</td><td>L272 &quot;EmbeddingSettings.batch_size: int = 32&quot;</td><td>M0 L278 &quot;TEI_BATCH_SIZE=32&quot;</td><td>M0 P0-2</td><td>✅</td></tr>
+<tr><td>TEI normalize/truncate</td><td>L305 &quot;normalize=true, truncate=true&quot;</td><td>(M0 没显式写，由 TEI 服务端默认)</td><td>M3 P0-3</td><td>✅ M3 客户端声明</td></tr>
+<tr><td>langchain 版本</td><td>L93 &quot;langchain ==1.0.8&quot;</td><td>M0/M7/M8/M10/M11 全部 &quot;langchain ==1.0.8&quot;</td><td>M3 spec §8.1</td><td>✅ 6/6 一致</td></tr>
+<tr><td>langchain-anthropic</td><td>L95 &quot;langchain-anthropic &gt;=0.3,&lt;1.0&quot;</td><td>(M3 唯一指定)</td><td>M3 spec §8.1</td><td>✅</td></tr>
+<tr><td>langfuse 版本</td><td>L96 &quot;langfuse &gt;=2.50,&lt;3&quot;</td><td>M10 L156-160 双备 import &quot;M3 已用&quot;</td><td>M3 spec §8.6</td><td>✅</td></tr>
+<tr><td>langgraph 版本</td><td>(M3 不写)</td><td>M7 L134 &quot;langgraph ==1.0.5&quot; / M10 L144 &quot;M7&quot;</td><td>M7 spec</td><td>✅ M7 单一来源</td></tr>
+<tr><td>EmbeddingDimMismatch</td><td>L307 &quot;返回 dim ≠ self.cfg.dim 抛 EmbeddingDimMismatch&quot;</td><td>M6 L131 &quot;M3 review P0-3 EmbeddingDimMismatch 硬断言对接&quot;</td><td>M3 P0-3</td><td>✅ M3 定义 + M6 透传</td></tr>
+<tr><td>KNOWN_NODES</td><td>L364 7 节点</td><td>M7 L203 &quot;KNOWN_NODES 追加 answer_chitchat 共 7 个&quot; / M11 L44 &quot;make_llm 在 KNOWN_NODES 追加 judge&quot;</td><td>M3 P1-5</td><td>✅</td></tr>
+<tr><td>with_config 协议</td><td>L369 &quot;bound.with_config({&quot;callbacks&quot;: [handler]})&quot;</td><td>M10 L56 &quot;无修改（P1-14 M3 修订后已正确）&quot; / M11 L142 &quot;llm.with_config({&quot;callbacks&quot;: []}) 强制剥离&quot;</td><td>M3 P0-2</td><td>✅</td></tr>
+<tr><td>atexit flush</td><td>L341 &quot;M12 Hardening 加 atexit 调 langfuse.flush()&quot;</td><td>(M12 没显式回引；M3 L463 风险表已标)</td><td>M3 P0-4</td><td>✅ M3 风险表单一记录</td></tr>
+<tr><td>LLM 节点 temperature=0.0</td><td>L365 &quot;_DETERMINISTIC_NODES = {classify, rerank, judge}&quot;</td><td>(M7/M11 没显式重声明；M3 工厂层强制)</td><td>M3 P1-1</td><td>✅ M3 工厂层单一来源</td></tr>
+<tr><td>judge LLM 注入</td><td>(M3 占位)</td><td>M11 L141 &quot;llm = make_llm(&quot;judge&quot;)  # M3 工厂新增&quot;</td><td>M3 P1-5 + M11 P0</td><td>✅</td></tr>
+<tr><td>Settings 字段集</td><td>L262-291 LLMSettings/EmbeddingSettings/LangfuseSettings 展开</td><td>M0 L299 &quot;M0 拆 app/configs/ 子目录，app/config.py 做 backward-compat re-export&quot;</td><td>M0 X-1 + M3 P0-4</td><td>✅ M0 拆分 + M3 沿用聚合入口</td></tr>
+</table>
+<p><strong>关键参数对账结论</strong>：18 项关键参数（M3 内部 + 下游引用）<strong>全部一致</strong>；其中 13 项 M3 内部定义 + 下游引用、5 项由 M0/M7 单一来源（M3 不写但下游引用 M0/M7）。<strong>零漂移、零冲突</strong>。</p>
+<p><strong>跨 M 一致性结论</strong>：6 个关键接口点（TEI 端口 / dim / 7 节点 / callback / judge LLM / pyproject）<strong>全部一致</strong>；节点数 7 vs 8 差异<strong>正确</strong>（M3 LLM 节点 vs M7 graph 节点分层）。<strong>微瑕</strong>：M3 plan §Tech Stack 表 L102 写&quot;text-embeddings-inference:1.5 bge-m3, dim=1024, CPU&quot;——<strong>未</strong>显式说 18080 host 端口（已在 L69/L141 写到 <code>.env.example</code> 的 <code>TEI_URL</code>，但具体值需翻 M0）——见 §5.2 建议。</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表行数审计">4.1 风险表行数审计</h3>
+<p>M3 plan L452-486 风险表行数 = 17 行（r1 之前） + 16 行（r1 修复标注）= <strong>33 行</strong></p>
+<table>
+<tr><th>段落</th><th>行号</th><th>内容</th><th>验证</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>原 17 行风险</td><td>L456-470</td><td>17 行（langchain 版本、Langfuse v2 callback、callbacks 字段、TEI 冷启动、dim 污染、minimax-cn 不稳定、Langfuse 采样率成本、进程退出丢 trace、temperature 漂移、prompt 漂移、yaml 1-shot 丢失、注册表缺失、LLMSettings.model 冲突、仓库布局、Task 4 估时）</td><td>✅ 完整保留（r1 修补<strong>未删</strong>原风险，仅<strong>追加</strong>修复标注行）</td></tr>
+<tr><td>r1 16 项&quot;已修&quot;标注</td><td>L471-486</td><td>16 行（PX 已修 · r1-2026-06-11 · —）</td><td>✅ 完整落入</td></tr>
+<tr><td>范本影响</td><td>L512（修订记录末行）</td><td>&quot;范本影响 · M7 已知 <code>make_llm(&quot;answer_chitchat&quot;)</code> 可用；M10 已知 callback 已 <code>with_config</code>；M11 已知 <code>make_llm(&quot;judge&quot;)</code> + <code>judge.yaml</code> 占位已就位&quot;</td><td>✅ 保留</td></tr>
+</table>
+<h3 id="42-范本影响段是否保留">4.2 范本影响段是否保留</h3>
+<ul>
+<li>M3 修订记录 L496-512 共 17 行 = 16 项 PX 已修 + 1 项范本影响（L512）——<strong>完整</strong></li>
+<li>M3 跨 M 联动表（plan L445-448）——<strong>保留</strong></li>
+</ul>
+<h3 id="43-风险表行类型审计">4.3 风险表行类型审计</h3>
+<ul>
+<li>17 行原风险全部带&quot;缓解&quot;列 + &quot;曾被否决的替代方案&quot;列</li>
+<li>16 行&quot;已修&quot;行带 r1-2026-06-11 修订日期</li>
+<li>1 行范本影响行带&quot;r1-2026-06-11&quot;修订日期</li>
+<li><strong>结构完整</strong></li>
+</ul>
+<h3 id="44-风险表潜在遗漏">4.4 风险表潜在遗漏</h3>
+<ul>
+<li>16 项 r1 修复<strong>全部</strong>反映到风险表（17 行原风险 + 16 行已修 = 33 行）</li>
+<li><strong>未发现</strong>新增风险（如 P0-1 草稿&quot;≤ 50 token&quot; 实际写超出 50 token 但 yaml 解析时 yaml 格式错）——但这属于实施风险，<strong>不属于 plan 风险表范围</strong></li>
+</ul>
+<p><strong>风险表补全质量</strong>：<strong>完整</strong>。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-微瑕r2-新发现r1-未列非阻塞">5.1 微瑕（r2 新发现，r1 未列；非阻塞）</h3>
+<ol>
+<li><strong>M3 计划头部未显式&quot;已通知 M7/M10/M11&quot;段</strong></li>
+</ol>
+<ul>
+<li>位置：plan L1-71（标题/Goal/Architecture/.../不包含）段</li>
+<li>现状：r1 修订记录 L512 写了&quot;范本影响 · M7 已知 / M10 已知 / M11 已知&quot;，但<strong>没有</strong>在 plan 头部（Goal 或 Architecture 段）显式写&quot;已通知下游 M&quot;的段落</li>
+<li>实际：M7/M10/M11 各自 plan 头部&quot;上游&quot;段<strong>已</strong>引用 M3（说明通知<strong>已生效</strong>），但 M3 计划<strong>未</strong>反向留痕</li>
+<li>建议（可选，下一轮可改）：在 M3 plan &quot;下游联动表&quot; 段（L445-448）后追加 1 行&quot;通知状态：M7 / M10 / M11 已确认收到（证据：各自 plan 头部上游段显式引用 M3 工厂契约点）&quot;</li>
+<li>优先级：低（通知<strong>已</strong>生效，仅是 M3 plan 自身<strong>未</strong>留痕）</li>
+</ul>
+<ol>
+<li><strong>M3 §Tech Stack 表未显式 TEI 端口 18080</strong></li>
+</ol>
+<ul>
+<li>位置：L102 Tech Stack 表 LLM 容器行</li>
+<li>现状：M3 写 <code>ghcr.io/huggingface/text-embeddings-inference:1.5 | bge-m3, dim=1024, CPU</code>（<strong>无</strong>端口）；M0 L215-216 写 <code>18080:80</code>；M4 L491 写 &quot;TEI 端口 18080:80&quot;</li>
+<li>跨 M 引用时下游 M 起草人需翻 M0 才知端口</li>
+<li>建议（可选）：M3 L102 行补 &quot;(host 18080:80 per M0 P0-2)&quot;，让 M3 plan <strong>自包含</strong></li>
+<li>优先级：低（M0 是源真理，M3 引用 env 即可，端口不一致<strong>不</strong>会导致 M3 实施错误——<code>TEI_URL</code> 在 .env.example 已设 <code>http://tei:80</code> 容器内端口，host 端口只在集成测试时影响本机访问）</li>
+</ul>
+<ol>
+<li><strong>r1 修订记录 16 行&quot;曾被否决的替代方案&quot;列全为&quot;—&quot;</strong></li>
+</ol>
+<ul>
+<li>位置：L471-486 风险表 16 行 r1 修复</li>
+<li>现状：原 17 行风险带&quot;曾被否决的替代方案&quot;列，r1 16 行&quot;已修&quot;标注行的&quot;曾被否决的替代方案&quot;列<strong>全为&quot;—&quot;</strong></li>
+<li>影响：r1 16 行是&quot;已修&quot;标注（不是新风险），所以&quot;曾被否决&quot;列<strong>确实</strong>应为&quot;—&quot;（无替代方案可记录）——<strong>逻辑上正确</strong></li>
+<li>建议：无（这是 r1 修复的合理表示法，不是缺陷）</li>
+</ul>
+<h3 id="52-落地状态">5.2 落地状态</h3>
+<ul>
+<li><strong>M3 plan r1 状态</strong>：✅ 完整通过（16/16 修复 + 范本影响力传导 + 跨 M 一致 + 风险表补全 + 修订记录齐全）</li>
+<li><strong>下游 M4/M5/M6/M7/M8/M9/M10/M11/M12 状态</strong>：✅ 全部按 M3 范本起草（结构 + 契约 + 库复用），M3 工厂契约点（KNOWN_NODES / with_config / EmbeddingDimMismatch / dim=1024）已被精确引用</li>
+<li><strong>跨 M 决策遗留</strong>：X-1（<code>app/config.py</code> 拆分 <code>configs/</code> 子目录）M0 L299 已落地（<code>app/configs/{base,postgres,opensearch,tei,langfuse}.py</code>），M3 L145 仍用 <code>app/config.py</code> 聚合——X-1 已&quot;backward-compat re-export&quot;方式在 M0 解决（M0 L299），M3 沿用 <code>app/config.py</code> 聚合<strong>OK</strong></li>
+<li><strong>M3 实施就绪度</strong>：r1 之后<strong>已</strong>达&quot;完整范本&quot;标准——M4/M5/M6/M7/M8/M9/M10/M11/M12 起草人可<strong>100% 复制</strong> M3 11 段结构 + 4 yaml 草稿写法 + 注册表 + 修订记录格式</li>
+</ul>
+<h3 id="53-下一轮建议r3-实施阶段">5.3 下一轮建议（r3 / 实施阶段）</h3>
+<ol>
+<li>M3 实际实施时<strong>优先</strong> Task 1（Settings 字段定）+ Task 6（yaml 守门测试），这两条是其他 Task 的前置</li>
+<li>M3 集成测试（Task 5）实施时建议先跑单元测试（test_prompt_yaml_guard + test_llm_factory + test_tei_embedder）确认 mock 路径绿，再跑 docker compose up 后的 smoke</li>
+<li>M3 完成后<strong>实测</strong> 7 节点 LLM 工厂实例 + dim 硬断言 + context manager 三条 P1/P0 关键约束，作为 M4/M5/M7 实施的前置验证</li>
+<li>M11 阶段 judge.yaml 实写时<strong>复用</strong> M3 §4 草稿的 YAML 字段格式（model / temperature / max_tokens / system_prompt）</li>
+</ol>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修复完成度</strong>：<strong>16/16 = 100%</strong>（4 P0 + 6 P1 + 6 P2 全部落入 plan 文本）</li>
+<li><strong>范本影响力</strong>：<strong>9/9 = 100%</strong>（M4–M12 全部按 11 段结构 + M3 工厂契约起草）</li>
+<li><strong>跨 M 一致性</strong>：<strong>6/6 关键接口点一致</strong>（TEI 端口 / dim / 7 节点 / callback / judge LLM / pyproject）</li>
+<li><strong>风险表补全</strong>：<strong>完整</strong>（17 + 16 + 1 = 33 行；范本影响段保留）</li>
+<li><strong>r2 新发现微瑕</strong>：3 条（plan 头部未留通知段 / §Tech Stack 未列 18080 / r1 修复行&quot;曾被否决&quot;列&quot;—&quot;——后者<strong>逻辑正确</strong>），<strong>均非阻塞</strong></li>
+<li><strong>M3 plan 状态</strong>：<strong>已</strong>成为 RAG V1 路线<strong>合格的&quot;完整范本&quot;</strong>——结构 + 契约 + 内容 + 风险 + 修订记录 5 维齐；可作为 M4–M12 起草人<strong>100% 复制</strong>的单里程碑样板定稿</li>
+</ul>
+<p>M3 plan r1 <strong>结构对、版本对、契约清、内容全、修复完、影响力成</strong>。<strong>建议本轮定稿；不再发起 r3 review。</strong></p>
+<hr>
+<h2 id="附录-r2-review-自身元信息">附录 · r2 review 自身元信息</h2>
+<ul>
+<li><strong>评审耗时</strong>：单 session 内 1 次 read_file（M3 plan 全文 512 行）+ 1 次 read_file（r1 review 全文 775 行）+ 多次 grep（下游 9 份 plan 关键接口引用）</li>
+<li><strong>评审方法</strong>：grep M3 plan 验证 r1 16 项修复点全部落入文本 + grep 下游 9 份 plan 验证范本影响力 + 关键参数表对账 M3 ↔ M0/M7/M11</li>
+<li><strong>r1 review 自身</strong>：775 行（含 4 P0 + 6 P1 + 6 P2 详细修复建议 + 完整代码块）——修复建议<strong>可执行性高</strong>，本次 r2 验证其 16/16 全部到位</li>
+<li><strong>M3 plan 自身</strong>：512 行（r1 修订后）——11 段结构齐 + 4 yaml 草稿 + 7 节点注册表 + 33 行风险表 + 17 行修订记录——<strong>完整范本</strong></li>
+<li><strong>r2 review 自身</strong>：本文件 250+ 行（5 大节 + 15 小节 + 16 项验证表 + 9 份下游 plan 引用表 + 18 项关键参数对账表 + 风险表行数审计）</li>
+</ul>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

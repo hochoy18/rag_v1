@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 系统 V2 TODO 设计文档</title>
+<style>
+  :root {
+    --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+    --border: #30363d; --border-soft: #21262d;
+    --text-0: #e6edf3; --text-1: #b1bac4; --text-2: #7d8590;
+    --accent: #58a6ff; --accent-2: #79c0ff;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+    --code-bg: #0b1020; --radius: 6px;
+    --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-0); color: var(--text-0); font-family: var(--sans); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; max-width: 1400px; margin: 0 auto; }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; background: var(--bg-1); border-right: 1px solid var(--border); padding: 28px 20px; font-size: 14px; }
+  nav.toc h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-2); margin: 0 0 16px 0; font-weight: 600; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: toc; }
+  nav.toc ol li { counter-increment: toc; margin: 4px 0; }
+  nav.toc a { display: block; color: var(--text-1); text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: all .15s; }
+  nav.toc a:hover { background: var(--bg-2); color: var(--accent); }
+  nav.toc a::before { content: counter(toc, decimal-leading-zero) " "; color: var(--text-2); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+  nav.toc .cluster-head { color: var(--purple); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 4px; font-weight: 600; }
+  main { padding: 48px 64px 96px; max-width: 980px; }
+  header.doc-header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header.doc-header h1.title { font-size: 32px; margin: 0 0 8px 0; color: var(--text-0); font-weight: 700; }
+  header.doc-header .meta { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--text-2); flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+  .badge.version { background: rgba(88,166,255,.15); color: var(--accent); border: 1px solid rgba(88,166,255,.3); }
+  .badge.status  { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+  .badge.date    { background: var(--bg-2); color: var(--text-1); border: 1px solid var(--border); }
+  blockquote.callout { background: var(--bg-1); border-left: 3px solid var(--accent); margin: 16px 0; padding: 12px 16px; color: var(--text-1); border-radius: 0 var(--radius) var(--radius) 0; font-size: 14px; }
+  h2 { font-size: 24px; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text-0); font-weight: 600; scroll-margin-top: 24px; }
+  h2.cluster { color: var(--purple); border-bottom-color: var(--purple); }
+  h3 { font-size: 18px; margin: 32px 0 12px; color: var(--text-0); font-weight: 600; }
+  h4 { font-size: 15px; margin: 24px 0 8px; color: var(--accent-2); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  p { margin: 12px 0; color: var(--text-1); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 24px; color: var(--text-1); }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: .88em; color: var(--accent-2); }
+  pre { background: var(--code-bg); padding: 16px 20px; border-radius: var(--radius); overflow-x: auto; border: 1px solid var(--border-soft); margin: 16px 0; }
+  pre code { background: transparent; padding: 0; color: var(--text-0); font-size: 13px; line-height: 1.5; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-soft); }
+  th { background: var(--bg-1); color: var(--text-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  td { color: var(--text-1); }
+  tr:hover td { background: var(--bg-1); }
+  .prio-P0 { color: var(--red); font-weight: 600; }
+  .prio-P1 { color: var(--yellow); font-weight: 600; }
+  .prio-P2 { color: var(--text-2); }
+  .item-card { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin: 24px 0; }
+  .item-card .item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .item-card .item-head .num { font-family: var(--mono); color: var(--purple); font-size: 13px; }
+  .item-card h3 { margin: 0; font-size: 17px; }
+  .item-card .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-2); color: var(--text-2); }
+  .item-card .tag.prio { background: rgba(88,166,255,.12); color: var(--accent); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { position: static; height: auto; } main { padding: 24px 20px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <h1>目录</h1>
+    <ol>
+      <li><a href="#overview">概览</a></li>
+      <li class="cluster-head">簇 1 · LLM 抽象层</li>
+      <li><a href="#c1-1">1.1 评估 langchain 价值</a></li>
+      <li><a href="#c1-2">1.2 init_chat_model 配置驱动</a></li>
+      <li class="cluster-head">簇 2 · 多模态</li>
+      <li><a href="#c2-1">2.1 VLM 接入</a></li>
+      <li><a href="#c2-2">2.2 图片内容问答</a></li>
+      <li><a href="#c2-3">2.3 表格结构化</a></li>
+      <li class="cluster-head">簇 3 · 检索质量</li>
+      <li><a href="#c3-1">3.1 hybrid search</a></li>
+      <li><a href="#c3-2">3.2 专用 reranker</a></li>
+      <li class="cluster-head">簇 4 · 流式与性能</li>
+      <li><a href="#c4-1">4.1 流式响应 SSE</a></li>
+      <li class="cluster-head">簇 5 · 多租户与权限</li>
+      <li><a href="#c5-1">5.1 多租户 + 组织</a></li>
+      <li><a href="#c5-2">5.2 doc 级 ACL</a></li>
+      <li><a href="#c5-3">5.3 SSO</a></li>
+      <li><a href="#c5-4">5.4 密码 / MFA / TOTP</a></li>
+      <li><a href="#c5-5">5.5 设备指纹 + 异地告警</a></li>
+      <li class="cluster-head">簇 6 · 数据飞轮</li>
+      <li><a href="#c6-1">6.1 A/B 实验框架</a></li>
+      <li><a href="#c6-2">6.2 Fine-tune 闭环</a></li>
+      <li><a href="#c6-3">6.3 用户反馈</a></li>
+      <li class="cluster-head">簇 7 · 可观测与运营</li>
+      <li><a href="#c7-1">7.1 Prometheus + Sentry</a></li>
+      <li><a href="#c7-2">7.2 Snowball 增量</a></li>
+      <li><a href="#milestones">里程碑</a></li>
+      <li><a href="#boundary">与 v1.1 边界</a></li>
+      <li><a href="#v2-deps">V2 依赖约束</a></li>
+      <li><a href="#open">开放问题</a></li>
+      <li><a href="#changelog">修订记录</a></li>
+    </ol>
+  </nav>
+  <main>
+    <header class="doc-header">
+      <h1 class="title">RAG 系统 V2 TODO 设计文档</h1>
+      <div class="meta">
+        <span class="badge version">V2-TODO</span>
+        <span class="badge status">待 review</span>
+        <span class="badge date">2026-06-10</span>
+      </div>
+      <blockquote class="callout">
+        关联：<a href="./2026-06-08-rag-system-design.html">v0.4 主 spec</a> · <a href="./2026-06-10-rag-v1-scope.html">v1 scope</a> · <a href="./2026-06-08-rag-v1.1-todo.html">v1.1 文档</a><br>
+        脑暴基线：<code>session 20260608_145040_7202e5</code>（msg 195 §3 + msg 195 §4 + msg 197 §3.3）
+      </blockquote>
+      <table>
+        <thead><tr><th>项</th><th>脑暴出处</th></tr></thead>
+        <tbody>
+          <tr><td>评估 langchain 价值</td><td><code>20260608_145040_7202e5</code> msg 195 §1（保留进 V2 评估）</td></tr>
+          <tr><td>VLM 接入（CLIP / Claude vision）</td><td><code>20260608_145040_7202e5</code> msg 195 §3</td></tr>
+          <tr><td>图片内容问答</td><td><code>20260608_145040_7202e5</code> msg 195 §3</td></tr>
+          <tr><td>表格结构化抽取</td><td><code>20260608_145040_7202e5</code> msg 195 §3</td></tr>
+          <tr><td>hybrid search (BM25 + dense)</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>bge-reranker 替代 LLM rerank</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>流式响应 SSE</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>多租户 + 组织</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>doc 级 ACL</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>SSO (PingOne / Okta / Auth0)</td><td><code>20260608_145040_7202e5</code> msg 195 §5</td></tr>
+          <tr><td>密码重置 / MFA / TOTP</td><td><code>20260608_145040_7202e5</code> msg 195 §5</td></tr>
+          <tr><td>设备指纹 + 异地告警</td><td><code>20260608_145040_7202e5</code> msg 195 §5</td></tr>
+          <tr><td>A/B 实验框架</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>Fine-tune 闭环</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>用户反馈闭环</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>Prometheus + Sentry</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>Snowball 增量同步</td><td><code>20260608_145040_7202e5</code> msg 195 §7</td></tr>
+          <tr><td>LangGraph init_chat_model 配置驱动</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+          <tr><td>Confluence 整 space CQL 抓取（V1.1）</td><td><code>20260608_145040_7202e5</code> msg 197 §3.3 + msg 200 选 C 折中</td></tr>
+        </tbody>
+      </table>
+    </header>
+
+    <h2 id="overview">0. 概览</h2>
+    <p>v2 在 v1 / v1.1 稳定运行后启动。19 项按主题聚成 7 簇，<strong>所有簇都涉及"加一层或换一层"——而不是新增独立模块</strong>。预期每簇都伴随一次 schema migration 与一次 LangGraph 节点改造。</p>
+    <table>
+      <thead><tr><th>簇</th><th>项数</th><th>主要改动层</th><th>估时</th><th>优先级</th></tr></thead>
+      <tbody>
+        <tr><td>1 · LLM 抽象层重构</td><td>2</td><td>llm/、graph/</td><td>1 周</td><td class="prio-P2">P2</td></tr>
+        <tr><td>2 · 多模态</td><td>3</td><td>retrieval/、llm/、ingest/</td><td>2-3 周</td><td class="prio-P1">P1</td></tr>
+        <tr><td>3 · 检索质量</td><td>2</td><td>retrieval/、graph/</td><td>1.5 周</td><td class="prio-P0">P0</td></tr>
+        <tr><td>4 · 流式与性能</td><td>1</td><td>api/、graph/</td><td>1 周</td><td class="prio-P0">P0</td></tr>
+        <tr><td>5 · 多租户与权限</td><td>5</td><td>auth/、db/、ingest/</td><td>3 周</td><td class="prio-P0">P0（企业前置）</td></tr>
+        <tr><td>6 · 数据飞轮</td><td>3</td><td>eval/、graph/、ingest/</td><td>2 周</td><td class="prio-P2">P2</td></tr>
+        <tr><td>7 · 可观测与运营</td><td>2</td><td>observability/、ingest/</td><td>1 周</td><td class="prio-P1">P1</td></tr>
+      </tbody>
+    </table>
+    <p><strong>v2 启动前置条件</strong>：v1.1 全量发布并跑过 ≥2 周生产数据；至少 1 个付费企业客户（或同等规模内测）；RAGAS faithfulness ≥ 0.75 稳定 1 个月。</p>
+
+    <h2 class="cluster" id="c1">簇 1 · LLM 抽象层重构</h2>
+
+    <h3 id="c1-1">1.1 评估 langchain 价值 vs 依赖成本</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 1 · 01</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">3d</span>
+      </div>
+      <h4>目标</h4>
+      <p>定量评估 langchain <code>BaseChatModel</code> 抽象的真实价值（Langfuse callback、retry、tool use 抽象），与依赖成本（包体积、版本冲突、抽象泄露）。结论二元：<strong>保留</strong>（≥3 个不可替代能力）或<strong>砍改</strong>直接用 anthropic SDK。</p>
+      <h4>触发条件</h4>
+      <ul><li>启动评估：<code>python -m app.eval.langchain_audit</code></li><li>输出报告：保留/砍改 + 影响面</li></ul>
+      <h4>API 改动</h4>
+      <p>评估阶段不改动；决策落地后：</p>
+      <ul>
+        <li><strong>砍改路径</strong>：删除 <code>langchain-anthropic</code> 依赖，<code>app/llm/factory.py</code> 重写为直接 <code>anthropic.AsyncAnthropic</code> + 自写 callback</li>
+        <li><strong>保留路径</strong>：无代码改动，仅生成 ADR</li>
+      </ul>
+      <h4>数据流</h4>
+      <pre><code>app.eval.langchain_audit
+  → 静态分析：grep langchain 实际使用 API
+  → 依赖成本：pip show langchain langchain-anthropic langchain-core
+  → 价值评估表（1-5 分）：
+      Langfuse callback 集成          5  ← 不可替代
+      retry / streaming 包装          3
+      tool use 抽象                   4  ← 跟 langgraph 绑
+      ChatAnthropic vs 直接 anthropic 2
+  → 决策：总分 ≥ 12 → 保留；&lt; 12 → 砍改（1 周迁移窗口）</code></pre>
+      <h4>测试要点</h4>
+      <ul><li>静态：所有 <code>from langchain_* import</code> 列入清单</li><li>基准：cold start time / RSS / token 计数精度</li><li>灰度：5% 流量跑直接 SDK，95% langchain，1 周后切 100%</li></ul>
+      <h4>依赖</h4>
+      <p>v1 LLM 工厂已稳态运行。v1 依赖：langchain==1.0.8、langchain-core&gt;=1.0.8、langchain-anthropic&gt;=0.3</p>
+      <h4>与 v1 的边界</h4>
+      <p>v1：保留 langchain（v0.4 决策 1）。v2：重新评估，结论独立。</p>
+      <h4>风险</h4>
+      <ul><li>砍改后回调链断（Langfuse 漏报）→ 灰度 + 对照埋点</li><li>砍改后 token 计数偏差 → RAGAS eval 必须绿</li></ul>
+      <h4>验收</h4>
+      <ul><li>[ ] 评估报告落 ADR</li><li>[ ] 决策落地后 CI 全绿</li><li>[ ] Langfuse trace 无回归</li></ul>
+    </div>
+
+    <h3 id="c1-2">1.2 LangGraph <code>init_chat_model</code> 配置驱动</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 1 · 02</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">2d</span>
+      </div>
+      <h4>目标</h4>
+      <p>把 v1 写死的 <code>make_llm()</code> 工厂换成 langgraph 推荐的 <code>init_chat_model</code> 配置驱动模式：模型 provider、temperature、max_tokens、model_name 全部走 <code>config.yaml</code> / 环境变量，<strong>不</strong>改代码即可切换。</p>
+      <h4>触发条件</h4>
+      <ul><li>部署时切换模型</li><li>灰度：10% 流量跑新模型</li><li>A/B 实验（与簇 6.1 联动）</li></ul>
+      <h4>API 改动</h4>
+      <p><code>app/llm/factory.py</code> 重构：</p>
+      <pre><code>from langchain.chat_models import init_chat_model
+
+def make_llm(node: str) -> BaseChatModel:
+    cfg = load_config(f"llm.{node}")
+    return init_chat_model(
+        model=cfg.model,
+        temperature=cfg.temperature,
+        max_tokens=cfg.max_tokens,
+        configurable_fields=("model", "temperature"),
+    )</code></pre>
+      <h4>数据流</h4>
+      <p>节点调用 <code>make_llm("answer")</code> → 读 <code>config/llm.yaml</code> → <code>init_chat_model(...)</code> 返回 BaseChatModel → 注入 Langfuse callback。切模型 = 改 yaml + 重启服务（不热更）。</p>
+      <h4>测试要点</h4>
+      <ul><li>单元：config 加载、缺字段报错</li><li>集成：4 节点各跑一条 query，Langfuse trace 标注 <code>model_used</code></li><li>灰度：单节点切模型不影响其他节点</li></ul>
+      <h4>依赖</h4>
+      <p>langgraph==1.0.5 已具备 <code>init_chat_model</code>。1.1 决策落地（如果 1.1 砍改 langchain，本项需重写）。</p>
+      <h4>与 v1 的边界</h4>
+      <p>v1：模型写死在 <code>make_llm()</code>。v2：配置驱动，<strong>不</strong>做热更。</p>
+      <h4>风险</h4>
+      <ul><li>改配置忘记重启 → 加 startup check</li><li>配错字段 → config schema 用 Pydantic 强校验</li></ul>
+      <h4>验收</h4>
+      <ul><li>[ ] 改 yaml 切模型无需改代码</li><li>[ ] 4 节点可独立配模型</li><li>[ ] 启动 fail-fast</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c2">簇 2 · 多模态</h2>
+
+    <h3 id="c2-1">2.1 多模态 VLM（CLIP / Claude vision）接入</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 2 · 01</span>
+        <span class="tag prio">P1</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 仅索引图片<strong>元数据</strong> + 缩略图（不索引内容）。v2 接入 VLM：图片入库时调 VLM 生成 caption，caption 入索引参与检索。</p>
+      <h4>触发条件</h4>
+      <ul><li>ingest 时检测到图片元素（LlamaIndex <code>ImageElement</code>）</li><li>自动调 VLM caption</li></ul>
+      <h4>API 改动</h4>
+      <ul>
+        <li>检测图片元素后调 <code>VLMClient.caption(image_bytes)</code> → string</li>
+        <li>caption 走与正文相同的 splitter（短，~50 token）</li>
+        <li>metadata 增 <code>image_ref</code>、<code>vlm_caption_id</code>、<code>vlm_model</code></li>
+      </ul>
+      <h4>数据流</h4>
+      <pre><code>图片元素 (image_bytes, ocr_text?)
+  → sha256 → artifacts/{doc_id}/images/{hash}.png
+  → VLMClient.caption(image_bytes)
+  → SentenceSplitter → embed → upsert
+  → metadata: { image_ref, vlm_model, vlm_caption_id, ocr_text_ref? }</code></pre>
+      <h4>测试要点</h4>
+      <ul><li>单元：VLM 客户端 mock</li><li>集成：含 5 张图的 PDF，索引后查询"图1的标题"能命中 caption chunk</li><li>成本：VLM caption 单图 ~$0.001</li></ul>
+      <h4>依赖</h4>
+      <p>不依赖其他 v2 项。外部：VLM provider（Claude vision / OpenAI GPT-4V / 本地 Qwen-VL）。v1 基础：langchain==1.0.8、llama-index==0.14.8</p>
+      <h4>与 v1 的边界</h4>
+      <p>v1：图片<strong>不</strong>索引内容。v2：索引 caption + OCR，<strong>不</strong>做"以图搜图"。</p>
+      <h4>风险</h4>
+      <ul><li>VLM 幻觉 → RAGAS 评测加 <code>image_faithfulness</code></li><li>成本放大 → 配置化开关，默认关</li><li>隐私 → 本地 Qwen-VL 走自部署</li></ul>
+      <h4>验收</h4>
+      <ul><li>[ ] caption 落索引，可检索</li><li>[ ] 成本可控</li><li>[ ] RAGAS image_faithfulness ≥ 0.6</li></ul>
+    </div>
+
+    <h3 id="c2-2">2.2 图片内容问答</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 2 · 02</span>
+        <span class="tag prio">P1</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>answer 节点拿到 source 中含 <code>image_ref</code> 的 chunk 时，把图片 inline 到 prompt，让 VLM 基于<strong>实际图</strong>答图（"对比这两张图"）。</p>
+      <h4>触发条件</h4>
+      <ul><li>检索结果含 <code>image_ref</code></li><li>用户 query 含"图 / 看 / 对比"等视觉意图词</li></ul>
+      <h4>数据流</h4>
+      <pre><code>answer 节点
+  → image_chunks = [c for c in chunks if c.metadata.image_ref]
+  → if image_chunks:
+        拉图（OpenSearch 返回 image_url 或本地 artifacts/）
+        构造多模态 content: [text, image_1, image_2, ...]
+        llm_vision.invoke(...)
+    else:
+        走 v1 纯文本路径</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] 答图有图有真相</li><li>[ ] 失败降级不阻塞</li></ul>
+    </div>
+
+    <h3 id="c2-3">2.3 表格结构化抽取 + embedding 增强</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 2 · 03</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 的表格元素只走"纯文本 dump" → chunk。v2 用 LLM 把表格转 Markdown/JSON 结构化，再 embed "整张表"作为额外 chunk。</p>
+      <h4>数据流</h4>
+      <pre><code>TableElement (html)
+  → LLM table_to_markdown(html) → md
+  → LLM table_summarize(md) → summary_text
+  → embed(md) → chunk_md
+  → embed(summary_text) → chunk_summary
+  → embed(original_text) → chunk_text (v1 行为)
+  → metadata: { table_id, is_table_struct: true, columns: [...] }</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] 表格查得回</li><li>[ ] 表格答案不幻觉</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c3">簇 3 · 检索质量</h2>
+
+    <h3 id="c3-1">3.1 hybrid search (BM25 + dense)</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 3 · 01</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">4d</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 纯 dense（向量）检索，缺关键词命中能力。v2 引入 BM25 稀疏 + dense 稠密双路，加权融合（RRF 或线性加权）。</p>
+      <h4>数据流</h4>
+      <pre><code>retrieve_node(state)
+  → for r in rewrites:
+        sparse_hits = bm25_search(r, k=20)
+        dense_hits  = knn_search(r, k=20)
+        fused = rrf(sparse_hits, dense_hits) → top 20
+        chunks += fused
+  → dedupe(chunks)</code></pre>
+      <h4>测试要点</h4>
+      <ul><li>golden set 50 题，hybrid vs pure dense：context_precision ≥ +10%, latency &lt; dense × 1.5</li></ul>
+      <h4>依赖</h4>
+      <p>OpenSearch 2.19 已部署；索引重建（加 BM25 字段）。v1 基础：opensearch-py&gt;=2.6,&lt;3</p>
+      <h4>验收</h4>
+      <ul><li>[ ] RAGAS context_precision 提升 ≥ 10%</li><li>[ ] P95 latency 增长 &lt; 50%</li></ul>
+    </div>
+
+    <h3 id="c3-2">3.2 专用 reranker（bge-reranker / Cohere）</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 3 · 02</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">3d</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 rerank 用 LLM 打分 0-10，<strong>慢 + 贵</strong>。v2 切专用 rerank 模型，单 query 20-50ms，$0.001/call。</p>
+      <h4>数据流</h4>
+      <pre><code>chunks: list[Chunk] (top 20 from retrieve)
+  → bge_reranker.score(query, [c.text for c in chunks])
+  → chunks_sorted = sort by score desc
+  → return top 5</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] 质量不退</li><li>[ ] latency/cost 大幅降</li><li>[ ] fallback 路径测过</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c4">簇 4 · 流式与性能</h2>
+
+    <h3 id="c4-1">4.1 流式响应 SSE</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 4 · 01</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p><code>POST /api/chat</code> v1 等 LLM 全答完才返回（3-5s）。v2 改 SSE：LLM 首个 token 即可流到 Gradio，UX 提升 2-3 倍感知速度。</p>
+      <h4>API 改动</h4>
+      <ul>
+        <li><code>StreamingResponse(media_type="text/event-stream")</code></li>
+        <li>事件类型：<code>event: sources</code> / <code>event: token</code> / <code>event: done</code></li>
+      </ul>
+      <h4>数据流</h4>
+      <pre><code>StreamingResponse 生成器:
+  for event in graph.astream_events(input, config, version="v2"):
+      if event["event"] == "on_retriever_end":
+          yield { sources }
+      elif event["event"] == "on_chat_model_stream":
+          yield { token: ... }
+      elif ... "on_chain_end" and name=="answer":
+          yield { done, session_id }
+  save_memory 异步（在 done 后 fire-and-forget）</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] Gradio 看到 token 滚动</li><li>[ ] 中断不污染 DB</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c5">簇 5 · 多租户与权限</h2>
+
+    <h3 id="c5-1">5.1 多租户 + 组织</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 5 · 01</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 单租户，所有用户共享 doc。v2 引入 <code>org</code> 维度：org 隔离 doc、session、配额；用户属于 ≥1 org。</p>
+      <h4>API 改动</h4>
+      <p>新增表 <code>orgs</code>、<code>org_members</code>；<code>users</code> 加 <code>current_org_id</code>；<code>ingest_jobs</code>/<code>chat_sessions</code>/<code>chunks</code> 加 <code>org_id</code> 外键。retrieve 强制 <code>filter: org_id</code>。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 跨 org 100% 隔离</li><li>[ ] 配额正确</li><li>[ ] 老数据迁移脚本测试</li></ul>
+    </div>
+
+    <h3 id="c5-2">5.2 doc 级 ACL</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 5 · 02</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>org 隔离之上，doc 可独立设 ACL（"只允许 org 内 X 角色访问" / "全员可见" / "私有不共享"）。</p>
+      <h4>API 改动</h4>
+      <p>OpenSearch <code>chunks</code> 加 <code>acl_read TEXT[]</code> 字段。retrieve 节点 filter 用 <code>bool.should</code> 包含 user_id / role / org_id / "all"。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] ACL 矩阵测试全过</li><li>[ ] 越权不泄露</li></ul>
+    </div>
+
+    <h3 id="c5-3">5.3 SSO（PingOne / Okta / Auth0）</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 5 · 03</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">3d</span>
+      </div>
+      <h4>目标</h4>
+      <p>用户名/密码鉴权（v1）之外，接入企业 SSO。OIDC 协议，三家 provider。</p>
+      <h4>数据流</h4>
+      <p>用户点 SSO 登录 → 302 跳 provider → callback code → access_token → userinfo → 查 users WHERE <code>auth_provider='okta' AND auth_subject=sub</code> → 命中颁发本地 token / 未命中 JIT 创建 user。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 三家 provider 接入测试通过</li><li>[ ] SSO 失败兜底可走本地</li></ul>
+    </div>
+
+    <h3 id="c5-4">5.4 密码重置 / MFA / TOTP</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 5 · 04</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>补齐企业安全基线：密码重置邮件、MFA 强制开启、TOTP 二次验证。</p>
+      <h4>API 改动</h4>
+      <p><code>password_reset_tokens</code> 表（30 分钟过期）+ <code>mfa_secrets</code> 表（encrypted TOTP secret）+ <code>app/auth/mfa.py</code>（<code>pyotp</code>）。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 三路径全通</li><li>[ ] TOTP 库审计</li></ul>
+    </div>
+
+    <h3 id="c5-5">5.5 设备指纹 + 异地登录告警</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 5 · 05</span>
+        <span class="tag prio">P0</span>
+        <span class="tag">3d</span>
+      </div>
+      <h4>目标</h4>
+      <p>异常登录检测：首次设备 / 异地 IP / 高频失败 → 邮件告警 + 临时锁定。</p>
+      <h4>数据流</h4>
+      <p>登录成功 → 查 login_events 最近 30 天 → 算 fingerprint → 距离 &gt;500km 且时间差 &lt;30min 视为异地 → 发邮件告警 → 写 login_events。失败计数：redis incr 5/min/IP 锁 5min。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 5 场景全识别</li><li>[ ] 告警邮件到</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c6">簇 6 · 数据飞轮</h2>
+
+    <h3 id="c6-1">6.1 A/B 实验框架</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 6 · 01</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">4d</span>
+      </div>
+      <h4>目标</h4>
+      <p>支持新模型 / 新 prompt / 新 rerank 策略灰度上线，按 user / session / org 维度分流。</p>
+      <h4>数据流</h4>
+      <pre><code>experiments.yaml:
+  experiments:
+    - name: rerank_v2
+      variants: [{name: control, weight: 50}, {name: treatment, weight: 50}]
+
+POST /api/chat
+  → assignments = experiment_framework.assign(user_id, request_id)
+  → config = {configurable: {experiment_assignments: assignments}}
+  → graph.invoke(input, config)
+  → Langfuse trace 标 experiment_variant</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] 分流稳定</li><li>[ ] 实验结束后清理无残留</li></ul>
+    </div>
+
+    <h3 id="c6-2">6.2 Fine-tune 闭环</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 6 · 02</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>收集高质量 query-answer 对，fine-tune rerank / answer 模型，部署上线。</p>
+      <h4>数据流</h4>
+      <p>用户 👍 → 落 feedback 表 + Langfuse score。cron 每周导出 feedback score=1 → jsonl → 人工 review → fine-tune → 新模型部署为 experiment 变体 → A/B 2 周 → 全量切。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 闭环跑通一次</li></ul>
+    </div>
+
+    <h3 id="c6-3">6.3 用户反馈闭环</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 6 · 03</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">2d</span>
+      </div>
+      <h4>目标</h4>
+      <p>Gradio UI 加 👍 / 👎 按钮；反馈写入 DB + Langfuse。</p>
+      <h4>API 改动</h4>
+      <p><code>POST /api/feedback {message_id, score: 1|-1, comment?}</code></p>
+      <h4>验收</h4>
+      <ul><li>[ ] 反馈闭环</li><li>[ ] Langfuse 可看</li></ul>
+    </div>
+
+    <h2 class="cluster" id="c7">簇 7 · 可观测与运营</h2>
+
+    <h3 id="c7-1">7.1 Prometheus + Sentry</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 7 · 01</span>
+        <span class="tag prio">P1</span>
+        <span class="tag">1w</span>
+      </div>
+      <h4>目标</h4>
+      <p>v1 仅 Langfuse（业务 trace），缺系统级监控与错误聚合。v2 加 Prometheus（指标）+ Sentry（异常）。</p>
+      <h4>数据流</h4>
+      <p>FastAPI 启动 → <code>/metrics</code> 端点 + Sentry SDK 注入。每次请求 middleware 计时 → histogram；异常 → Sentry.capture_exception。Grafana 看板：P50/P95 latency、错误率、成本/天。Alert: P95 &gt; 5s 持续 5min → Slack。</p>
+      <h4>验收</h4>
+      <ul><li>[ ] 看板上线</li><li>[ ] Alert 跑通</li></ul>
+    </div>
+
+    <h3 id="c7-2">7.2 Snowball 增量同步</h3>
+    <div class="item-card">
+      <div class="item-head">
+        <span class="num">CLUSTER 7 · 02</span>
+        <span class="tag prio">P2</span>
+        <span class="tag">3d</span>
+      </div>
+      <h4>目标</h4>
+      <p>任意 URL 源（internal wiki / Notion / GitBook）的"按图索骥"增量抓取：从 seed URL 出发，BFS 发现新 URL 入队。</p>
+      <h4>数据流</h4>
+      <pre><code>每日 02:00
+  → frontier = [seed]
+  → visited = set()
+  → for depth in 0..3:
+        for url in frontier:
+            if url in visited: continue
+            fetch → parse → upsert
+            visited.add(url)
+            for link in extract_links(html):
+                if link_domain in allowed and link not in visited:
+                    new_pages.append(link)
+        frontier = new_pages
+        if len(visited) > max_pages_per_run: break</code></pre>
+      <h4>验收</h4>
+      <ul><li>[ ] BFS 正确</li><li>[ ] 限速不爆</li></ul>
+    </div>
+
+    <h2 id="milestones">8. 里程碑与发布</h2>
+    <pre><code>M20.0  簇 3 检索质量      → §3.1 §3.2        估 2.5 周
+M20.1  簇 4 流式          → §4.1              估 1 周
+M20.2  簇 5 权限（基线）  → §5.1 §5.2 §5.3 §5.4 §5.5  估 3 周
+M20.3  簇 2 多模态        → §2.1 → §2.2 → §2.3  估 3 周
+M20.4  簇 6 数据飞轮      → §6.3 → §6.1 → §6.2  估 2 周
+M20.5  簇 1 + 簇 7        → §1.1 → §1.2 → §7.1 → §7.2  估 2 周</code></pre>
+    <p><strong>关键依赖</strong>：</p>
+    <ul>
+      <li>1.2（LLM 工厂配置驱动）是 6.1 前置</li>
+      <li>2.1（VLM 接入）是 2.2 前置</li>
+      <li>5.1（org）是 5.2（doc ACL）前置</li>
+      <li>6.3（反馈）是 6.2（fine-tune）前置</li>
+    </ul>
+    <p><strong>不建议的顺序</strong>：</p>
+    <ul>
+      <li>簇 1 必须等 v1.1 跑稳</li>
+      <li>簇 5 全套同时上 → 风险大，按 §5.1 → §5.2 → §5.3/§5.4/§5.5</li>
+    </ul>
+
+    <h2 id="boundary">9. 与 v1.1 的边界</h2>
+    <p>v1.1 已实现：整 space CQL 抓取；评论纳入；增量同步；页面版本；Playwright URL；classify telemetry。v2 不重复实现上述。<strong>例外</strong>：v2 簇 2（多模态）与 v1.1 无重叠，v2 簇 5 整体升级不依赖 v1.1。</p>
+
+    <h2 id="v2-deps">10. V2 依赖版本约束（v1 基础上叠加）</h2>
+    <p>v2 沿用 v1 全部 36 个包；v2 阶段新增/升级项：</p>
+    <table>
+      <thead><tr><th>变更</th><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td>新增</td><td><code>prometheus-client</code></td><td><code>&gt;=0.20,&lt;1</code></td></tr>
+        <tr><td>新增</td><td><code>sentry-sdk[fastapi]</code></td><td><code>&gt;=2.0,&lt;3</code></td></tr>
+        <tr><td>新增</td><td><code>pyotp</code></td><td><code>&gt;=2.9,&lt;3</code></td></tr>
+        <tr><td>新增</td><td><code>python-jose[cryptography]</code></td><td><code>&gt;=3.3,&lt;4</code>（OIDC JWT 解析）</td></tr>
+        <tr><td>新增</td><td><code>geoip2</code></td><td><code>&gt;=4.8,&lt;5</code>（设备指纹异地检测）</td></tr>
+        <tr><td>升级</td><td><code>langchain</code></td><td>仍 <code>==1.0.8</code>（1.2 评估若通过则升）</td></tr>
+        <tr><td>升级</td><td><code>langgraph</code></td><td>仍 <code>==1.0.5</code>（init_chat_model 已在 1.0.5 范围）</td></tr>
+        <tr><td>升级</td><td><code>TEI 容器镜像</code></td><td>加 rerank 端口支持（<code>text-embeddings-inference:1.5+</code>）</td></tr>
+      </tbody>
+    </table>
+    <p><strong>新增包总数</strong>：5 个直接依赖</p>
+    <p><strong>总计</strong>：36 (v1) + 5 (v2 新增) = <strong>41 个直接依赖</strong></p>
+
+    <h2 id="open">11. 待 review 的开放问题</h2>
+    <ol>
+      <li><strong>v2 启动条件</strong>：是否必须等 1 个付费企业客户？或 ≥10k 文档/天的生产数据？</li>
+      <li><strong>SSO 优先级</strong>：5.3 SSO 与 5.1 多租户 谁先？SSO 客户往往一上来就要租户</li>
+      <li><strong>fine-tune 投资回报</strong>：$100+ 训练成本 + 1 周灰度，小流量不划算 → 触发阈？</li>
+      <li><strong>A/B 实验并发数</strong>：建议 2 个，是否够？</li>
+      <li><strong>VLM 选型</strong>：Claude vision（贵）vs Qwen-VL 本地（便宜）vs GPT-4V（中文一般）？</li>
+      <li><strong>多租户迁移路径</strong>：老用户数据强制分配 default org？还是允许"个人"无 org？</li>
+      <li><strong>设备指纹 + 异地的误报率</strong>：500km / 30min 阈是否合理？</li>
+    </ol>
+
+    <h2 id="changelog">12. 修订记录</h2>
+    <table>
+      <thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+      <tbody>
+        <tr><td>v2-todo-draft</td><td>2026-06-08</td><td>初稿，从 v0.4 spec §7 拆出 19 项，按 7 簇聚类</td></tr>
+        <tr><td>v2-todo-2026-06-10</td><td>2026-06-10</td><td>同步 v1 36 包版本基线 + V2 新增 5 包版本表</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+</body>
+</html>

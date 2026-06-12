@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M10 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M10 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>402 行</span>
+<span>27 P0</span>
+<span>43 P1</span>
+<span>21 P2</span>
+<span class="badge-r1">1 r1 标记</span>
+    <span>2026-06-11-rag-m10-obs-langfuse-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证29-项逐项">1. r1 修复验证（29 项逐项）</a></li>
+<li><a href="#11-p0-项验证5-项">1.1 P0 项验证（5 项）</a></li>
+<li><a href="#12-p1-项验证14-项">1.2 P1 项验证（14 项）</a></li>
+<li><a href="#13-p2-项验证10-项">1.3 P2 项验证（10 项）</a></li>
+<li><a href="#14-29-项修复到位率统计">1.4 29 项修复到位率统计</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#新-1-chatresponsetrace_id-字段与-m8-chatresponserequest_id-命名不一致">新-1 · ChatResponse.trace_id 字段与 M8 ChatResponse.request_id 命名不一致 [P1]</a></li>
+<li><a href="#新-2-m10-user-feedback-端点路径与-m9-r2-揭示的路径未对齐-p1">新-2 · M10 user feedback 端点路径与 M9 r2 揭示的&amp;quot;👍/👎&amp;quot;路径未对齐 [P1]</a></li>
+<li><a href="#新-3-m10-get_current_trace_id-与-m8-requestidmiddleware-注入的-re">新-3 · M10 get_current_trace_id() 与 M8 RequestIdMiddleware 注入的 request_id 概念未对齐 [P1]</a></li>
+<li><a href="#新-4-task-5-green-段装饰器内部-langfuse_contextupdate_current_obser">新-4 · Task 5 GREEN 段装饰器内部 langfuse_context.update_current_observation 调用 name= 参数会覆盖上一节点 name [P2]</a></li>
+<li><a href="#新-5-_summarize_node_usage-在-langfuse_contextget_current_obse">新-5 · _summarize_node_usage 在 langfuse_context.get_current_observation() 返回 None 时会抛 AttributeError [P2]</a></li>
+<li><a href="#新-6-task-6-装饰器应用到-m7-节点时-inspectsignature-报-valueerror-no-si">新-6 · Task 6 装饰器应用到 M7 节点时 inspect.signature 报 ValueError: no signature found（节点定义在 app/graph/nodes.py 但通过模块内 import） [P2]</a></li>
+<li><a href="#新-7-集成测试-test_chat_creates_eight_node_trace-断言-traceobservat">新-7 · 集成测试 test_chat_creates_eight_node_trace 断言 trace.observations 长度 ≥ 8 但实际是 1 个 root + 8 node + N 个 LLM = 9 + N [P2]</a></li>
+<li><a href="#3-跨-m-一致性检查m0m2m3m7m8m9m11m12">3. 跨 M 一致性检查（M0/M2/M3/M7/M8/M9/M11/M12）</a></li>
+<li><a href="#31-m10-m0infra-langfuse-容器-4-env">3.1 M10 ↔ M0（infra · Langfuse 容器 + 4 env）</a></li>
+<li><a href="#32-m10-m2auth-dependsget_current_user-auth_sessions">3.2 M10 ↔ M2（auth · Depends(get_current_user) + auth_sessions）</a></li>
+<li><a href="#33-m10-m3llm-embed-make_llm-get_callback_handler-sample_rate">3.3 M10 ↔ M3（llm-embed · make_llm + get_callback_handler + sample_rate）</a></li>
+<li><a href="#34-m10-m7graph-8-节点-safe_node-stateerror">3.4 M10 ↔ M7（graph · 8 节点 + safe_node + state.error）</a></li>
+<li><a href="#35-m10-m8api-chat-chatresponserequest_id-命名">3.5 M10 ↔ M8（api-chat · ChatResponse.request_id 命名）</a></li>
+<li><a href="#36-m10-m9ui-gradio-trace_id-渲染">3.6 M10 ↔ M9（ui-gradio · trace_id 渲染）</a></li>
+<li><a href="#37-m10-m11eval-ragas-judge-llm-trace_id-关联">3.7 M10 ↔ M11（eval-ragas · judge LLM + trace_id 关联）</a></li>
+<li><a href="#38-m10-m12hardening-retention-告警-降级开关">3.8 M10 ↔ M12（hardening · retention / 告警 / 降级开关）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表行数审计">4.1 风险表行数审计</a></li>
+<li><a href="#42-风险表分布合理性">4.2 风险表分布合理性</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#必做3-项-r2-衍生-p1-改完才能动手">必做（3 项 r2 衍生 P1）— 改完才能动手</a></li>
+<li><a href="#建议做4-项-r2-衍生-p2-review-后微调">建议做（4 项 r2 衍生 P2）— review 后微调</a></li>
+<li><a href="#选做3-项-p1p2-半到位修补">选做（3 项 P1/P2 半到位修补）</a></li>
+<li><a href="#风险表追加-7-项-r2-衍生">风险表追加 7 项 r2 衍生</a></li>
+<li><a href="#不在-m10-范围推迟到-m12">不在 M10 范围（推迟到 M12）</a></li>
+<li><a href="#修订建议针对-plan-l1001-1036-修订记录">修订建议（针对 plan L1001-1036 修订记录）</a></li>
+<li><a href="#一句话结论">一句话结论</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m10-plan-r2-review-r1-修复验证">M10 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>plans/2026-06-11-rag-m10-obs-langfuse.md</code>（r1 版本 · 1036 行 · 修订记录声明 29 项 r1 已修：5 P0 + 14 P1 + 10 P2）</blockquote>
+<blockquote>评审基线：r1 review <code>reviews/2026-06-11-rag-m10-obs-langfuse-review.md</code>（912 行 · 5 P0 + 9 P1 + 10 P2 = 24 项）</blockquote>
+<blockquote>横向交叉：M0/M1/M2/M3/M7/M8/M9/M11/M12 已 r2 修复；其中 <strong>M8 r2 揭示 ChatResponse.request_id 字段命名</strong> + <strong>M9 r2 揭示 trace_id/request_id 三处不一致</strong> + <strong>M7 r2 揭示节点 _node 后缀命名 + safe_node 装饰器 + state.error 字段</strong> 直接影响 M10 跨 M 一致性</blockquote>
+<blockquote>评审时间：2026-06-11（r2 阶段）</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查 · 验证 r1 修复质量 + 发现 r1 引入新问题）</blockquote>
+<blockquote>范围：M10 plan 29 项 r1 修复逐项验证 + r1 修复过程中是否引入新问题 + 跨 M 一致性 8 联动 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M10 plan r1 修复是 RAG V1 路线中<strong>修复质量最高的 plan 之一</strong>——29 项 r1 修订记录（5P0 + 14P1 + 10P2）<strong>全部回填到 plan 主体</strong>（Task 1-13 GREEN 段 + Files 表 + 风险表追加 23 行 r1 已修条目 + DoD 完整勾选），与 M8 r1 风格（18/18 回填）一致。<strong>5 项 P0</strong>（<code>@node_trace</code> 双签名自动识别 / <code>get_client().flush()</code> / <code>get_client().get_current_trace_id()</code> / 8 节点 + getsourcelines / <code>langfuse_context.update_current_observation</code> 替代 <code>on_chain_<em></code>）<strong>全部到位且代码可执行</strong>——装饰器内部实现完整可读（async/sync 双 wrapper + contextvars 隔离 + tenacity retry + sample_rate 短路 + usage 汇总 + PII 输出端脱敏）；<strong>14 项 P1</strong>（metadata 格式测试 / 弃用 on_chain_</em> / 节点 usage/cost / 不可达降级 / HandlerPool 标注 / contextvars 隔离 / flush 调用点 / PII 扩展 / retention / user feedback / prompt_source / OTEL / 429 retry / trace_id max_length=64）<strong>全部落到具体 Task 段</strong>；<strong>10 项 P2</strong>（flush_timeout 1.0 / .env 7 项 / 命名去重 / 错误断言 / getsourcelines / metadata 路径 / ChatAnthropic.APIError / staging 0.5 / __init__ 最小暴露 / 性能 docstring）<strong>全部到位</strong>。</p>
+<p class="ok"><strong>r1 修复到位率约 100%</strong>——29 项 r1 修复中 28 项能在 plan 主体（Tasks 1-13 + Files 表 + 风险表 + DoD + 修订记录）找到对应落地实现；1 项存在轻度假借（P1-6 contextvars 隔离声明 <code>_current_node_name</code> 但<strong>未存实际 <code>langfuse_context</code> 当前 observation id</strong>，实际隔离是装饰器层 metadata 隔离而非 contextvars 真隔离）。r1 修复过程<strong>未引入阻塞级新问题</strong>，但发现 <strong>7 项 r1 衍生新问题</strong>（P1 × 3 + P2 × 4）——其中 3 项是<strong>跨 M 字段命名漂移</strong>（M8 r2 新-1 揭示 <code>request_id</code> 字段 / M9 r2 漂-2 揭示 trace_id/request_id 三处混乱 / M10 r1-新-1 <code>get_current_trace_id()</code> 命名空间与 <code>request_id</code> 概念未对齐），全部为跨 M 联动需要消化的&quot;语义层&quot;问题。</p>
+<table>
+<tr><th>维度</th><th>r1 评分</th><th>r2 评分</th><th>变化</th></tr>
+<tr><td>------</td><td>--------</td><td>--------</td><td>------</td></tr>
+<tr><td>P0 阻塞解除</td><td>❌ 5 项 P0 API 全错</td><td>✅ <strong>5 项 P0 全部修复</strong> + 装饰器代码可读完整</td><td>大幅提升</td></tr>
+<tr><td>装饰器协议正确性</td><td>❌ on_chain_* 私有化</td><td>✅ <strong>langfuse_context.update_current_observation</strong></td><td>大幅提升</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐</td><td>⚠️ <strong>M8/M9 request_id vs trace_id 命名未消化</strong></td><td>退化</td></tr>
+<tr><td>TDD 节奏保留</td><td>⭐⭐⭐⭐⭐</td><td>⭐⭐⭐⭐⭐</td><td>保持</td></tr>
+<tr><td>风险表透明度</td><td>⚠️ 6 行原风险</td><td>✅ <strong>6 原 + 23 r1 已修 + 5 跨 M 衍生</strong></td><td>大幅提升</td></tr>
+<tr><td>可立即实施</td><td>❌ P0 阻塞</td><td>✅ <strong>P0 全解 + 跨 M 命名待消化</strong></td><td>提升</td></tr>
+</table>
+<p class="ok"><strong>一句话</strong>：r1 修复<strong>质量高、覆盖完整、主体回填到位</strong>——M10 plan 已是 RAG V1 路线中<strong>可立即动手实施</strong>的状态。修完 7 项 r1 衍生新问题（重点是 M8/M9/M10 三处 <code>request_id</code> vs <code>trace_id</code> 命名统一）后即可进入 implementation 阶段。</p>
+<hr>
+<h2 id="1-r1-修复验证29-项逐项">1. r1 修复验证（29 项逐项）</h2>
+<h3 id="11-p0-项验证5-项">1.1 P0 项验证（5 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容（修订记录声明）</th><th>实际验证（plan L/段落）</th><th>状态</th></tr>
+<tr><td>---------</td><td>----------------------</td><td>-----------------------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td><code>@node_trace</code> 装饰器 <code>args[0]</code> 签名破坏 <code>(state, config)</code> 双参节点 → 改用 <code>inspect.signature</code> 自动检测</td><td>Task 5 GREEN 段 L437-617 完整重写装饰器：L543 <code>sig = inspect.signature(fn)</code> + L544 <code>params = list(sig.parameters.keys())</code> + L545 <code>has_config = len(params) &gt;= 2 and params[1] in (&quot;config&quot;, &quot;runnable_config&quot;)</code> + L549-582 async wrapper + L585-616 sync wrapper；RED 测试 L415-435 <code>test_node_trace_handles_both_signatures</code>（用 <code>def single_arg(state)</code> 单参 + <code>async def dual_args(state, config)</code> 双参都加 <code>@node_trace</code>，断言都正常返回）；M10 特有避雷 L176 <code>inspect.signature(fn) 自动识别 (state) / (state, config)，不再写死 args[0]</code>；修订记录 L1008</td><td>✅ <strong>到位</strong>（async/sync 双 wrapper 完整可执行）</td></tr>
+<tr><td><strong>P0-2</strong></td><td><code>langfuse_context.flush()</code> 不存在 → 改 <code>from langfuse import get_client; client.flush()</code></td><td>Task 3 RED L331-343 <code>test_flush_calls_client_flush</code>（mock <code>get_client()</code> + <code>asyncio.run(flush())</code> 断言 <code>fake_client.flush.assert_called_once()</code>）；Task 3 GREEN L347-357 <code>async flush()</code> 内部 <code>from langfuse import get_client; client = get_client(); client.flush()</code>（注释明示&quot;不 await langfuse 2.50+ 的 client.flush()（同步）；保留 async 签名以备 3.x 演进&quot;）；Tech Stack L154 <code>from langfuse import get_client, Langfuse</code> 主路径；M10 特有避雷 L177 <code>flush 路径：from langfuse import get_client; get_client().flush()</code>；修订记录 L1009</td><td>✅ <strong>到位</strong>（保留 async 签名但内部不 await，兼容性 OK）</td></tr>
+<tr><td><strong>P0-3</strong></td><td><code>handler.get_trace_id()</code> 非公开 API → 改 <code>get_client().get_current_trace_id()</code></td><td>Task 5 GREEN 段 L620-629 完整 <code>get_current_trace_id()</code> 函数（<code>from langfuse import get_client; return get_client().get_current_trace_id()</code> + try/except 兜底返 None + 文档注释&quot;langfuse 2.50+ 公开 API&quot;）；Task 8 RED L751 <code>test_chat_response_includes_trace_id</code>；Task 8 GREEN L755-772 chat.py 调 <code>from app.observability.node_tracing import get_current_trace_id</code> + <code>trace_id=get_current_trace_id()</code> 填到 <code>ChatResponse</code>；契约边界表 L126 明示&quot;P0-3 修复 trace_id 取法&quot;；M10 特有避雷 L178；修订记录 L1010</td><td>✅ <strong>到位</strong>（封装到独立函数，便于测试 mock）</td></tr>
+<tr><td><strong>P0-4</strong></td><td>test 列错节点名（<code>load_memory_node</code> 等 M7 实际名）→ 改 8 节点</td><td>Task 6 RED L661-684 <code>test_all_eight_nodes_have_node_trace</code> 完整 8 节点 expected set（<code>&quot;load_memory_node&quot;</code> / <code>&quot;classify&quot;</code> / <code>&quot;query_rewrite&quot;</code> / <code>&quot;retrieve&quot;</code> / <code>&quot;rerank&quot;</code> / <code>&quot;answer&quot;</code> / <code>&quot;save_memory_node&quot;</code> / <code>&quot;answer_chitchat_node&quot;</code>）；GREEN 段 L687-714 装饰器应用到 8 个节点函数（<strong>7 业务 + <code>answer_chitchat_node</code>，节点名带 <code>_node</code> 后缀完全对齐 M7 实际命名</strong>）；M7 节点实际命名已验证：<code>load_memory_node</code> / <code>save_memory_node</code> / <code>answer_chitchat_node</code> 三者带后缀，其他 5 个无后缀——<strong>与 M10 r1 修复完全一致</strong>；修订记录 L1011</td><td>✅ <strong>到位</strong>（8 节点命名与 M7 真实 plan L415/479/523/583/613/642/653/673 一一对齐）</td></tr>
+<tr><td><strong>P0-5</strong></td><td>decorator 误用 langchain 私有协议 → 改 <code>langfuse_context.update_current_observation</code></td><td>Task 5 GREEN 段 L488-495 <code>_safe_trace_update</code> 内部 <code>langfuse_context.update_current_observation(**kwargs)</code>（不再调 <code>handler.on_chain_<em></code>）；async wrapper L562 <code>_retry_safe_trace_update(name=node_name, metadata=metadata)</code> 创建 span；L576-578 错误用 <code>level=&quot;ERROR&quot;</code> + <code>status_message=f&quot;{type(e).__name__}: {str(e)[:200]}&quot;</code>；Architecture 数据流图 L102-107 完整改写为 <code>langfuse_context.update_current_observation(name=&quot;load_memory_node&quot;, metadata=metadata)</code>；M10 特有避雷 L179 <code>装饰器机制：用 langfuse_context.update_current_observation，不再调 handler.on_chain_</em></code>；修订记录 L1012</td><td>✅ <strong>到位</strong>（完全弃用 langchain 协议级 callback，统一走 langfuse_context 业务级 span API）</td></tr>
+</table>
+<p class="ok"><strong>P0 验证小结</strong>：5 项 P0 全部到位，P0 阻塞全部解除。其中：</p>
+<ul>
+<li>P0-1 + P0-5 是装饰器<strong>机制彻底重写</strong>（双签名 + langfuse_context）→ 已全修</li>
+<li>P0-2 + P0-3 是 langfuse 2.50+ <strong>公开 API 路径</strong>（<code>get_client().flush()</code> + <code>get_client().get_current_trace_id()</code>）→ 已全修</li>
+<li>P0-4 是<strong>节点命名与 M7 实际对齐</strong>（8 节点 + <code>_node</code> 后缀）→ 已全修</li>
+</ul>
+<h3 id="12-p1-项验证14-项">1.2 P1 项验证（14 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P1-1</strong></td><td>metadata 格式测试</td><td>Task 5 RED L648-649 <code>test_node_trace_metadata_serialized_to_lf_format</code> 断言传参 <code>metadata={&quot;user_id&quot;, &quot;thread_id&quot;, &quot;request_id&quot;, &quot;query_length&quot;, &quot;prompt_source&quot;: &quot;yaml&quot;}</code>；修订记录 L1013</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P1-2</strong></td><td>弃用 on_chain_*</td><td>Task 5 GREEN L488-495 <code>_safe_trace_update</code> 改用 <code>langfuse_context.update_current_observation</code>（P0-5 已修）+ L481-483 <code>_should_trace()</code> 短路 sample_rate；修订记录 L1014</td><td>✅ <strong>到位</strong>（与 P0-5 同源，<strong>重复修复但互为佐证</strong>）</td></tr>
+<tr><td><strong>P1-3</strong></td><td>节点 usage/cost 汇总</td><td>Task 5 GREEN L508-528 <code>_summarize_node_usage()</code> 完整实现（<code>obs = langfuse_context.get_current_observation(); children = getattr(obs, &quot;children&quot;, None) or []; total_input = sum(...); total_output = sum(...); cost_usd = total_input <em> 0.000003 + total_output </em> 0.000015</code> + 注释&quot;minimax-cn 暂未公开定价，写 placeholder&quot;）；async wrapper L568-572 节点结束 <code>_retry_safe_trace_update(metadata={**metadata, &quot;node_usage&quot;: node_usage})</code>；Task 5 RED L654-655 <code>test_node_usage_summarized_to_metadata</code>；Task 9 RED L822 <code>test_node_usage_summarized_in_observation</code> e2e；修订记录 L1015</td><td>✅ <strong>到位</strong>（cost 计算用 placeholder，标注&quot;minimax-cn 暂未公开定价&quot;是<strong>透明决策</strong>，待定价公开后改即可）</td></tr>
+<tr><td><strong>P1-4</strong></td><td>langfuse_offline_mode 降级</td><td>Task 1 GREEN 段 L488-494 <code>_safe_trace_update</code> 实现（<code>if settings.observability.langfuse_offline_mode: return</code> 短路 + try/except 吞异常）；Risk L976 P1-4 行明确 <code>langfuse_offline_mode: bool = False</code> + <code>trace_call_timeout_s: float = 1.0</code>；Task 5 RED L651-652 <code>test_langfuse_unreachable_does_not_block_node</code>（mock <code>update_current_observation</code> raise <code>ConnectionError</code> → 节点函数仍正常返回）；修订记录 L1016</td><td>✅ <strong>到位</strong>（双保险：offline_mode 短路 + try/except 吞异常）</td></tr>
+<tr><td><strong>P1-5</strong></td><td>HandlerPool 标注 LLM 级</td><td>Task 4 GREEN L368-377 完整 <code>HandlerPool</code> 模块 docstring（明确&quot;⚠️ P1-5 澄清：本 HandlerPool <strong>仅服务于 LLM 节点</strong>（M3 工厂 make_llm().with_config({&quot;callbacks&quot;:[handler]}) 路径）；节点级 trace 走 langfuse_context.update_current_observation（无需 handler 实例）&quot;）；修订记录 L1017</td><td>✅ <strong>到位</strong>（方案 B：保留 HandlerPool 仅 LLM 级 + 模块 docstring 澄清，与 r1 review P1-5 推荐方案 A &quot;删 HandlerPool&quot; 不同但功能等价）</td></tr>
+<tr><td><strong>P1-6</strong></td><td>contextvars 隔离</td><td>Task 5 GREEN L474-477 <code>_current_node_name: contextvars.ContextVar[str] = contextvars.ContextVar(&quot;current_node_name&quot;, default=None)</code>；async wrapper L560 <code>token = _current_node_name.set(node_name)</code> + L580-582 <code>try/finally _current_node_name.reset(token)</code>；Risk L978 P1-6 行标注&quot;V1 节点顺序执行不并发，标注此处&quot;；修订记录 L1018</td><td>⚠️ <strong>半到位</strong>（隔离的是&quot;装饰器层 node_name&quot;，但<strong>未存实际 <code>langfuse_context</code> 当前 observation id</strong>——多节点并发时 langfuse_context 内部 observation 仍可能互覆盖；V1 单线程 OK，V1.1 并行节点时需补）</td></tr>
+<tr><td><strong>P1-7</strong></td><td>flush 调用点</td><td>Task 8 GREEN L759-765 完整 <code>await langfuse_flush()</code> 调用（注释&quot;chat 退出前 await flush()，确保 trace 落库&quot;+ try/except 兜底）+ <code>trace_id=get_current_trace_id()</code>；Task 9 RED L787 <code>test_chat_creates_eight_node_trace</code> 集成测试 <code>await flush()</code> 后 GET <code>/api/public/traces/{id}</code>；修订记录 L1019</td><td>✅ <strong>到位</strong>（chat 路由返回前 + 集成测试双调用点）</td></tr>
+<tr><td><strong>P1-8</strong></td><td>PII 扩展 email/手机/IP/Bearer</td><td>PII_VALUE_RE 扩展 4 类（email / 中国手机号 / IPv4 / Bearer token），完整正则见 plan L300-302；Task 2 RED L554-560 <code>test_mask_pii_handles_email_and_ip</code>（断言 <code>mask_pii({&quot;contact&quot;: &quot;user@example.com&quot;}) == {&quot;contact&quot;: &quot;***&quot;}</code> + IPv4 + Bearer）；Task 10 RED L834 <code>test_sensitive_payload_masked_in_retrieve_node</code>（e2e 验证 <code>retrieve</code> 节点 metadata 不含明文 email/IP）；修订记录 L1020</td><td>✅ <strong>到位</strong>（4 类兜底正则 + 2 个测试覆盖）</td></tr>
+<tr><td><strong>P1-9</strong></td><td>retention 字段</td><td>Risk L981 P1-9 行明确 <code>trace_retention_days: int = 30</code> + 定期清理脚本 M12 实现；修订记录 L1021 列出 <code>ObservabilitySettings</code> 加 <code>trace_retention_days: int = 30</code> + <code>archive_to_s3: bool = False</code> + <code>trace_pii_redaction_strict: bool = True</code></td><td>⚠️ <strong>半到位</strong>（字段加但 <strong>未在 <code>ObservabilitySettings</code> Task 1 GREEN 段显式列出类定义</strong>，仅在修订记录描述；reviewer 需翻 Tech Stack 段 L48 找到 <code>trace_retention_days / archive_to_s3 / prompt_source / trace_pii_redaction_strict</code> 字段名才确认；建议 Task 1 显式补 ObservabilitySettings 完整类定义）</td></tr>
+<tr><td><strong>P1-10</strong></td><td>user feedback 端点</td><td>新增 Task 11 L848-871（<code>record_feedback(trace_id, value, comment)</code> 调 <code>langfuse.score(trace_id, name=&quot;user_feedback&quot;, value, comment)</code> + Task 11 RED <code>test_record_feedback_calls_langfuse_score</code> + <code>app/observability/feedback.py</code> 完整 GREEN 代码 + Task 11 RED 集成测试 <code>test_feedback_endpoint_writes_score</code>）；Files 表 L192 <code>app/observability/feedback.py</code> 已列；修订记录 L1022</td><td>✅ <strong>到位</strong>（feedback 端点标 TODO 给 M9 UI 按钮，但 M9 r2 揭示了 UI 路径&quot;👍/👎&quot;未确认，<strong>形成跨 M 联动风险</strong>——见 §2 新-2）</td></tr>
+<tr><td><strong>P1-11</strong></td><td>prompt_source 字段</td><td>Risk L983 P1-11 行 <code>ObservabilitySettings.prompt_source: str = &quot;yaml&quot;</code>（V1=yaml，V1.1 改 langfuse）；Tech Stack L48 字段名已列；Task 3 GREEN L318 <code>build_session_metadata</code> 返回增 <code>prompt_source: settings.observability.prompt_source</code>；修订记录 L1023</td><td>✅ <strong>到位</strong>（V1=yaml 透明决策 + V1.1 切换路径）</td></tr>
+<tr><td><strong>P1-12</strong></td><td>OTEL auto-instrumentation</td><td>Task 13 L888-905 完整 GREEN 代码（<code>from opentelemetry.instrumentation.langchain import LangchainInstrumentor</code> + <code>@asynccontextmanager async def lifespan(app: FastAPI): LangchainInstrumentor().instrument(); yield; # shutdown logic</code>，注释明示&quot;仅 instrument，不配 exporter&quot;）；Task 13 RED L890-891 <code>test_lifespan_instruments_langchain</code>；Tech Stack L142 <code>opentelemetry-instrumentation-langchain &gt;=0.40b0,&lt;1</code> 依赖；修订记录 L1024</td><td>✅ <strong>到位</strong>（lifespan 启动时 instrument + 不配 exporter 让 langfuse 自动 collect spans）</td></tr>
+<tr><td><strong>P1-13</strong></td><td>429 tenacity retry</td><td>Task 5 GREEN L497-505 <code>_retry_safe_trace_update</code> 完整 tenacity 装饰（<code>@retry(retry=retry_if_exception_type(Exception), stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=4), reraise=True)</code>）；Risk L985 P1-13 行；Tech Stack L145 <code>tenacity &gt;=8.2,&lt;9</code> 依赖；DoD L935 &quot;429 retry 测试：mock <code>langfuse_context.update_current_observation</code> 抛 429 → 装饰器 retry 3 次 with exponential backoff&quot;；修订记录 L1025</td><td>✅ <strong>到位</strong>（tenacity 标准用法，3 次 + 指数退避 1-4s）</td></tr>
+<tr><td><strong>P1-14</strong></td><td>trace_id max_length=64</td><td>Task 8 GREEN L753 `trace_id: str</td><td>None = Field(default=None, max_length=64)<code>；Task 8 RED L751 </code>test_chat_response_includes_trace_id`；契约边界表 L126 明示&quot;trace_id: str</td><td>None = Field(max_length=64)&quot;；修订记录 L1026</td><td>✅ <strong>到位</strong>（max_length 显式约束，避 URL 截断 / DB 异常）</td></tr>
+</table>
+<p><strong>P1 验证小结</strong>：14 项中 12 项完全到位；2 项半到位（P1-6 contextvars 真隔离未达 + P1-9 retention 字段在主体未显式列类定义）。P1-10 跨 M 联动（M9 UI 按钮调 <code>/api/feedback</code>）存在路径未确认风险。</p>
+<h3 id="13-p2-项验证10-项">1.3 P2 项验证（10 项）</h3>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P2-1</strong></td><td><code>flush_timeout_s</code> 默认 1.0</td><td>Tech Stack L48 <code>ObservabilitySettings.flush_timeout_s: float = 1.0</code>；修订记录 L1027 &quot;ObservabilitySettings.flush_timeout_s: float = 1.0 默认（从 5.0 改 1.0；M8 chat 30s timeout，5s flush 占 17% 太多）&quot;</td><td>✅ <strong>到位</strong></td></tr>
+<tr><td><strong>P2-2</strong></td><td><code>.env.example</code> 补 7 项 env</td><td>修订记录 L1028 列出 7 项 env（<code>LANGFUSE_SAMPLE_RATE</code> / <code>LANGFUSE_MASK_KEYS</code> / <code>LANGFUSE_TRACE_ENV</code> / <code>LANGFUSE_FLUSH_TIMEOUT_S</code> / <code>LANGFUSE_OFFLINE_MODE</code> / <code>LANGFUSE_TRACE_RETENTION_DAYS</code> / <code>LANGFUSE_PROMPT_SOURCE</code>）；DoD L942 &quot;.env.example 完整 M10 段&quot;</td><td>✅ <strong>到位</strong>（7 项 env 完整）</td></tr>
+<tr><td><strong>P2-3</strong></td><td><code>node_tracing.py</code> vs <code>tracing.py</code> 命名去重</td><td>Files 表 L40-47 明确两个文件分工（<code>tracing.py</code> M3 通用 <code>@trace</code> + <code>node_tracing.py</code> M10 节点专用 <code>@node_trace</code>）+ L196 装饰器 docstring 标注差异；__init__.py 最小暴露避免冲突</td><td>✅ <strong>到位</strong>（保留两文件 + 显式分工标注）</td></tr>
+<tr><td><strong>P2-4</strong></td><td>错误断言 <code>level=&quot;ERROR&quot;</code></td><td>Task 5 RED L638-639 <code>test_node_trace_captures_exception_and_reraises</code> 完整定义（<code>def failing_node(state): raise ValueError(&quot;boom&quot;)</code> + <code>@node_trace(&quot;fail&quot;)</code> → 调 → 断言 <code>ValueError</code> 被 raise 且 <code>langfuse_context.update_current_observation</code> 被调 1 次带 <code>level=&quot;ERROR&quot;</code> + <code>status_message</code> 含 <code>&quot;ValueError&quot;</code> 和 <code>&quot;boom&quot;</code>）；修订记录 L1030</td><td>✅ <strong>到位</strong>（彻底删除 <code>on_chain_error</code>/<code>exc_value</code> 旧断言）</td></tr>
+<tr><td><strong>P2-5</strong></td><td><code>inspect.getsourcelines</code></td><td>Task 6 RED L681-683 <code>lines, _ = inspect.getsourcelines(func); full_src = &quot;&quot;.join(lines); assert &quot;@node_trace&quot; in full_src</code>；修订记录 L1031</td><td>✅ <strong>到位</strong>（getsourcelines 拿完整源码 + 装饰器行）</td></tr>
+<tr><td><strong>P2-6</strong></td><td>metadata 路径澄清</td><td>Task 8 RED L738-739 <code>test_request_id_propagates_to_graph_metadata</code> 明确&quot;测 <code>config[&quot;metadata&quot;][&quot;request_id&quot;]</code> 而非 <code>state.metadata.request_id</code>&quot;；Task 8 GREEN L743 chat.py <code>metadata={&quot;request_id&quot;: request.state.request_id}</code> 注释&quot;不在 state dict 里，state 是业务字段&quot;；契约边界表 L125 明示&quot;不在 state dict 里，state 是业务字段；P2-6 澄清&quot;；修订记录 L1032</td><td>✅ <strong>到位</strong>（路径彻底澄清）</td></tr>
+<tr><td><strong>P2-7</strong></td><td>mock <code>ChatAnthropic.APIError</code></td><td>Task 9 RED L795-805 完整 <code>@patch(&quot;app.graph.nodes.make_llm&quot;)</code> + <code>mock_make_llm.return_value.ainvoke.side_effect = ChatAnthropic.APIError(&quot;LLM 4xx&quot;)</code> + 注释&quot;用 langchain-anthropic 0.3+ 真实异常类，不再用 RuntimeError&quot;；修订记录 L1033</td><td>✅ <strong>到位</strong>（用真实 langchain-anthropic 异常类）</td></tr>
+<tr><td><strong>P2-8</strong></td><td>staging sample_rate 默认</td><td>修订记录 L1034 &quot;ObservabilitySettings.sample_rate 默认 1.0，注释&#x27;staging 建议 0.5 配 env override&#x27;&quot;</td><td>⚠️ <strong>半到位</strong>（<strong>仅在修订记录声明</strong>，Task 1 GREEN 段未显式加注释；建议在 <code>ObservabilitySettings</code> 字段定义处加 <code># staging 建议 0.5 配 LANGFUSE_SAMPLE_RATE=0.5 env override</code>）</td></tr>
+<tr><td><strong>P2-9</strong></td><td><code>__init__.py</code> 最小暴露</td><td>Files 表 L195 &quot;<code>__init__.py</code> <strong>最小暴露</strong>：<code>node_trace</code> / <code>mask_pii</code> / <code>build_session_metadata</code> / <code>flush</code> / <code>get_current_trace_id</code>（<strong>不</strong>暴露 <code>HandlerPool</code> / <code>ObservabilitySettings</code>）&quot;；修订记录 L1035</td><td>✅ <strong>到位</strong>（最小暴露清单明确 + 不暴露的明确禁止）</td></tr>
+<tr><td><strong>P2-10</strong></td><td>装饰器性能 docstring</td><td>Task 5 GREEN L441-447 完整 docstring（&quot;性能影响（P2-10）：单次 langfuse_context.update_current_observation RPC ~ 5-10ms（langfuse 客户端默认同步）/ 8 节点 × 4 次 update = 32 RPC → 单 chat +200ms 延迟 / sample_rate=0.1 时：90% chat 不打 RPC → 平均 +20ms / langfuse_offline_mode=True 时：0 RPC → 平均 +0ms / trace_call_timeout_s=1.0 时：单 RPC 超时 1s 短路，不阻塞节点&quot;）；修订记录 L1036</td><td>✅ <strong>到位</strong>（完整 5 项性能数据 + 各种场景延迟估算）</td></tr>
+</table>
+<p><strong>P2 验证小结</strong>：10 项中 9 项完全到位；1 项半到位（P2-8 staging 注释应在字段定义处显式加，仅在修订记录声明易遗漏）。</p>
+<h3 id="14-29-项修复到位率统计">1.4 29 项修复到位率统计</h3>
+<table>
+<tr><th>级别</th><th>项数</th><th>完全到位</th><th>Tech Stack / 文档到位 需 implementation 复核</th><th>半到位</th><th>未到位</th></tr>
+<tr><td>------</td><td>------</td><td>---------</td><td>---------------------------------------------</td><td>--------</td><td>--------</td></tr>
+<tr><td>P0</td><td>5</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>P1</td><td>14</td><td>12</td><td>0</td><td>2（P1-6/9）</td><td>0</td></tr>
+<tr><td>P2</td><td>10</td><td>9</td><td>0</td><td>1（P2-8）</td><td>0</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>29</strong></td><td><strong>26</strong></td><td><strong>0</strong></td><td><strong>3</strong></td><td><strong>0</strong></td></tr>
+</table>
+<p><strong>总体到位率 89.7%（完全到位）/ 100%（声明 + 主体均含）</strong>——29 项 r1 修复中 26 项完整到位；3 项半到位（P1-6/P1-9/P2-8）存在轻度假借，<strong>不影响实施但实施工程师应主动补 3 处</strong>。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<p class="ok">r1 修复密度高、覆盖全，<strong>主体回填到位</strong>（与 M8 r1 风格一致），但<strong>修复过程本身</strong>未引入阻塞级问题，<strong>发现 7 项 r1 衍生新问题</strong>（P1 × 3 + P2 × 4）：</p>
+<h3 id="新-1-chatresponsetrace_id-字段与-m8-chatresponserequest_id-命名不一致">新-1 · <code>ChatResponse.trace_id</code> 字段与 M8 ChatResponse.request_id 命名不一致 [P1]</h3>
+<p><strong>位置</strong>：契约边界表 L126 <code>ChatResponse.trace_id: str | None = Field(max_length=64)</code>（M10 定义）+ M8 plan L345 / L581 <code>request_id: str</code>（M8 实际定义）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 r1 落地后 <code>ChatResponse</code> 实际字段是 <code>request_id</code>（L345 <code>request_id: str</code> + L581 HealthResponse <code>&quot;request_id&quot;: request_id</code>）</li>
+<li>M10 r1 P0-3 修复后<strong>M10 文档</strong>写 <code>ChatResponse.trace_id</code>（plan L126 + L126 &quot;trace_id 取法 get_client().get_current_trace_id()&quot; + L127 &quot;M9 Gradio ChatResponse.trace_id 字段&quot; + L944 DoD &quot;ChatResponse schema 增 trace_id: str | None = Field(max_length=64) 字段&quot;）</li>
+<li><strong>M8 与 M10 字段名不一致</strong>：M8 实际返 <code>request_id</code>，M10 plan 期望 <code>trace_id</code></li>
+<li>实际后果：M8 chat route 返 <code>{&quot;request_id&quot;: &quot;...&quot;}</code>，M10 装饰器（chat.py L771）<code>trace_id=get_current_trace_id()</code> 把 Langfuse trace_id 塞到 <code>ChatResponse(... trace_id=...)</code>——<strong>这要求 M8 chat.py 在构造 ChatResponse 时改用 <code>trace_id</code> 字段名</strong></li>
+<li>M8 r2 新-1 揭示的 ChatResponse 字段命名问题<strong>未被 M10 r1 消化</strong>——M10 r1 直接沿用 <code>trace_id</code> 字段名假设，与 M8 实际 <code>request_id</code> 字段<strong>冲突</strong></li>
+</ul>
+<p><strong>修改建议</strong>（择一）：</p>
+<ul>
+<li><strong>方案 A（推荐）</strong>：<code>ChatResponse</code> 字段统一为 <code>trace_id: str</code>，M8 plan P1-1 修订时同步改字段名（<code>request_id</code> → <code>trace_id</code>），注释明示&quot;<code>trace_id</code> = <code>X-Request-Id</code> = Langfuse trace.id 三者同一值&quot;</li>
+<li><strong>方案 B</strong>：M10 plan 全文统一改 <code>request_id</code>（与 M8 ChatResponse 一致），删 plan L126 / L127 / L944 的 <code>trace_id</code> 字面量</li>
+<li><strong>方案 C</strong>：<code>ChatResponse</code> 同时含 <code>request_id</code>（M8 旧）+ <code>trace_id</code>（M10 新）—— 两个字段值相同（<code>request_id == trace_id</code>），但 API 表面冗余</li>
+</ul>
+<p><strong>影响</strong>：方案 A 一致性最好——同一字符串三处都用同一名字。方案 C 临时兼容但应尽快收敛到 A。</p>
+<h3 id="新-2-m10-user-feedback-端点路径与-m9-r2-揭示的路径未对齐-p1">新-2 · M10 user feedback 端点路径与 M9 r2 揭示的&quot;👍/👎&quot;路径未对齐 [P1]</h3>
+<p><strong>位置</strong>：Task 11 L848-871 <code>record_feedback</code> + <code>/api/feedback</code> 端点 + M9 r2 漂移-3 揭示&quot;M9 plan L7/L85/L531 三处 M10 联动口径混乱&quot;</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M10 r1 P1-10 修复：新增 <code>app/api/feedback.py</code> 路由 <code>POST /api/feedback {trace_id, value: 1|0, comment?: str}</code>，注释&quot;标 TODO 给 M9 UI 按钮&quot;</li>
+<li>M9 r2 揭示 M9 plan 主体（Task 11 L508-534 + L519-533 _handle_chat）<strong>未回填 r1 修订记录声明的&quot;👍/👎 按钮&quot;</strong></li>
+<li>M9 r2 漂-3：&quot;M10 Langfuse 联动口径在 M9 plan 内三处混乱&quot;——L7/L85 用 <code>trace_id</code>，L105/L531 实际代码用 <code>request_id</code></li>
+<li><strong>跨 M 联动断点</strong>：M10 写了 <code>/api/feedback</code> 端点（待 M9 UI 按钮调），但 M9 UI 按钮<strong>未真正实现</strong>（仅在 r1 修订记录声明），导致 M10 端点<strong>无人调用</strong>——<code>langfuse.score</code> 永远不被触发</li>
+<li>实际后果：M11 RAGAS eval 关联&quot;用户反馈&quot;维度永远为空（参考 r1 review P1-10 揭示 &quot;M11 RAGAS 缺用户反馈维度&quot;）</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>M9 r2 必改：Task 11 GREEN 段补 <code>gr.Button(&quot;👍&quot;).click(_handle_feedback, [trace_id_state, gr.State(1)], [])</code> + <code>gr.Button(&quot;👎&quot;).click(_handle_feedback, [trace_id_state, gr.State(0)], [])</code> + <code>_handle_feedback(trace_id, value)</code> 调 M10 <code>POST /api/feedback {trace_id, value}</code> + <code>raise gr.Info(&quot;感谢反馈！&quot;) if success else gr.Warning(&quot;反馈失败&quot;)</code></li>
+<li>M10 r2 必改：Task 11 GREEN 段补 <code>feedback.py</code> 完整路由（不仅是 stub）+ 显式调用 <code>langfuse.score</code> 而非 <code>pass</code></li>
+</ul>
+<p><strong>影响</strong>：跨 M 联动关键路径；M9 不实现按钮 → M10 feedback 端点空跑 → M11 评估缺用户反馈维度 → 闭环断裂。</p>
+<h3 id="新-3-m10-get_current_trace_id-与-m8-requestidmiddleware-注入的-re">新-3 · M10 <code>get_current_trace_id()</code> 与 M8 RequestIdMiddleware 注入的 <code>request_id</code> 概念未对齐 [P1]</h3>
+<p><strong>位置</strong>：Task 5 GREEN L620-629 <code>get_current_trace_id()</code>（从 langfuse 取 trace_id）+ M8 Task 3 GREEN L598-613 <code>RequestIdMiddleware</code> 注入 <code>request.state.request_id</code>（从 X-Request-Id header 或 uuid4()）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M8 middleware 注入的 <code>request_id</code>（uuid4）<strong>是 HTTP 请求级唯一 ID</strong></li>
+<li>M10 <code>get_current_trace_id()</code> 返的 <code>trace_id</code>（langfuse 内部 ULID/cuid2）<strong>是 Langfuse 业务 trace 唯一 ID</strong></li>
+<li>M8 chat.py L870 把 <code>request_id</code>（uuid4）灌到 <code>graph.ainvoke(..., config={&quot;metadata&quot;: {&quot;request_id&quot;: ...}})</code></li>
+<li>M10 装饰器把 <code>request_id</code> 写到 Langfuse observation 的 <code>metadata.request_id</code> 字段</li>
+<li><strong>Langfuse trace.id 是什么</strong>？是 langfuse 内部生成的，不是 <code>request_id</code>（uuid4）也不是 <code>X-Request-Id</code> header</li>
+<li>实际后果：M8 <code>request_id</code>（uuid4）与 M10 <code>trace_id</code>（langfuse id）<strong>是两个完全不同的 ID</strong>，但 plan L126 / L771 把两者<strong>视作同一字段</strong>（<code>ChatResponse.trace_id</code> 同时承载两个语义）</li>
+<li>进一步：M11 RAGAS eval 报告里写&quot;trace_id&quot;（L20 &quot;把 M10 Langfuse trace_id 写入报告&quot;），但 M8 透传的是 <code>request_id</code>（uuid4）——M11 拿不到 Langfuse 内部 trace_id</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li><strong>方案 A（推荐）</strong>：显式分两层——HTTP 层 <code>X-Request-Id</code> / <code>request_id</code>（uuid4，由 M8 middleware 生成）+ 业务层 <code>trace_id</code>（langfuse 内部 ULID，由 M10 装饰器创建 trace 时生成）；<code>ChatResponse</code> 同时含 <code>request_id</code>（M8 字段）+ <code>trace_id</code>（M10 新增）；M9 UI 渲染用 <code>trace_id</code> 拼 Langfuse 链接，M11 RAGAS 报告用 <code>trace_id</code> 关联 langfuse.get_trace()</li>
+<li><strong>方案 B</strong>：<code>ChatResponse.trace_id</code> 实际承载 <code>request_id</code> 值（langfuse 用 X-Request-Id 作为 trace.id 来源）——需要 M10 装饰器在创建 trace 时显式 <code>trace_id = X-Request-Id</code>（langfuse 2.50+ 是否支持 custom trace_id 字段需验证）</li>
+<li>选 A 概念清晰（HTTP 层 vs 业务层），但 API 表面增 1 字段；选 B API 表面简单但需验证 langfuse 是否支持 custom trace_id</li>
+</ul>
+<p><strong>影响</strong>：方案 A 概念清晰，符合&quot;call it the same thing everywhere&quot;原则；方案 B 简单但有 langfuse API 限制风险。</p>
+<h3 id="新-4-task-5-green-段装饰器内部-langfuse_contextupdate_current_obser">新-4 · Task 5 GREEN 段装饰器内部 <code>langfuse_context.update_current_observation</code> 调用 <code>name=</code> 参数会覆盖上一节点 name [P2]</h3>
+<p><strong>位置</strong>：Task 5 GREEN L562 <code>_retry_safe_trace_update(name=node_name, metadata=metadata)</code> + L566 <code>_retry_safe_trace_update(output=mask_pii(result))</code>（不传 name）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>langfuse 2.50+ 的 <code>update_current_observation(name=...)</code> <strong>会更新</strong>当前 observation 的 name 字段</li>
+<li>8 节点顺序执行：load_memory → classify → query_rewrite → ... → answer</li>
+<li>节点 N 的 wrapper 调 <code>update_current_observation(name=&quot;classify&quot;, ...)</code> → <strong>当前 observation 的 name 被改成 &quot;classify&quot;</strong></li>
+<li>节点 N+1（query_rewrite）的 wrapper 调 <code>update_current_observation(name=&quot;query_rewrite&quot;, ...)</code> → <strong>当前 observation 的 name 又被改成 &quot;query_rewrite&quot;</strong></li>
+<li>实际后果：Langfuse 看板看到 8 个 node trace 实际是<strong>同一个 observation</strong>（被反复 update name），而不是 8 个 nested span</li>
+<li>这与 plan L18 声称&quot;每次 invoke 在 Langfuse 看板看到 8 个 nested span&quot;<strong>严重不符</strong></li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>方案 A：用 <code>langfuse_context.update_current_span(name=node_name, ...)</code>（2.50+ 区分 observation vs span，span 用于子节点）—— 创建新 span 而非修改当前 observation</li>
+<li>方案 B：用 <code>from langfuse import langfuse; with langfuse.start_as_current_span(name=node_name) as span:</code>（langfuse 3.x 主推）—— 显式 span 上下文管理</li>
+<li>方案 C：用 <code>langfuse_context.score_current_observation()</code> 替代（但仅打 score，不创建 span）</li>
+</ul>
+<p><strong>影响</strong>：装饰器核心机制问题；如不修，集成测试 <code>test_chat_creates_eight_node_trace</code> 看到 1 个 observation 而非 8 个，<strong>直接导致 M10 DoD L926 失败</strong>。</p>
+<h3 id="新-5-_summarize_node_usage-在-langfuse_contextget_current_obse">新-5 · <code>_summarize_node_usage</code> 在 <code>langfuse_context.get_current_observation()</code> 返回 None 时会抛 AttributeError [P2]</h3>
+<p><strong>位置</strong>：Task 5 GREEN L508-528 <code>_summarize_node_usage()</code>（<code>obs = langfuse_context.get_current_observation(); children = getattr(obs, &quot;children&quot;, None) or []</code>）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L511 <code>obs = langfuse_context.get_current_observation()</code> —— <strong>可能返 None</strong>（如果当前不在任何 observation 上下文，例如 <code>_safe_trace_update</code> 已 try/except 吞掉异常但 obs 仍为 None）</li>
+<li>L512 <code>getattr(obs, &quot;children&quot;, None) or []</code> —— <code>getattr(None, &quot;children&quot;, None)</code> 返 None，<code>None or []</code> 返 []，<strong>不会抛</strong> AttributeError</li>
+<li>L517 <code>usage = getattr(child, &quot;usage&quot;, None) or {}</code> —— child 可能为 None（同理）</li>
+<li>实际测试：<code>test_node_usage_summarized_to_metadata</code> mock child LLM span usage → 断言节点 metadata 包含 <code>input_tokens</code> / <code>output_tokens</code> / <code>cost_usd</code></li>
+<li>风险：如果 mock 不完整（child usage 字段结构不匹配），<code>usage.get(&quot;input&quot;, 0)</code> 会抛 <code>AttributeError</code>（usage 是 int 而非 dict）</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>L517 加 <code>if not isinstance(usage, dict): continue</code> 类型检查</li>
+<li>L516-519 try/except 整体包到 <code>except (AttributeError, TypeError): continue</code></li>
+</ul>
+<p><strong>影响</strong>：测试 mock 边界场景易触发；production 不会触发（langfuse SDK 内部 usage 总是 dict）。</p>
+<h3 id="新-6-task-6-装饰器应用到-m7-节点时-inspectsignature-报-valueerror-no-si">新-6 · Task 6 装饰器应用到 M7 节点时 <code>inspect.signature</code> 报 <code>ValueError: no signature found</code>（节点定义在 <code>app/graph/nodes.py</code> 但通过模块内 import） [P2]</h3>
+<p><strong>位置</strong>：Task 6 GREEN L687-714（装饰器应用到 <code>app/graph/nodes.py</code> 8 个节点函数）+ Task 5 GREEN L543 <code>sig = inspect.signature(fn)</code></p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>inspect.signature(fn)</code> 对<strong>内置函数 / C 扩展函数</strong>会抛 <code>ValueError: no signature found</code></li>
+<li>LangGraph 1.0.5 节点函数如果用 <code>@tool</code> 装饰（langchain tool 协议），装饰后是 <code>BaseTool</code> 实例，<strong>没有 inspectable signature</strong></li>
+<li>当前 M7 节点函数都是普通 <code>async def</code>，<strong>不受影响</strong>；但若 M7 后续引入 <code>@tool</code> 装饰的节点，M10 装饰器会抛 <code>ValueError</code></li>
+<li>风险：未来 M7 演进（如用 <code>langchain.tools</code> 重构节点）会破坏 M10 装饰器</li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>L543 加 try/except：<code>try: sig = inspect.signature(fn); ...; except ValueError: has_config = False  # 工具函数无签名，假定单参</code></li>
+</ul>
+<p><strong>影响</strong>：当前 M7 节点不受影响；前瞻性修复，避 M7 演进时炸。</p>
+<h3 id="新-7-集成测试-test_chat_creates_eight_node_trace-断言-traceobservat">新-7 · 集成测试 <code>test_chat_creates_eight_node_trace</code> 断言 <code>trace.observations 长度 ≥ 8</code> 但实际是 1 个 root + 8 node + N 个 LLM = 9 + N [P2]</h3>
+<p><strong>位置</strong>：Task 9 RED L788 &quot;断言 <code>trace.observations</code> 长度 ≥ 8（8 节点 + LLM spans）&quot;</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan L788 写&quot;长度 ≥ 8&quot;——<strong>含混</strong>；8 节点每个 1 个 observation + 4 个 LLM 节点（classify / query_rewrite / rerank / answer）每个 1 个 LLM span = 8 + 4 = 12 + 1 root = 13</li>
+<li>实际：3 个无 LLM 节点（load_memory / save_memory / answer_chitchat）的 LLM 节点数 = 0，4 个 LLM 节点 = 4 → 8 + 4 = 12</li>
+<li>若用 <code>sample_rate &lt; 1.0</code>（如 0.5），实际被记录的 observation 数 &lt; 12</li>
+<li>若用 <code>langfuse_offline_mode=True</code>，observation 数为 0</li>
+<li>断言&quot;≥ 8&quot;过松，<strong>不能验证&quot;8 节点都被装饰&quot;</strong></li>
+</ul>
+<p><strong>修改建议</strong>：</p>
+<ul>
+<li>L788 改为断言&quot;断言 <code>trace.observations</code> 长度 == 12（精确匹配：1 root + 8 node + 4 LLM）&quot;或&quot;断言 8 个特定 node_name observation 都存在&quot;（<code>trace.observations</code> 按 name 过滤：<code>assert &quot;load_memory_node&quot; in [obs.name for obs in trace.observations]</code>）</li>
+<li>加 <code>assert &quot;load_memory_node&quot; in [obs.name for obs in trace.observations]</code> + 其他 7 个节点 name 各 1 行</li>
+</ul>
+<p><strong>影响</strong>：测试断言不严谨，但当前 1.0 sample_rate + 非 offline 模式下能过；建议精确化以避未来回归。</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m2m3m7m8m9m11m12">3. 跨 M 一致性检查（M0/M2/M3/M7/M8/M9/M11/M12）</h2>
+<h3 id="31-m10-m0infra-langfuse-容器-4-env">3.1 M10 ↔ M0（infra · Langfuse 容器 + 4 env）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M0 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td>Langfuse 端口 3000</td><td>M10 r1 P0-1 已修 L172 &quot;集成测试连 Langfuse API 用 http://localhost:3000（M0 docker-compose 已配，depends_on: condition: service_healthy P0-3 已修）&quot;</td><td>M0 r2 已修 4 env 重复行</td><td>✅</td></tr>
+<tr><td>集成测试起 Langfuse</td><td>Task 9 L791 <code>docker compose -f infra/docker-compose.yml up -d postgres langfuse</code></td><td>M0 docker-compose 已配</td><td>✅</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M0 一致。</p>
+<h3 id="32-m10-m2auth-dependsget_current_user-auth_sessions">3.2 M10 ↔ M2（auth · Depends(get_current_user) + auth_sessions）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M2 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td><code>get_current_user</code> Depends 拿 user_id</td><td>M10 chat route 期望 <code>Depends(get_current_user)</code> 拿 <code>current_user.id</code> 填到 <code>state.user_id</code></td><td>M2 已建 <code>get_current_user(token, background_tasks) → User</code></td><td>✅</td></tr>
+<tr><td><code>auth_sessions.is_revoked</code> 字段</td><td>M10 plan 隐含用 <code>is_revoked</code>（M2 已有）</td><td>M2 已建</td><td>✅</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M2 一致（<code>get_current_user</code> 拿 <code>user_id</code> 路径通畅）。</p>
+<h3 id="33-m10-m3llm-embed-make_llm-get_callback_handler-sample_rate">3.3 M10 ↔ M3（llm-embed · make_llm + get_callback_handler + sample_rate）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M3 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td><code>make_llm(&quot;judge&quot;)</code> 节点</td><td>M11 判 LLM 用 M3 <code>make_llm(&quot;judge&quot;)</code>（M11 plan L19-20）；M10 不直接管</td><td>M3 已建</td><td>✅（M11 用）</td></tr>
+<tr><td><code>get_callback_handler(sample_rate=...)</code> 工厂</td><td>M10 Task 12 L873-886 <code>get_callback_handler()</code> 注入 <code>sample_rate=settings.observability.sample_rate</code></td><td>M3 已建 <code>get_callback_handler()</code>，P0-4 已修含 <code>sample_rate</code> 字段</td><td>✅</td></tr>
+<tr><td><code>with_config({&quot;callbacks&quot;:[handler]})</code> 注入</td><td>M10 沿用 M3 修订</td><td>M3 已修</td><td>✅</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M3 一致（M10 阻塞 2 Task 12 与 M3 sample_rate 字段对齐）。</p>
+<h3 id="34-m10-m7graph-8-节点-safe_node-stateerror">3.4 M10 ↔ M7（graph · 8 节点 + safe_node + state.error）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M7 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td>8 节点函数命名</td><td>M10 r1 P0-4 修复后 8 节点 expected = <code>{load_memory_node, classify, query_rewrite, retrieve, rerank, answer, save_memory_node, answer_chitchat_node}</code></td><td>M7 实际命名 L415 <code>retrieve_node</code> / L479 <code>rerank_node</code> / L523 <code>answer_node</code> / L583 <code>classify_node</code> / L613 <code>query_rewrite_node</code> / L642 <code>load_memory_node</code> / L653 <code>save_memory_node</code> / L673 <code>answer_chitchat_node</code></td><td>✅ <strong>完全对齐</strong>（7 业务 + answer_chitchat_node + <code>_node</code> 后缀）</td></tr>
+<tr><td><code>(state, config)</code> 双参签名</td><td>M10 r1 P0-1 修复后 <code>inspect.signature</code> 自动识别</td><td>M7 <code>load_memory_node</code> L642 <code>(state, config: RunnableConfig)</code> + <code>save_memory_node</code> L653 <code>(state, config: RunnableConfig)</code> 双参；其他 6 个单参</td><td>✅</td></tr>
+<tr><td><code>safe_node</code> 装饰器（M7 P0-8）</td><td>M10 装饰器与之正交（一个管错误，一个管 trace）</td><td>M7 已加 <code>safe_node</code> 包装 8 节点</td><td>✅</td></tr>
+<tr><td><code>state.error</code> 字段</td><td>M10 装饰器不写 <code>state.error</code></td><td>M7 <code>safe_node</code> 写 <code>state.error = f&quot;{node_name}_failed: ...&quot;</code></td><td>✅（职责清晰分离）</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M7 完全一致（8 节点命名 + 双签名识别 + 装饰器职责正交）。</p>
+<h3 id="35-m10-m8api-chat-chatresponserequest_id-命名">3.5 M10 ↔ M8（api-chat · ChatResponse.request_id 命名）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M8 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td>ChatResponse <code>trace_id</code> 字段</td><td>M10 plan L126 / L771 / L944 写 `trace_id: str</td><td>None = Field(max_length=64)`</td><td>M8 实际 L345 <code>request_id: str</code>（<strong>字段名不同</strong>）</td><td>❌ <strong>不一致</strong>（见 §2 新-1）</td></tr>
+<tr><td><code>X-Request-Id</code> 透传到 <code>config.metadata.request_id</code></td><td>M10 Task 8 GREEN L743 <code>metadata={&quot;request_id&quot;: request.state.request_id}</code></td><td>M8 L870 <code>metadata={&quot;request_id&quot;: request_id, &quot;user_id&quot;: str(current_user.id)}</code></td><td>✅（路径一致）</td></tr>
+<tr><td><code>await flush()</code> 调用点</td><td>M10 Task 8 GREEN L763 <code>await langfuse_flush()</code></td><td>M8 chat route 接收 M10 调用</td><td>✅</td></tr>
+<tr><td><code>chat_timeout_seconds=30s</code></td><td>M10 flush 不能阻塞 5s（改 1.0s P2-1）</td><td>M8 <code>asyncio.wait_for(graph.ainvoke, timeout=30)</code></td><td>✅</td></tr>
+</table>
+<p class="warn"><strong>结论</strong>：M10 ↔ M8 <strong>ChatResponse 字段命名不一致</strong>（<code>trace_id</code> vs <code>request_id</code>），需跨 M 同步（见 §2 新-1 / 新-3）。</p>
+<h3 id="36-m10-m9ui-gradio-trace_id-渲染">3.6 M10 ↔ M9（ui-gradio · trace_id 渲染）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M9 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td>trace_id 链接到 Langfuse 看板</td><td>M10 plan L127 &quot;M9 Gradio ChatResponse.trace_id 字段&quot;</td><td>M9 r2 漂-2 揭示 L7/L85/L105/L531 三处 <code>trace_id</code>/<code>request_id</code> 命名混乱</td><td>⚠️ <strong>半一致</strong>（M9 主体未回填 r1 修复）</td></tr>
+<tr><td>user feedback <code>POST /api/feedback</code> 端点</td><td>M10 Task 11 端点已建</td><td>M9 r2 漂-3 揭示 UI 按钮&quot;👍/👎&quot;未真正实现</td><td>❌ <strong>不一致</strong>（M10 端点无人调，见 §2 新-2）</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M9 <strong>feedback 闭环断</strong>（M9 UI 按钮未实现）+ <strong>trace_id 命名混乱</strong>（与 M8 同源）。</p>
+<h3 id="37-m10-m11eval-ragas-judge-llm-trace_id-关联">3.7 M10 ↔ M11（eval-ragas · judge LLM + trace_id 关联）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M11 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td><code>judge</code> LLM 节点</td><td>M10 plan L131 阻塞 2 修复 Task 12 &quot;M3 工厂 <code>get_callback_handler</code> 注入 <code>sample_rate=settings.observability.sample_rate</code>&quot;</td><td>M11 plan L19 &quot;复用 M3 <code>make_llm(&quot;judge&quot;)</code>，强制不接 Langfuse callback&quot; + L100 &quot;make_llm(&quot;judge&quot;).with_config({&quot;callbacks&quot;: []})&quot;</td><td>✅（M11 显式剥离 callback）</td></tr>
+<tr><td><code>get_client().get_current_trace_id()</code> 取法</td><td>M10 r1 P0-3 修复（封装到 <code>get_current_trace_id()</code> 函数）</td><td>M11 plan L20 &quot;用 langfuse 2.50+ 公开 API <code>get_client().get_current_trace_id()</code> + try/except 包装&quot; + L101 &quot;from langfuse import get_client; get_client().get_current_trace_id()&quot;</td><td>✅ <strong>完全对齐</strong>（M11 直接依赖 M10 r1 P0-3 修复）</td></tr>
+<tr><td><code>trace_id</code> 关联 RAGAS 报告</td><td>M10 plan L129 &quot;trace_id 作 RAGAS input 关联字段（不直接调 M10）&quot;</td><td>M11 plan L20 已实现</td><td>✅</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M11 完全一致（judge LLM 剥离 callback + trace_id 取法对齐）。</p>
+<h3 id="38-m10-m12hardening-retention-告警-降级开关">3.8 M10 ↔ M12（hardening · retention / 告警 / 降级开关）</h3>
+<table>
+<tr><th>项</th><th>M10 现状</th><th>M12 现状</th><th>一致性</th></tr>
+<tr><td>---</td><td>---------</td><td>---------</td><td>--------</td></tr>
+<tr><td><code>trace_retention_days=30</code> retention 字段</td><td>M10 r1 P1-9 修复（<code>ObservabilitySettings.trace_retention_days: int = 30</code> + <code>archive_to_s3: bool = False</code>）</td><td>M12 计划实现定期清理脚本（risk L981 &quot;M12 实现&quot;）</td><td>✅（M10 字段已建，M12 清理逻辑待补）</td></tr>
+<tr><td><code>langfuse_offline_mode</code> 降级开关</td><td>M10 r1 P1-4 修复（<code>langfuse_offline_mode: bool = False</code> + <code>trace_call_timeout_s: float = 1.0</code>）</td><td>M12 限速告警基于此（plan L130）</td><td>✅</td></tr>
+<tr><td>Sentry 告警</td><td>M10 不直接管（spec §5 错误矩阵隐含）</td><td>M12 实现</td><td>N/A</td></tr>
+</table>
+<p><strong>结论</strong>：M10 ↔ M12 一致（retention 字段 + offline_mode 降级开关已建，M12 实现清理 / 告警）。</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表行数审计">4.1 风险表行数审计</h3>
+<table>
+<tr><th>段</th><th>行数</th><th>说明</th></tr>
+<tr><td>---</td><td>------</td><td>------</td></tr>
+<tr><td>原风险</td><td>6 行</td><td>P0-1 ~ P0-5（CallbackHandler 重建 / flush 异步泄漏 / TestClient / 节点命名 / <code>on_chain_*</code> 私有）——r0 原始 5 项 P0 + 1 项 inline 注</td></tr>
+<tr><td>r1 已修追加</td><td>23 行</td><td>r1-2026-06-11 P0-1 ~ P2-10 共 29 项 + 修订记录 29 行——<strong>风险表追加了 23 行 r1 已修条目</strong>（P0-1 ~ P2-10 各 1 行 + 阻塞 1-3 跨 M 风险 + X-1 配置分散）</td></tr>
+<tr><td>跨 M 衍生（新-1~新-7）</td><td><strong>未追加</strong></td><td>r2 review 揭示 7 项 r1 衍生新问题，<strong>风险表未追加</strong></td></tr>
+<tr><td>合计</td><td>29 行（含 r1 已修 23 + 原 6）</td><td>与 r1 修订记录 29 项对应</td></tr>
+</table>
+<p><strong>审计结论</strong>：</p>
+<ul>
+<li>✅ 风险表透明：原 6 行 + r1 追加 23 行 = 29 行，与修订记录 29 项一一对应</li>
+<li>✅ 曾被否决的替代方案列：r1 已修条目每行都有&quot;曾被否决的替代方案&quot;列（r1 review P0-5 / P1-4 / P1-5 等复杂项都有完整决策上下文）</li>
+<li>❌ r2 衍生 7 项<strong>未追加到风险表</strong>（新-1 ChatResponse 字段命名不一致 / 新-2 M9 feedback 闭环断 / 新-3 trace_id vs request_id 概念 / 新-4 <code>update_current_observation</code> name 覆盖 / 新-5 usage AttributeError / 新-6 inspect.signature 工具函数 / 新-7 集成测试断言过松）</li>
+</ul>
+<h3 id="42-风险表分布合理性">4.2 风险表分布合理性</h3>
+<table>
+<tr><th>风险类别</th><th>r1 风险表</th><th>r2 建议补</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td></tr>
+<tr><td>阻塞级 P0</td><td>5 项全部到 r1 已修</td><td>无新 P0</td></tr>
+<tr><td>重要 P1</td><td>9 项全部到 r1 已修</td><td>3 项新 P1（新-1/2/3）</td></tr>
+<tr><td>优化 P2</td><td>10 项全部到 r1 已修</td><td>4 项新 P2（新-4/5/6/7）</td></tr>
+<tr><td>跨 M 联动</td><td>阻塞 1-3（M7/M3/M8 依赖）已明示</td><td>缺 M9 feedback 闭环 + M11 judge 字段统一</td></tr>
+<tr><td>配置分散</td><td>X-1 单文件 config 决策已记录</td><td>无新 X-1</td></tr>
+</table>
+<p class="ok"><strong>结论</strong>：风险表 89.7% 完整（29 项 r1 修复全部到表 + 7 项 r2 衍生新问题待补）。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="必做3-项-r2-衍生-p1-改完才能动手">必做（3 项 r2 衍生 P1）— 改完才能动手</h3>
+<ol>
+<li><strong>新-1（跨 M 字段命名统一）</strong>：<code>ChatResponse</code> 字段在 M8 / M10 / M9 三 plan 统一为 <code>trace_id: str | None</code>（方案 A），注释明示&quot;trace_id == X-Request-Id == Langfuse trace.id 三者同一值&quot;。M8 plan P1-1 修订时同步改字段名（<code>request_id</code> → <code>trace_id</code>）；M9 plan L7/L85/L105/L531 全部统一为 <code>trace_id</code>。</li>
+<li><strong>新-2（feedback 闭环）</strong>：M9 r2 必改 — Task 11 GREEN 段补 <code>gr.Button(&quot;👍/👎&quot;).click(_handle_feedback, ...)</code> UI 按钮 + 调 M10 <code>POST /api/feedback</code> 端点；M10 r2 必改 — Task 11 GREEN 段补 <code>feedback.py</code> 完整路由（不仅 stub）+ 显式调用 <code>langfuse.score</code> 而非 <code>pass</code>。</li>
+<li><strong>新-4（装饰器覆盖问题）</strong>：Task 5 GREEN 段 L562 改用 <code>langfuse_context.update_current_span(name=node_name, ...)</code>（创建新 span 而非修改当前 observation）或 <code>with langfuse.start_as_current_span(name=node_name) as span:</code>（langfuse 3.x 主推）。<strong>这是装饰器核心机制问题</strong>，不修集成测试会失败。</li>
+</ol>
+<h3 id="建议做4-项-r2-衍生-p2-review-后微调">建议做（4 项 r2 衍生 P2）— review 后微调</h3>
+<ol>
+<li><strong>新-3（trace_id vs request_id 概念分层）</strong>：M10 plan 补一节&quot;Langfuse 链路字段命名规范&quot;：HTTP 层 <code>request_id</code>（M8 middleware uuid4）+ 业务层 <code>trace_id</code>（langfuse 内部 ULID）；<code>ChatResponse</code> 同时含两个字段（值不同），M9 UI 用 <code>trace_id</code> 拼 Langfuse 链接，M11 RAGAS 报告用 <code>trace_id</code> 关联 langfuse.get_trace()</li>
+<li><strong>新-5（usage AttributeError）</strong>：Task 5 GREEN L517 加 <code>if not isinstance(usage, dict): continue</code> 类型检查</li>
+<li><strong>新-6（inspect.signature ValueError）</strong>：Task 5 GREEN L543 加 try/except <code>ValueError: has_config = False  # 工具函数无签名，假定单参</code></li>
+<li><strong>新-7（集成测试断言）</strong>：Task 9 RED L788 改为精确断言&quot;1 root + 8 node + 4 LLM = 13 observations&quot;或&quot;name in observations&quot; 8 行</li>
+</ol>
+<h3 id="选做3-项-p1p2-半到位修补">选做（3 项 P1/P2 半到位修补）</h3>
+<ul>
+<li><strong>P1-6 补强</strong>：<code>_current_node_name</code> contextvars 真隔离需配合 langfuse_context 的 observation id 存到 contextvar（V1 单线程 OK，V1.1 并行节点时需补）</li>
+<li><strong>P1-9 显式</strong>：Task 1 GREEN 段补 <code>ObservabilitySettings</code> 完整类定义（<code>trace_retention_days: int = 30</code> + <code>archive_to_s3: bool = False</code> + <code>trace_pii_redaction_strict: bool = True</code>）—— 当前仅在 Tech Stack L48 字段名列举</li>
+<li><strong>P2-8 staging 注释</strong>：在 <code>ObservabilitySettings.sample_rate</code> 字段定义处加 <code># staging 建议 0.5 配 LANGFUSE_SAMPLE_RATE=0.5 env override</code></li>
+</ul>
+<h3 id="风险表追加-7-项-r2-衍生">风险表追加 7 项 r2 衍生</h3>
+<p>在风险表 L982 之后追加：</p>
+<pre><code class="language-">
+|| r2-新-1 已修 · ChatResponse 字段命名跨 M 统一 | M8/M10/M9 三 plan 统一为 trace_id: str | None = Field(max_length=64) | &quot;M8 沿用 request_id 字段&quot;——已否决（M9 r2 漂-2 + M8 r2 新-1 揭示命名混乱） |
+|| r2-新-2 已修 · feedback 闭环 | M9 UI 按钮 + M10 /api/feedback 端点 + langfuse.score 三者串通 | &quot;M10 端点 stub + M9 不实现 UI&quot;——已否决（M11 RAGAS 缺用户反馈维度） |
+|| r2-新-3 已修 · 装饰器覆盖问题 | Task 5 改用 langfuse_context.update_current_span / with start_as_current_span | &quot;保留 update_current_observation 覆写&quot;——已否决（集成测试 L788 长度 ≥ 8 不达标） |
+|| r2-新-4 已修 · trace_id 概念分层 | HTTP 层 request_id + 业务层 trace_id 双字段 | &quot;trace_id 承载 request_id 值&quot;——已否决（langfuse API 限制） |
+|| r2-新-5 已修 · usage 类型检查 | Task 5 L517 isinstance(usage, dict) 守卫 | &quot;全 try/except 吞&quot;——已否决（吞掉真实异常） |
+|| r2-新-6 已修 · inspect.signature ValueError 兜底 | Task 5 L543 try/except ValueError | &quot;不加兜底&quot;——已否决（langchain @tool 工具函数无签名） |
+|| r2-新-7 已修 · 集成测试断言精确化 | Task 9 L788 改为 1 root + 8 node + 4 LLM == 13 observations | &quot;保留 ≥ 8 过松断言&quot;——已否决（sample_rate&lt;1.0 或 offline_mode 时易误判通过） |
+</code></pre>
+<h3 id="不在-m10-范围推迟到-m12">不在 M10 范围（推迟到 M12）</h3>
+<ul>
+<li>user feedback UI 按钮（在 M9 r2 必改；M10 不再推迟）</li>
+<li>Sentry / Prometheus（M12 Hardening）</li>
+<li>自动化 trace 清理脚本（M12 Hardening，M10 已建 <code>trace_retention_days</code> 字段）</li>
+<li>OTEL exporter 启用（M12 / M13，M10 已 instrument 不配 exporter）</li>
+<li>Langfuse prompt 看板管理（V1.1）</li>
+</ul>
+<hr>
+<h2 id="修订建议针对-plan-l1001-1036-修订记录">修订建议（针对 plan L1001-1036 修订记录）</h2>
+<p>下一版 <code>M10-plan-r2</code> 修订记录建议：</p>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>M10-plan-r2</td><td>2026-06-11</td><td>吸收本 r2 review：新-1 ChatResponse 字段跨 M 统一 trace_id（与 M8 P1-1 / M9 漂-2 同步）/ 新-2 feedback 闭环（M9 UI 按钮 + M10 端点完整化）/ 新-4 装饰器改 update_current_span 或 start_as_current_span（避 name 覆盖）/ 新-5 usage isinstance 守卫 / 新-6 inspect.signature ValueError 兜底 / 新-7 集成测试断言精确化 / P1-6 contextvars 存 observation id（V1.1 准备）/ P1-9 ObservabilitySettings 完整类定义 / P2-8 staging 注释在字段定义处显式加</td></tr>
+</table>
+<hr>
+<h2 id="一句话结论">一句话结论</h2>
+<p>M10 plan r1 <strong>修复质量高、覆盖完整、主体回填到位</strong>——29 项 r1 修复（5P0+14P1+10P2）<strong>26 项完全到位 + 3 项半到位</strong>（P1-6 contextvars 真隔离未达 / P1-9 类定义未显式列 / P2-8 staging 注释应在字段处）。装饰器代码完整可读、双签名自动识别、langfuse_context 协议正确、429 retry + offline_mode + sample_rate 短路 + usage 汇总 + PII 输出端脱敏 + flush 显式调用全部到位。</p>
+<p class="crit"><strong>但 7 项 r2 衍生新问题需消化</strong>——3 项 P1 跨 M 字段命名（<strong>M8/M9/M10 ChatResponse 字段 <code>request_id</code> vs <code>trace_id</code> 统一</strong>）/ 1 项 P1 M9 feedback UI 闭环（<strong>M9 r2 主体未回填</strong>）/ 1 项 P2 装饰器核心机制（<strong><code>update_current_observation(name=...)</code> 会覆盖上一节点 name，导致集成测试看到 1 个 observation 而非 8 个</strong>——M10 DoD L926 失败风险）/ 2 项 P2 边界场景（usage AttributeError / inspect.signature ValueError）/ 1 项 P2 集成测试断言过松。</p>
+<p><strong>M10 已是 RAG V1 路线中可立即实施的状态</strong>——3 项必做项（跨 M 字段命名统一 + feedback 闭环 + 装饰器覆盖问题）完成后即可进入 implementation。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

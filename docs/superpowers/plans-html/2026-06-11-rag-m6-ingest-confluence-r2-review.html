@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M6 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M6 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>449 行</span>
+<span>20 P0</span>
+<span>49 P1</span>
+<span>19 P2</span>
+<span class="badge-r1">11 r1 标记</span>
+<span class="badge-r2">1 r2 标记</span>
+    <span>2026-06-11-rag-m6-ingest-confluence-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证23-项逐项">1. r1 修复验证（23 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#np-a-p1-11-异常类未与-m4-appingestexceptionspy-对齐m5-r2-np-5-同类重蹈-">NP-A · P1-11 异常类未与 M4 app/ingest/exceptions.py 对齐（M5 r2 NP-5 同类重蹈 · P1 阻塞级）</a></li>
+<li><a href="#np-b-p1-7-_linksnext-start-limit-分页防御代码实际会死循环真实-bug-p0-阻塞级">NP-B · P1-7 _links.next start-limit 分页防御代码实际会死循环（真实 bug · P0 阻塞级）</a></li>
+<li><a href="#np-c-风险表-17-行-r1-修复条目-曾被否决的替代方案-列写-r1-2026-06-11-无意义m5-r2-np">NP-C · 风险表 17 行 r1 修复条目 &amp;quot;曾被否决的替代方案&amp;quot; 列写 r1-2026-06-11 无意义（M5 r2 NP-4 同类 cosmetic · P3）</a></li>
+<li><a href="#np-d-m5-复用接口-assert_safe_url-validate_url_format-只写复用未真-impo">NP-D · M5 复用接口 assert_safe_url / validate_url_format 只写&amp;quot;复用&amp;quot;未真 import（M5 r2 NP-3 同类 · P2）</a></li>
+<li><a href="#np-e-confluence-page-body-25mb-限制未考虑新发现-p2">NP-E · Confluence page body 25MB 限制未考虑（新发现 · P2）</a></li>
+<li><a href="#np-f-p1-3-sqlitevisitedstore-无-clear-remove-接口-与-bfs_visited">NP-F · P1-3 SqliteVisitedStore 无 clear() / remove() 接口 + 与 bfs_visited_file JSON 路径并存（新发现 · P2）</a></li>
+<li><a href="#3-跨-m-一致性检查m0m1m3m4m5m7m8m11">3. 跨 M 一致性检查（M0/M1/M3/M4/M5/M7/M8/M11）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表结构">4.1 风险表结构</a></li>
+<li><a href="#42-风险覆盖维度">4.2 风险覆盖维度</a></li>
+<li><a href="#43-风险表质量问题">4.3 风险表质量问题</a></li>
+<li><a href="#44-曾被否决的替代方案-列质量">4.4 &amp;quot;曾被否决的替代方案&amp;quot; 列质量</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-r2-必修优先级">5.1 r2 必修优先级</a></li>
+<li><a href="#52-跨-m-联动建议">5.2 跨 M 联动建议</a></li>
+<li><a href="#53-估时调整">5.3 估时调整</a></li>
+<li><a href="#54-整体结论">5.4 整体结论</a></li>
+<li><a href="#附录-r1-修复完成度雷达图">附录 · r1 修复完成度雷达图</a></li>
+<li><a href="#修订记录">修订记录</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m6-plan-r2-review-r1-修复验证">M6 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<code>2026-06-11-rag-m6-ingest-confluence.md</code>（v r1，1158 行）</blockquote>
+<blockquote>评审基线：<code>reviews/2026-06-11-rag-m6-ingest-confluence-review.md</code>（r1，862 行，3 P0 + 11 P1 + 9 P2 = 23 项）</blockquote>
+<blockquote>上游基线：M0/M1/M3/M4/M5 r2 review（已修）+ M5 r2 NP-1~5（揭示 M5 r1 异常类未与 M4 exceptions.py 对齐 + 4 auth 互斥测试缺）</blockquote>
+<blockquote>下游契约：M8 api-chat（已修）/ M11 eval-ragas（已修）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立 r2 审查）</blockquote>
+<blockquote>范围：验 r1 修复是否到位 + 发现 r1 引入的新问题</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p class="ok">M6 plan r1 修订<strong>修复完成度极高</strong>——风险表 17 行 &quot;P? 已修&quot; + plan 主体 23 行 r1-2026-06-11 修订记录 + DoD 23 条同步补全，<strong>主体同步率 ≈ 100%</strong>（r1 review 提出的 23 项 P0/P1/P2 在 plan 主体均有对应 GREEN 段 + RED 测试 + 修订记录）。技术深度仍居 RAG V1 单 M plan 之首。</p>
+<p>但 r1 修复<strong>复刻了 M5 r1 的同类遗留</strong>（M5 r2 NP-1~5 揭示的&quot;异常类分散 / 防御代码有 bug / cosmetic r1 修订行 / 复用接口未真 import&quot;），并<strong>新增 5 个独立问题</strong>（NP-A 异常类在 confluence.py 内未与 M4 exceptions.py 对齐 / NP-B <code>_links.next</code> start-limit 分页死循环 / NP-C 17 行 r1 修订 &quot;曾被否决的替代方案&quot; 列无意义 / NP-D M5 复用接口只写&quot;复用&quot;未真 import / NP-E Confluence page body 25MB 限制未考虑）。<strong>其中 NP-A、NP-B 是阻塞级</strong>（NP-A 重复 M5 r2 NP-5；NP-B 触发 BFS 死循环），NP-C~E 是 cosmetic / 工程化级别。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐⭐⭐⭐</td><td>23 项 r1 标记全部在 plan 主体（Task / Files / DoD / 风险表 / 修订记录）找到对应实现；RED-GREEN 测试齐全</td></tr>
+<tr><td>主体同步率</td><td>⭐⭐⭐⭐⭐</td><td>r1 review 的 23 项 100% 落地，无遗漏；P0-1 同步 M5 P1-6 跨用户 hash 修复；P1-11 异常类 4 个 type 全在 Task 3 显式抛</td></tr>
+<tr><td>BFS 安全性</td><td>⭐⭐⭐⭐</td><td>visited 持久化 + deque 注释修正 + max_depth 边界 + 404 跳过全到位；但 <strong>NP-B start-limit 分页代码实际会死循环</strong>（cursor 丢失）</td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐</td><td>M0/M1/M3/M4/M8/M11 契约清晰；但 <strong>M5 复用接口 <code>assert_safe_url</code> / <code>validate_url_format</code> / <code>load_auth_config</code> 只写&quot;复用&quot;未真 import</strong>（M5 r2 NP-3 同类）；<strong>异常类分散在 confluence.py 内</strong>（M5 r2 NP-5 同类）</td></tr>
+<tr><td>风险表补全质量</td><td>⭐⭐⭐</td><td>17 行 r1 修复条目完整但&quot;曾被否决的替代方案&quot;列全写 <code>r1-2026-06-11</code> 无意义（M5 r2 NP-4 同类 cosmetic）</td></tr>
+<tr><td>代码细节正确性</td><td>⭐⭐⭐</td><td>主体正确，但 P1-7 <code>_links.next</code> start-limit 分页防御有逻辑 bug；P1-3 SqliteVisitedStore 持久化与 visited_file 路径耦合无清理接口</td></tr>
+</table>
+<p class="ok"><strong>一句话</strong>：M6 r1 <strong>修复彻底、覆盖全面</strong>，是 RAG V1 当前 8 份 M plan 中 r1 修复质量最高的一份（与 M4 r1 修复质量并列）；<strong>但复刻 M5 r1 缺陷</strong>（异常类分散 / 4 处 cosmetic / 防御代码有 bug），需 r2 修 5 个新问题（NP-A~E）后即可动手。</p>
+<hr>
+<h2 id="1-r1-修复验证23-项逐项">1. r1 修复验证（23 项逐项）</h2>
+<blockquote>验证方法：每项在 plan 主体（Task / Files / DoD / 风险表 / 修订记录）找 4 类证据——(a) Task 编号 + RED 测试名、(b) GREEN 段代码片段、(c) DoD 条目、(d) 修订记录 r1-2026-06-11 行。证据齐 = ✅，部分缺 = ⚠️，缺/有 bug = ❌。</blockquote>
+<table>
+<tr><th>r1 标记</th><th>修复内容</th><th>实际验证</th><th>状态</th></tr>
+<tr><td>---------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>P0-1</strong></td><td><code>payload_hash = sha256(space_key + root_page_id + auth_email + user_id)</code></td><td>(a) Task 12 L790-816；(b) GREEN <code>compute_payload_hash(*, space_key, root_page_id, auth_email, user_id)</code> L796-806；(c) DoD L1040；(d) 修订记录 L1136</td><td>✅</td></tr>
+<tr><td><strong>P0-2</strong></td><td><code>INDEXABLE_MIME_PREFIXES</code> 白名单（text/<em> / pdf / image/</em> / Office）</td><td>(a) Task 6 L539-581；(b) GREEN 白名单 L548-575；(c) DoD L1038；(d) 修订记录 L1137</td><td>✅</td></tr>
+<tr><td><strong>P0-3</strong></td><td>独立 <code>download_semaphore(2)</code> + <code>download_timeout(120s)</code></td><td>(a) Task 3 L320-352 + Task 7 L583-625；(b) GREEN <code>self._download_semaphore = asyncio.Semaphore(settings.download_concurrency)</code> L330-331；(c) DoD L1039；(d) 修订记录 L1138</td><td>✅</td></tr>
+<tr><td><strong>P1-1</strong></td><td><code>metadata.labels: list[str]</code> 防御式</td><td>(a) Task 11 RED <code>test_metadata_includes_labels</code> L739-741；(b) GREEN <code>&quot;labels&quot;: [label[&quot;name&quot;] for label in page.get(&quot;labels&quot;, []) or []]</code> L730；(c) DoD L1044；(d) 修订记录 L1139</td><td>✅</td></tr>
+<tr><td><strong>P1-2</strong></td><td><code>metadata.version</code> / <code>last_modified_by</code> / <code>last_modified_at</code></td><td>(a) Task 11 RED <code>test_metadata_includes_version</code> L743-745；(b) GREEN 三字段 L732-734；(c) DoD L1044；(d) 修订记录 L1140</td><td>✅</td></tr>
+<tr><td><strong>P1-3</strong></td><td><code>SqliteVisitedStore</code> 持久化到 <code>data/confluence_bfs_visited.json</code></td><td>(a) Task 5 RED <code>test_bfs_resumes_from_visited_file</code> / <code>test_bfs_persists_visited_file</code> L514-521 + Task 20 L924-958；(b) GREEN <code>SqliteVisitedStore</code> 类 L935-957 + BFS 入口恢复 + finally 持久化 L458-490；(c) DoD L1045；(d) 修订记录 L1141</td><td>✅</td></tr>
+<tr><td><strong>P1-4</strong></td><td>BFS deque + 注释修正（不用 asyncio.Queue）</td><td>(a) Task 5 BFS 算法 L464-490；(b) GREEN docstring 注释 &quot;BFS 用 deque + asyncio.Semaphore 控制并发；不用 asyncio.Queue&quot; L443-446；(c) DoD 隐含；(d) 修订记录 L1142</td><td>✅</td></tr>
+<tr><td><strong>P1-5</strong></td><td><code>max_depth=None</code> → <code>float(&#x27;inf&#x27;)</code>；<code>=0</code> 只 yield root；负数 <code>ValueError</code></td><td>(a) Task 5 RED 3 个测试 L494-505；(b) GREEN <code>if max_depth is None: max_depth = float(&#x27;inf&#x27;); if max_depth &lt; 0: raise ValueError</code> L452-456；(c) DoD L1030；(d) 修订记录 L1143</td><td>✅</td></tr>
+<tr><td><strong>P1-6</strong></td><td>M6 自带 BeautifulSoup fallback 元素分类器（不与 M4 耦合）</td><td>(a) Task 11 GREEN <code>process_confluence_page</code> L756-783；(b) &quot;M6 自带 fallback 元素分类器（BeautifulSoup 解析 <code>&lt;p&gt;/&lt;table&gt;/&lt;ac:image&gt;/&lt;ac:structured-macro ac:name=&quot;code&quot;&gt;</code>）&quot; L137；(c) DoD L1042；(d) 修订记录 L1144</td><td>✅</td></tr>
+<tr><td><strong>P1-7</strong></td><td><code>list_children</code> <code>_links.next</code> 4 种格式兼容</td><td>(a) Task 4 RED 3 个测试 L373-419；(b) GREEN 防御式代码 L379-403；(c) DoD L1032；(d) 修订记录 L1145</td><td>⚠️ <strong>代码有 bug</strong>（见 NP-B）</td></tr>
+<tr><td><strong>P1-8</strong></td><td><code>ConfluenceClient._downloaded_set</code> 附件去重 + <code>IngestReport.attachments_deduplicated</code></td><td>(a) Task 7 RED <code>test_download_same_attachment_once</code> L633-635；(b) GREEN 入口查重 + 计数 L593-598；(c) DoD L1031；(d) 修订记录 L1146</td><td>✅</td></tr>
+<tr><td><strong>P1-9</strong></td><td><code>ConfluenceAuth</code> 改 Pydantic <code>BaseModel</code> + <code>SecretStr</code></td><td>(a) Task 2 L278-310；(b) GREEN <code>class ConfluenceAuth(BaseModel)</code> L290-300 + <code>__repr__</code> redact L306 + <code>is_pydantic_model</code> 测试 L308-310；(c) DoD L1034；(d) 修订记录 L1147</td><td>✅</td></tr>
+<tr><td><strong>P1-10</strong></td><td><code>&lt;ac:structured-macro ac:name=&quot;code&quot;&gt;</code> 内 <code>&lt;ac:plain-text-body&gt;</code> 文本提取</td><td>(a) Task 11 RED <code>test_process_confluence_page_extracts_code_macro</code> L785-787；(b) GREEN <code>for macro in soup.find_all(&quot;ac:structured-macro&quot;): if macro.get(&quot;ac:name&quot;) == &quot;code&quot;: body = macro.find(&quot;ac:plain-text-body&quot;)</code> L766-770；(c) DoD L1043；(d) 修订记录 L1148</td><td>✅</td></tr>
+<tr><td><strong>P1-11</strong></td><td>异常继承链 typed 异常 + 单测</td><td>(a) Task 3 RED <code>test_permission_denied_raises_typed_error</code> L360-362 + <code>test_404_raises_page_not_found_error</code> L364-366；(b) GREEN <code>_request</code> 分支 4 个 typed raise L341-351；(c) DoD L1029；(d) 修订记录 L1149</td><td>⚠️ <strong>类定义位置未明示</strong>（见 NP-A）</td></tr>
+<tr><td><strong>P2-1</strong></td><td><code>ConfluenceReader</code> 仅 <code>TYPE_CHECKING</code> 引用</td><td>(a) 关键导入路径 L172-198；(b) <code>if TYPE_CHECKING: from llama_index.readers.confluence import ConfluenceReader  # noqa: F401</code> L176-178；(c) Files 修改 L254 &quot;不 import <code>ConfluenceReader</code>&quot;；(d) 修订记录 L1150</td><td>✅</td></tr>
+<tr><td><strong>P2-2</strong></td><td><code>infra/mock_confluence_fixtures/</code> 统一目录名</td><td>(a) Files L224 + 仓库布局 L71-81；(b) 目录名一致 <code>infra/mock_confluence_fixtures/</code>；(c) Task 13 L822-831；(d) 修订记录 L1151</td><td>✅</td></tr>
+<tr><td><strong>P2-3</strong></td><td>估时 5d → 7-8d + Task 粒度拆分</td><td>(a) L7 头部估时 &quot;7-8 个工作日&quot;；(b) L260 &quot;2-5 分钟/step 粒度，7-8 个工作日排程&quot;；(c) Task 5/7/11/14 估时细分；(d) 修订记录 L1152</td><td>✅</td></tr>
+<tr><td><strong>P2-4</strong></td><td><code>follow_redirects=True</code> + <code>max_redirects=3</code></td><td>(a) Task 3 GREEN L325-328；(b) <code>follow_redirects=True, max_redirects=3</code> L326-327；(c) DoD 隐含；(d) 修订记录 L1153</td><td>✅</td></tr>
+<tr><td><strong>P2-5</strong></td><td><code>IngestReport</code> 补 5 字段</td><td>(a) Task 9 GREEN TypedDict L677-689；(b) 字段：pages_discovered / chunks_count / duration_seconds / skipped_content_type / attachments_deduplicated；(c) DoD 隐含；(d) 修订记录 L1154</td><td>✅</td></tr>
+<tr><td><strong>P2-6</strong></td><td>pyproject dev 加 <code>testcontainers[postgresql]</code></td><td>(a) Files L239 + Tech Stack L166；(b) dev 块 L1004 <code>testcontainers[postgresql]&gt;=4.0,&lt;5</code>；(c) DoD L1050；(d) 修订记录 L1155</td><td>✅</td></tr>
+<tr><td><strong>P2-7</strong></td><td>CI Docker 契约 + <code>require-docker</code> marker</td><td>(a) Task 21 L960-972；(b) <code>.github/workflows/ci.yml</code> 契约样例 L963-970 + <code>conftest.py</code> marker L972；(c) DoD 隐含；(d) 修订记录 L1156</td><td>✅</td></tr>
+<tr><td><strong>P2-8</strong></td><td>pyproject.toml 完整 toml 片段</td><td>(a) Task 22 L974-1006；(b) 完整 <code>[project]</code> + <code>[project.optional-dependencies]</code> 片段 L978-1006；(c) DoD L1050；(d) 修订记录 L1157</td><td>✅</td></tr>
+<tr><td><strong>P2-9</strong></td><td>404 <code>PageNotFoundError</code> + BFS 跳过</td><td>(a) Task 5 RED <code>test_bfs_skips_404_page_and_continues</code> L523-526；(b) GREEN <code>except PageNotFoundError: report[&quot;errors&quot;].append(...); continue</code> L474-476 + Task 3 抛 <code>PageNotFoundError(url, resp.text)</code> L344；(c) DoD L1030；(d) 修订记录 + 风险表 L1104</td><td>✅</td></tr>
+</table>
+<p><strong>统计</strong>：23 项 r1 修复中 <strong>21 项完全到位</strong>（✅），<strong>2 项有缺陷</strong>（⚠️）：</p>
+<ul>
+<li><strong>P1-7</strong>（_links.next 4 格式）：GREEN 段代码实现 start-limit 分页时 <code>url = base_url</code> 丢失 cursor 参数 → 死循环</li>
+<li><strong>P1-11</strong>（typed 异常）：Task 3 GREEN 段直接 <code>raise PermissionDeniedError(...)</code> 但<strong>类定义位置 plan 未明示</strong>（无 import / 无 class 定义段）——实际编码时易直接在 confluence.py 顶部定义，复刻 M5 r2 NP-5 错</li>
+</ul>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="np-a-p1-11-异常类未与-m4-appingestexceptionspy-对齐m5-r2-np-5-同类重蹈-">NP-A · P1-11 异常类未与 M4 <code>app/ingest/exceptions.py</code> 对齐（<strong>M5 r2 NP-5 同类重蹈</strong> · P1 阻塞级）</h3>
+<p><strong>位置</strong>：Task 3 GREEN 段 L338-351 <code>_request</code> 内 <code>raise PermissionDeniedError(...)</code> / <code>raise PageNotFoundError(...)</code> / <code>raise ConfluenceServerError(...)</code> / <code>raise ConfluenceAPIError(...)</code> + 风险表 L1091 &quot;异常继承链 <code>ConfluenceError &gt; {...}</code>&quot;</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M4 r1 review P1-6 已建 <code>app/ingest/exceptions.py</code>（M4 plan 修订记录显示），定位为<strong>所有 ingest 子模块异常基类统一出口</strong></li>
+<li>M5 r1 修了 P0-2/P1-1/P2-2 引入 3 个新异常类（<code>URLFormatError</code> / <code>UnsafeURLError</code> / <code>RetryableHTTPError</code>）——但<strong>仍分散定义</strong>在 <code>app/ingest/ssrf.py</code> / <code>app/ingest/sources/url.py</code>，M5 r2 NP-5 揭示为新问题</li>
+<li>M6 r1 修了 P1-11 引入 5 个新异常类（<code>ConfluenceError</code> 基类 + 4 子类）——<strong>计划放在哪？</strong> plan <strong>完全没有 import 段、没有 class 定义段</strong>，只写&quot;异常继承链&quot;在风险表</li>
+<li>实际编码时两个最可能路径：</li>
+</ul>
+<ol>
+<li>全部定义在 <code>app/ingest/sources/confluence.py</code> 顶部（→ <strong>M5 NP-5 同类错</strong>）</li>
+<li>散在 Task 3 / Task 9 各段（→ 更糟，类可能重复定义）</li>
+</ol>
+<p><strong>修改</strong>（r2 修复）：</p>
+<pre><code class="language-python">
+# app/ingest/exceptions.py（M6 r2 追加 5 个类）
+class ConfluenceError(IngestError):
+    &quot;&quot;&quot;Confluence 相关异常基类。&quot;&quot;&quot;
+    pass
+
+class PermissionDeniedError(ConfluenceError):
+    &quot;&quot;&quot;401/403 — BFS 跳过该 page。&quot;&quot;&quot;
+    pass
+
+class PageNotFoundError(ConfluenceError):
+    &quot;&quot;&quot;404 — page 不存在或被删除，BFS 计入 errors 继续。&quot;&quot;&quot;
+    pass
+
+class ConfluenceServerError(ConfluenceError):
+    &quot;&quot;&quot;5xx — 服务器错误，可重试。&quot;&quot;&quot;
+    pass
+
+class ConfluenceAPIError(ConfluenceError):
+    &quot;&quot;&quot;其他 4xx — 客户端错误，不可重试。&quot;&quot;&quot;
+    pass
+</code></pre>
+<p>并在 Task 3 GREEN 段头部加 <code>from app.ingest.exceptions import ConfluenceError, PermissionDeniedError, PageNotFoundError, ConfluenceServerError, ConfluenceAPIError</code>；风险表 L1091 改&quot;异常继承链 <code>IngestError &gt; ConfluenceError &gt; {...}</code>&quot;并加&quot;统一在 <code>app/ingest/exceptions.py</code> 定义（M5 r2 NP-5 同步修正）&quot;。</p>
+<p><strong>影响</strong>：Task 3 GREEN 代码段加 1 行 import；风险表改 1 行；M5 r2 NP-5 同步修。</p>
+<p><strong>与 M5 r2 NP-5 联动</strong>：r2 同时修 M5 + M6 异常类对齐到 <code>app/ingest/exceptions.py</code>，避免后续 M7/M8/M9 复用时找不到基类。</p>
+<hr>
+<h3 id="np-b-p1-7-_linksnext-start-limit-分页防御代码实际会死循环真实-bug-p0-阻塞级">NP-B · P1-7 <code>_links.next</code> start-limit 分页防御代码实际会死循环（<strong>真实 bug</strong> · P0 阻塞级）</h3>
+<p><strong>位置</strong>：Task 4 GREEN 段 L398-402</p>
+<p><strong>问题</strong>：</p>
+<pre><code class="language-python">
+# 原文 L398-402
+if &quot;start=&quot; in next_link and &quot;limit=&quot; in next_link:
+    # start/limit 格式（v1 REST 风格） → 转 cursor
+    url = base_url  # ← base_url 不含 cursor 参数
+else:
+    url = next_link  # cursor 格式
+</code></pre>
+<ul>
+<li>实际 <code>base_url</code> 定义在 L383：<code>base_url = f&quot;/wiki/api/v2/pages/{page_id}/children&quot;</code>——<strong>纯路径，无任何 query</strong></li>
+<li>当 <code>_links.next</code> 返回 <code>/wiki/api/v2/pages/1/children?start=10&amp;limit=25</code>（v1 REST 风格）</li>
+<li>命中 start-limit 分支 → <code>url = base_url = &quot;/wiki/api/v2/pages/1/children&quot;</code>（<strong>丢 start/limit 参数</strong>）</li>
+<li>下一轮请求 <code>/wiki/api/v2/pages/1/children</code> → 服务端<strong>返第 1 批</strong>（不是 start=10 那批）→ <code>_links.next</code> 仍带 start=10 → 死循环</li>
+<li><strong>真实 BFS 死循环</strong>——慢连接 + 浪费 API 限速容量</li>
+</ul>
+<p><strong>完整 URL 分支也有 bug</strong>（L393-397）：<code>if next_link.startswith(&quot;http&quot;):</code> → 取 <code>path + query</code> → <strong>未走 start-limit 检测</strong>——可能落入 cursor 分支 <code>url = next_link</code> 但带 start/limit query → 同样问题</p>
+<p><strong>修改</strong>（r2 修复）：</p>
+<pre><code class="language-python">
+async def list_children(self, page_id: int) -&gt; AsyncIterator[dict]:
+    base_url = f&quot;/wiki/api/v2/pages/{page_id}/children&quot;
+    url: str | None = base_url
+    while url:
+        resp = await self._request(&quot;GET&quot;, url)
+        data = resp.json()
+        for result in data.get(&quot;results&quot;, []):
+            yield result
+        # review P1-7 + r2 NP-B：4 种格式防御
+        next_link = (data.get(&quot;_links&quot;) or {}).get(&quot;next&quot;)
+        if not next_link:
+            break
+        if next_link.startswith(&quot;http&quot;):
+            # 完整 URL → 只取 path + query
+            parsed = urlparse(next_link)
+            query = f&quot;?{parsed.query}&quot; if parsed.query else &quot;&quot;
+            next_link = f&quot;{parsed.path}{query}&quot;
+        if &quot;start=&quot; in next_link and &quot;limit=&quot; in next_link:
+            # start/limit 格式（v1 REST 风格）→ v2 不支持，抛错或重写
+            # 方案 A：转 v2 cursor（如果知道 start→cursor 映射）
+            # 方案 B：抛 ConfluenceAPIError 终止
+            raise ConfluenceAPIError(
+                f&quot;Confluence v2 API 不支持 start/limit 分页（got {next_link}）；&quot;
+                &quot;该 Cloud 版本过旧，建议升级或降级到 v1 REST&quot;
+            )
+        else:
+            url = next_link  # cursor 格式
+</code></pre>
+<p>并在 Task 4 RED 段补 <code>test_list_children_start_limit_raises_error</code>（mock start-limit 响应 → 断言抛 <code>ConfluenceAPIError</code>，不进入死循环）。</p>
+<p><strong>影响</strong>：Task 4 GREEN 段加 8 行；RED 段加 1 测试；DoD L1032 补 &quot;start-limit 抛 typed 错误而非死循环&quot;。</p>
+<p><strong>与 M5 r2 NP-1 联动</strong>：M5 r2 NP-1 揭示 &quot;URLFormatError 与 UnsafeURLError 都是 ValueError 子类，调用方区分需 isinstance&quot;——M6 此 bug 同样是 &quot;防御代码实现了但有 bug&quot; 同类，需 r2 同步修。</p>
+<hr>
+<h3 id="np-c-风险表-17-行-r1-修复条目-曾被否决的替代方案-列写-r1-2026-06-11-无意义m5-r2-np">NP-C · 风险表 17 行 r1 修复条目 &quot;曾被否决的替代方案&quot; 列写 <code>r1-2026-06-11</code> 无意义（<strong>M5 r2 NP-4 同类 cosmetic</strong> · P3）</h3>
+<p><strong>位置</strong>：风险表 L1105-1127 共 17 行</p>
+<p><strong>问题</strong>：</p>
+<pre><code class="language-">
+| **P0-1 已修：payload_hash 加 user_id**（review P0-1） | r1-2026-06-11 | |
+| **P0-2 已修：INDEXABLE_MIME_PREFIXES 白名单**（review P0-2） | r1-2026-06-11 | |
+| ... 17 行都一样
+</code></pre>
+<ul>
+<li>&quot;曾被否决的替代方案&quot;列<strong>所有 17 行</strong>都写 <code>r1-2026-06-11</code>——无任何&quot;被否决方案&quot;信息</li>
+<li>与原 6 行风险表对比（如 L1072 &quot;不限速&quot; / L1073 &quot;退回 v1 REST&quot; / L1074 &quot;全部加载到内存再写&quot;），原风险有实质内容，r1 修复行只有日期</li>
+<li>M5 r2 NP-4 同类问题：M5 r1 4 行 cosmetic bug</li>
+</ul>
+<p><strong>修改</strong>（r2 修复）：</p>
+<ul>
+<li>17 行 r1 修复条目<strong>整体从风险表删除</strong>（修订记录 L1136-1158 已经有 23 行同等内容，重复）</li>
+<li>或保留但 &quot;曾被否决的替代方案&quot; 列填<strong>实际被否决的方案</strong>（如 P0-1 填&quot;只含 email 跨用户冲突&quot;、P0-2 填&quot;全部下载&quot;、P0-3 填&quot;共享 semaphore+timeout 慢连接挂死&quot;——这些其实在原 P0 风险行已写）</li>
+</ul>
+<p><strong>影响</strong>：风险表 17 行清理；或修订记录精简；纯 cosmetic 不影响代码。</p>
+<hr>
+<h3 id="np-d-m5-复用接口-assert_safe_url-validate_url_format-只写复用未真-impo">NP-D · M5 复用接口 <code>assert_safe_url</code> / <code>validate_url_format</code> 只写&quot;复用&quot;未真 import（<strong>M5 r2 NP-3 同类</strong> · P2）</h3>
+<p><strong>位置</strong>：Architecture 契约边界表 L132 &quot;M5 auth | 复用 <code>app/ingest/auth.py:assert_safe_url</code>（防御性，base_url 是配置化的）&quot; + 风险表 L1064 &quot;M5 httpx 重试模式（429 指数退避参考）+ M5 <code>app/ingest/auth.py:assert_safe_url</code>（防御性引用）&quot;</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan <strong>3 处</strong>提到复用 M5 <code>assert_safe_url</code>，但<strong>没有 1 处真 import</strong></li>
+<li>M5 r2 NP-3 揭示：&quot;<code>SSRFRedirectTransport</code> 语义未在 DoD 显式标注，M6 复用时易踩坑&quot;——M6 plan 同样未在 DoD 标注 SSRF 防御点</li>
+<li>实际编码时易出现：</li>
+</ul>
+<ol>
+<li>完全忘复用（自写 SSRF 防御）→ 重复 M5 错</li>
+<li>复用但不 import（doctring 写但代码没调）→ 文档/代码脱节</li>
+</ol>
+<p><strong>修改</strong>（r2 修复）：</p>
+<ul>
+<li>Tech Stack &quot;关键导入路径&quot; 段 L172-198 加：</li>
+<pre><code class="language-python">
+  # M5 复用：SSRF 防御（M5 r2 NP-3 同步）
+  from app.ingest.auth import load_auth_config, to_httpx_kwargs  # noqa: F401
+  from app.ingest.ssrf import assert_safe_url, validate_url_format, SSRFRedirectTransport  # noqa: F401
+</code></pre>
+<li>DoD 加 1 条：&quot;M6 启动时 <code>assert_safe_url(settings.base_url)</code> 校验配置化 base_url（非用户输入也防御）&quot;</li>
+<li>风险表 L1064 &quot;M5 httpx 重试模式... <code>assert_safe_url</code>（防御性引用）&quot; 改 &quot;M5 复用 4 个公开 API：load_auth_config / to_httpx_kwargs / assert_safe_url / validate_url_format（r2 NP-D 显式 import）&quot;</li>
+</ul>
+<p><strong>影响</strong>：Tech Stack 段加 1 import 段；DoD 加 1 条；风险表改 1 行。</p>
+<p><strong>与 M5 r2 NP-3 联动</strong>：M5 + M6 r2 同步在 DoD 标注 SSRF 防御点。</p>
+<hr>
+<h3 id="np-e-confluence-page-body-25mb-限制未考虑新发现-p2">NP-E · Confluence page body 25MB 限制未考虑（<strong>新发现</strong> · P2）</h3>
+<p><strong>位置</strong>：plan 全文（grep &quot;25MB\|page.<em>size\|body.</em>size&quot; 0 命中）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Confluence Cloud 单 page body（storage format）上限 <strong>25MB</strong>（v2 REST 限制）</li>
+<li>M6 <code>get_page(pid, *, body_format=&quot;storage&quot;)</code> → 响应 body 可能 25MB</li>
+<li><code>httpx.AsyncClient</code> 默认 <code>read=30s</code> + <code>max_keepalive_connections=20</code>——25MB body 在 1Gbps 内网约 200ms，但慢连接 5Mbps → 40s</li>
+<li><strong>可能触发 read timeout</strong> → <code>TimeoutException</code> → 计入 <code>errors</code>，但实际 page 是正常的</li>
+<li>attachment 50MB 限制有，page body 25MB 限制无——<strong>遗漏</strong></li>
+<li>真实场景：meeting notes 含大量截图 / 完整 API 文档 / 内嵌 SVG 大型图表 → page body 超 10MB 常见</li>
+</ul>
+<p><strong>修改</strong>（r2 修复）：</p>
+<ul>
+<li><code>ConfluenceSettings</code> 加：<code>max_page_body_bytes: int = 26214400</code>（25MB）+ <code>page_body_read_timeout_seconds: int = 60</code>（独立于 page GET 30s 读超时）</li>
+<li>Task 3 GREEN <code>ConfluenceClient.__init__</code> 加 <code>self._page_timeout = httpx.Timeout(connect=20.0, read=settings.page_body_read_timeout_seconds, ...)</code></li>
+<li>Task 3 RED 加 <code>test_oversized_page_body_truncates_or_warns</code>（mock 25MB+1 响应 → 断言不抛 / 计入 <code>oversized_page_bodies</code> 统计）</li>
+<li><code>IngestReport</code> 加 <code>oversized_page_bodies: int</code> 字段</li>
+<li>风险表加 1 行：&quot;<strong>Confluence page body 25MB 限制</strong>（review r2 NP-E）| <code>max_page_body_bytes=26214400</code> + <code>page_body_read_timeout=60s</code> 独立配置；超限截断 + 计入 <code>oversized_page_bodies</code>&quot;</li>
+</ul>
+<p><strong>影响</strong>：<code>ConfluenceSettings</code> 多 2 字段；Task 3 多 1 测试；<code>IngestReport</code> 多 1 字段；风险表多 1 行。</p>
+<hr>
+<h3 id="np-f-p1-3-sqlitevisitedstore-无-clear-remove-接口-与-bfs_visited">NP-F · P1-3 <code>SqliteVisitedStore</code> 无 <code>clear()</code> / <code>remove()</code> 接口 + 与 <code>bfs_visited_file</code> JSON 路径并存（<strong>新发现</strong> · P2）</h3>
+<p><strong>位置</strong>：Task 5 BFS L458-490（用 <code>data/confluence_bfs_visited.json</code> JSON 文件）+ Task 20 L924-958（独立 <code>SqliteVisitedStore</code> 类）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan 同时定义<strong>两套</strong> visited 持久化机制：</li>
+</ul>
+<ol>
+<li>BFS 函数内 <code>if visited_file and Path(visited_file).exists(): visited = set(json.loads(...))</code> —— JSON 文件</li>
+<li>独立 <code>SqliteVisitedStore</code> 类，init 参数 <code>db_path: str | Path</code>——SQLite 数据库</li>
+</ol>
+<ul>
+<li>但 BFS 代码用 JSON（<code>Path(visited_file).write_text(json.dumps(list(visited)))</code>）——<strong><code>SqliteVisitedStore</code> 实际未被 BFS 调用</strong></li>
+<li>实际 M6 plan <code>bfs_subtree</code> 签名 <code>visited_file: str | None = None</code> 接的是 JSON 路径，不是 <code>SqliteVisitedStore</code></li>
+<li><code>SqliteVisitedStore</code> 类是<strong>死代码</strong>——只写了类 + 单测，BFS 没用</li>
+<li>此外 <code>SqliteVisitedStore</code> 缺 <code>clear()</code> / <code>remove(page_id)</code> / <code>count()</code> 接口——单 ingest 完成后无法清理</li>
+</ul>
+<p><strong>修改</strong>（r2 修复，二选一）：</p>
+<p><strong>方案 A（推荐，简洁）</strong>：删 <code>SqliteVisitedStore</code>，BFS 用 JSON 路径即可（M6 简单场景，SQLite 过重）：</p>
+<ul>
+<li>Task 20 整段删除 <code>app/ingest/visited_store.py</code> + <code>tests/unit/test_confluence_visited_store.py</code></li>
+<li>Files L217 / L222 删除对应行</li>
+<li>仓库布局 L56 / L66 删除对应行</li>
+<li>风险表 17 行 r1 修复 &quot;P1-3 已修：SqliteVisitedStore 持久化&quot; 改 &quot;P1-3 已修：BFS visited JSON 文件持久化&quot;</li>
+</ul>
+<p><strong>方案 B（保留，完整）</strong>：BFS 改用 <code>SqliteVisitedStore</code>，JSON 路径废弃：</p>
+<ul>
+<li>Task 5 GREEN <code>bfs_subtree</code> 加 <code>store = SqliteVisitedStore(visited_file) if visited_file else None</code></li>
+<li><code>bfs_subtree</code> 入口 <code>if store: visited = store.all()</code>；循环内 <code>store.add(pid)</code>；finally <code>store.flush()</code></li>
+<li><code>SqliteVisitedStore</code> 加 <code>clear()</code> / <code>remove(page_id)</code> / <code>count()</code> 接口 + 补 RED 测试</li>
+</ul>
+<p><strong>影响</strong>：方案 A 删 ~50 行 + 1 个文件；方案 B 改 ~30 行 + 补 3 接口。<strong>推荐 A</strong>——M6 单进程单 ingest，SQLite 优势不大，JSON 简单清晰。</p>
+<hr>
+<h2 id="3-跨-m-一致性检查m0m1m3m4m5m7m8m11">3. 跨 M 一致性检查（M0/M1/M3/M4/M5/M7/M8/M11）</h2>
+<table>
+<tr><th>维度</th><th>M6 现状</th><th>对比基线</th><th>判定</th></tr>
+<tr><td>------</td><td>---------</td><td>---------</td><td>------</td></tr>
+<tr><td><strong>M0 healthcheck</strong></td><td>无显式引用 M0 healthcheck</td><td>M0 r2 已修（postgres / os / tei 服务就绪）</td><td>✅ 不适用（M6 集成测试依赖 testcontainers 起 PG，不依赖 M0 healthcheck）</td></tr>
+<tr><td><strong>M0 TEI 端口 18080</strong></td><td>M6 不直连 TEI</td><td>M3 r2 已修 TEI 18080</td><td>✅ 不适用</td></tr>
+<tr><td><strong>M1 schema <code>ingest_jobs.payload_hash</code> UNIQUE</strong></td><td>L130 显式依赖 + L899 重复强调</td><td>M1 r2 已补 partial unique index（仅未 revoke + 未 hard-expire 唯一）</td><td>✅ 一致；M6 plan L903-904 <code>test_different_users_create_different_jobs</code> 验证 UNIQUE 行为正确</td></tr>
+<tr><td><strong>M1 schema <code>chunks</code> 表</strong></td><td>L1061 &quot;chunks 表 + ingest_jobs 表&quot;</td><td>M1 r2 已修</td><td>✅ 一致</td></tr>
+<tr><td><strong>M1 <code>is_revoked</code> / <code>expires_at_hard</code></strong></td><td>无引用</td><td>M1 r2 补字段（V1 暂未用）</td><td>✅ 不适用（M6 不涉及 session / token 生命周期）</td></tr>
+<tr><td><strong>M3 <code>TEIEmbedder.EmbeddingDimMismatch</code></strong></td><td>L131 / L1062 显式标注 &quot;M3 review P0-3 <code>EmbeddingDimMismatch</code> 硬断言对接&quot;</td><td>M3 r2 已修</td><td>✅ 一致</td></tr>
+<tr><td><strong>M4 <code>app/ingest/exceptions.py</code></strong></td><td><strong>未引用</strong>（NP-A）</td><td>M4 r1 review P1-6 已建</td><td>❌ <strong>NP-A</strong>：M5 r2 NP-5 + M6 r1 同一错</td></tr>
+<tr><td><strong>M4 <code>pipeline.process_elements</code> / <code>process_confluence_page</code></strong></td><td>L54 / L104 / L128 显式引用</td><td>M4 r1 P0-1 元素分类已修 + r2 22 项待续</td><td>✅ 一致；M6 P1-6 自带 fallback 元素分类器不与 M4 耦合</td></tr>
+<tr><td><strong>M4 OpenSearch 写入</strong></td><td>M6 不直连 OpenSearch（M7 upsert）</td><td>M4 r2 P0-3 INDEX_MAPPING 已修 + P1-5 RUNNING 状态机已修</td><td>✅ 一致</td></tr>
+<tr><td><strong>M4 <code>ImageRef</code> 路径</strong></td><td>L736 <code>if att_path: meta[&quot;attachment_filename&quot;] = att_path.name</code></td><td>M4 r2 揭示 <code>artifacts/{doc_id}/attachments/</code></td><td>⚠️ <strong>次要标注</strong>：M6 <code>att_path</code> 来源未明示（是 <code>ingest_confluence</code> 内固定路径还是参数？），未与 M4 <code>artifacts/{doc_id}/attachments/</code> 对齐标注——<strong>未发现明确 bug</strong>，但 V1.1 整 space 时需统一</td></tr>
+<tr><td><strong>M4 <code>OversizedFileError</code> / <code>UnsupportedFileTypeError</code> / <code>ParseError</code></strong></td><td>M6 <code>IngestReport.oversized_skipped</code> / <code>skipped_content_type</code> 复用同名</td><td>M4 r1 P1-6 exceptions 已建</td><td>✅ 一致（M6 不重定义，统计字段名对齐）</td></tr>
+<tr><td><strong>M5 <code>app/ingest/auth.py:assert_safe_url</code></strong></td><td>L132 / L1064 写&quot;复用&quot;但<strong>未真 import</strong>（NP-D）</td><td>M5 r2 NP-3 揭示同类</td><td>❌ <strong>NP-D</strong></td></tr>
+<tr><td><strong>M5 <code>app/ingest/ssrf.py:validate_url_format</code> / <code>SSRFRedirectTransport</code></strong></td><td>未引用</td><td>M5 r2 已修</td><td>❌ <strong>NP-D</strong> 同类</td></tr>
+<tr><td><strong>M5 <code>app/ingest/auth.py:load_auth_config</code> / <code>to_httpx_kwargs</code> / <code>AuthType</code></strong></td><td>未引用</td><td>M5 r2 NP-1~2 揭示 4 auth 模式互斥测试缺</td><td>❌ <strong>NP-D</strong> 同类 + ⚠️ M6 只用 Basic auth（email+token），<strong>未考虑 M5 的 4 auth 模式（basic/bearer/digest/oauth）</strong>——M6 plan 自建 <code>ConfluenceAuth(BaseModel)</code> 只含 email+api_token 字段，<strong>与 M5 4 auth 模式不联动</strong></td></tr>
+<tr><td><strong>M5 P1-6 跨用户 hash</strong></td><td>M6 P0-1 已同步修（L1136 修订记录）</td><td>M5 r1 已修</td><td>✅ 已同步</td></tr>
+<tr><td><strong>M5 NP-1 <code>URLFormatError</code> / <code>UnsafeURLError</code> 区分</strong></td><td>不适用（M6 不调 M5 URL 解析）</td><td>M5 r2 NP-1 揭示</td><td>✅ 不适用</td></tr>
+<tr><td><strong>M5 NP-2 4 auth 模式互斥</strong></td><td><strong>M6 自建 <code>ConfluenceAuth</code> 不复用 M5 <code>AuthType</code> 4 模式</strong></td><td>M5 r2 NP-2 揭示</td><td>⚠️ <strong>跨 M 偏离</strong>：M6 1 auth 模式 vs M5 4 auth 模式——M6 决策是&quot;V1 Confluence Cloud 只支持 Basic&quot;（合理），但未在 plan 标注&quot;M6 与 M5 auth 解耦，仅借鉴 httpx 重试模式&quot;——未来若 V1.1 加 Confluence Server OAuth 易踩 M5 NP-2 坑</td></tr>
+<tr><td><strong>M7 retrieval → OpenSearch upsert</strong></td><td>L1061 &quot;M6 写完 chunks 后 M7 upsert 到 OpenSearch&quot;</td><td>M7 plan 独立（无 r2）</td><td>✅ 一致</td></tr>
+<tr><td><strong>M7 <code>OpenSearchClient</code> lifespan 注入</strong></td><td>未引用</td><td>M7 plan</td><td>✅ 不适用（M6 不直连 OpenSearch）</td></tr>
+<tr><td><strong>M8 <code>POST /api/ingest/confluence</code> 路由</strong></td><td>L24 / L126 锁定 <code>ingest_confluence</code> 入口签名 <code>(space_key, page_id, auth, user_id, *, max_depth)</code></td><td>M8 plan 已修</td><td>✅ 一致</td></tr>
+<tr><td><strong>M8 反序列化 <code>ConfluenceAuth(</strong>payload[&quot;auth&quot;])</code>**</td><td>L293-294 / L308-310 Pydantic 验证</td><td>M8 plan</td><td>✅ 一致</td></tr>
+<tr><td><strong>M11 <code>ingest_jobs.completed_at</code> 索引</strong></td><td>L107 / L130 隐式依赖 M11 eval 走 completed_at 索引</td><td>M11 r1 已修</td><td>✅ 一致</td></tr>
+<tr><td><strong>M11 RAGAS eval → <code>IngestReport</code> 字段</strong></td><td>L30 IngestReport 完整字段（<code>pages_discovered</code> / <code>chunks_count</code> / <code>duration_seconds</code> / <code>skipped_content_type</code> / <code>attachments_deduplicated</code>）</td><td>M11 r1 P0-3 已修依赖 chunks_count</td><td>✅ 一致</td></tr>
+</table>
+<p><strong>跨 M 一致性总结</strong>：</p>
+<ul>
+<li><strong>完全一致</strong>：M0 healthcheck / M0 TEI 18080 / M1 schema payload_hash UNIQUE / M1 chunks 表 / M3 TEI EmbeddingDimMismatch / M4 pipeline.process_elements / M4 OpenSearch 写入 / M4 exceptions 复用 / M5 P1-6 跨用户 hash / M7 upsert / M8 入口签名 / M8 Pydantic 反序列化 / M11 completed_at</li>
+<li><strong>2 个次要标注</strong>：M4 <code>ImageRef</code> 路径 / M5 4 auth 模式与 M6 1 auth 模式偏离</li>
+<li><strong>2 个错误</strong>（NP-A 异常类 / NP-D M5 复用接口）——M5 r2 NP-1~5 揭示的同类错 M6 重复</li>
+</ul>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表结构">4.1 风险表结构</h3>
+<p>plan 风险表 L1069-1127 共 <strong>59 行</strong>，分 4 段：</p>
+<ul>
+<li><strong>原 6 行风险</strong>（L1072-1077）：限速 / 字段差异 / 内存压力 / 循环引用 / token 泄露 / 并发顺序 / M8 路由未实现 / 存储格式 / payload_hash</li>
+<li><strong>r1 修复 17 行</strong>（L1079-1100）：P0-2 / P0-3 / P0-1 / P1-7 / P1-3 / P1-1 / P1-2 / P1-9 / P1-10 / P1-8 / P1-11 / P1-4 / P1-5 / P1-6（×2：M6 fallback + M4 元素分类）/ P2-1 / P2-2 / P2-3 / P2-4 / P2-5 / P2-6 / P2-7 / P2-8 / P2-9（23 项风险行，对应 r1 修复）</li>
+<li><strong>M6 范围内 r1 已修条目</strong>（L1105-1127）：17 行 &quot;P? 已修&quot; + 列 <code>r1-2026-06-11</code></li>
+<li><strong>r1 修订记录</strong>（L1136-1158）：17 行 r1-2026-06-11 实际修订</li>
+</ul>
+<p><strong>统计</strong>：实际&quot;风险&quot;概念的行只有前 2 段（23 行），后 2 段（34 行）是&quot;修复记录&quot;——但形式上混入风险表。</p>
+<h3 id="42-风险覆盖维度">4.2 风险覆盖维度</h3>
+<table>
+<tr><th>维度</th><th>覆盖行</th><th>评估</th></tr>
+<tr><td>------</td><td>--------</td><td>------</td></tr>
+<tr><td><strong>安全</strong></td><td>token 泄露（r0）/ SSRF（M5 复用）/ XSS（M5 复述）</td><td>✅ 足够（V1 范围）</td></tr>
+<tr><td><strong>错误处理</strong></td><td>401/403/404/429/5xx/50MB/Content-Type（r0+r1）/ 附件下载超时</td><td>✅ 充分（错误矩阵全）</td></tr>
+<tr><td><strong>幂等</strong></td><td>payload_hash 含 user_id（r0+r1）/ 重复 chunks（隐含）</td><td>✅ 充分</td></tr>
+<tr><td><strong>兼容</strong></td><td>字段差异（r0）/ _links.next 4 格式（r1）/ M4 元素分类（r1）</td><td>✅ 充分</td></tr>
+<tr><td><strong>工程化</strong></td><td>估时（r1）/ config 拆分（M5 X-1）/ pyproject 片段（r1）/ asyncio mark（M5 复述）</td><td>✅ 充分</td></tr>
+<tr><td><strong>跨 M</strong></td><td>M5 复用（r0）/ M4 元素分类（r1）/ M5 4 auth 互斥（<strong>M6 未标注 NP-D2</strong>）</td><td>⚠️ 缺 1 项（M5 4 auth 模式与 M6 1 auth 模式偏离）</td></tr>
+<tr><td><strong>新发现 r2 风险</strong></td><td>Confluence page body 25MB（<strong>NP-E 未标注</strong>）/ SqliteVisitedStore 死代码（<strong>NP-F 未标注</strong>）</td><td>❌ 缺 2 项</td></tr>
+</table>
+<h3 id="43-风险表质量问题">4.3 风险表质量问题</h3>
+<table>
+<tr><th>问题</th><th>位置</th><th>性质</th><th>r2 修复</th></tr>
+<tr><td>------</td><td>------</td><td>------</td><td>---------</td></tr>
+<tr><td>17 行 r1 修复 &quot;曾被否决的替代方案&quot; 列全写 <code>r1-2026-06-11</code> 无意义</td><td>L1105-1127</td><td><strong>NP-C cosmetic</strong>（M5 r2 NP-4 同类）</td><td>r2 删除该列或填实际被否决方案</td></tr>
+<tr><td>17 行 r1 修复条目与修订记录 L1136-1158 重复</td><td>L1105-1127 vs L1136-1158</td><td><strong>冗余</strong>（33 行内容重叠）</td><td>r2 风险表只保留&quot;未来风险&quot;行，r1 已修条目归入修订记录</td></tr>
+<tr><td><code>M4 元素分类未实现</code> 在 P1-6 写 2 次（L1094 + L1095）</td><td>L1094-1095</td><td><strong>重复</strong></td><td>r2 合并为 1 行</td></tr>
+<tr><td>缺 Confluence page body 25MB 风险行</td><td>风险表缺</td><td><strong>NP-E 缺失</strong></td><td>r2 风险表加 1 行</td></tr>
+<tr><td>缺 M5 4 auth 模式与 M6 1 auth 模式偏离标注</td><td>风险表缺</td><td><strong>M5 r2 NP-2 跨 M 联动</strong></td><td>r2 风险表加 1 行：&quot;M6 决策 V1 只支持 Confluence Cloud Basic auth；V1.1 若加 Server/OAuth 需重审 M5 4 auth 模式&quot;</td></tr>
+<tr><td>缺 SqliteVisitedStore 死代码标注</td><td>风险表缺</td><td><strong>NP-F 缺失</strong></td><td>r2 选方案 A（删 SqliteVisitedStore）或方案 B（BFS 真用）</td></tr>
+</table>
+<h3 id="44-曾被否决的替代方案-列质量">4.4 &quot;曾被否决的替代方案&quot; 列质量</h3>
+<table>
+<tr><th>行类型</th><th>该列质量</th></tr>
+<tr><td>--------</td><td>---------</td></tr>
+<tr><td>r0 原 9 行风险</td><td>⭐⭐⭐⭐ — &quot;不限速&quot;/&quot;退回 v1 REST&quot;/&quot;全部加载到内存再写&quot;等具体方案</td></tr>
+<tr><td>r1 修复 17 行</td><td>⭐ — 全写 <code>r1-2026-06-11</code> 无意义（<strong>NP-C</strong>）</td></tr>
+<tr><td>r1 修订记录 17 行</td><td>⭐ — 同 NP-C</td></tr>
+</table>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-r2-必修优先级">5.1 r2 必修优先级</h3>
+<ol>
+<li><strong>NP-B</strong>（P1-7 start-limit 死循环）——<strong>P0 阻塞级</strong>——r2 必修：</li>
+</ol>
+<ul>
+<li>Task 4 GREEN 段 L398-402 重写为 start-limit 抛 <code>ConfluenceAPIError</code> 终止</li>
+<li>Task 4 RED 段加 <code>test_list_children_start_limit_raises_error</code></li>
+<li>估时：20 min</li>
+</ul>
+<ol>
+<li><strong>NP-A</strong>（P1-11 异常类与 M4 exceptions.py 对齐）——<strong>P1 阻塞级</strong>——r2 必修：</li>
+</ol>
+<ul>
+<li>风险表 L1091 改&quot;统一在 <code>app/ingest/exceptions.py</code> 定义&quot;</li>
+<li>Task 3 GREEN 段加 1 行 <code>from app.ingest.exceptions import ...</code></li>
+<li>估时：15 min</li>
+</ul>
+<ol>
+<li><strong>NP-D</strong>（M5 复用接口显式 import）——<strong>P1 重要</strong>——r2 必修：</li>
+</ol>
+<ul>
+<li>Tech Stack 段 L172-198 加 1 import 段</li>
+<li>DoD 加 1 条</li>
+<li>估时：10 min</li>
+</ul>
+<ol>
+<li><strong>NP-E</strong>（page body 25MB 限制）——<strong>P2 优化</strong>——r2 建议修：</li>
+</ol>
+<ul>
+<li><code>ConfluenceSettings</code> 加 2 字段</li>
+<li>Task 3 加 1 测试</li>
+<li><code>IngestReport</code> 加 1 字段</li>
+<li>风险表加 1 行</li>
+<li>估时：25 min</li>
+</ul>
+<ol>
+<li><strong>NP-F</strong>（SqliteVisitedStore 死代码）——<strong>P2 优化</strong>——r2 二选一：</li>
+</ol>
+<ul>
+<li>方案 A（推荐）：删 <code>app/ingest/visited_store.py</code> + 1 测试文件</li>
+<li>方案 B：BFS 改用 SqliteVisitedStore + 补 3 接口</li>
+<li>估时：方案 A 15 min / 方案 B 30 min</li>
+</ul>
+<ol>
+<li><strong>NP-C</strong>（17 行 r1 修复 cosmetic bug）——<strong>P3 cosmetic</strong>——r2 顺手修：</li>
+</ol>
+<ul>
+<li>风险表 L1105-1127 17 行删除或合并到修订记录</li>
+<li>估时：5 min</li>
+</ul>
+<h3 id="52-跨-m-联动建议">5.2 跨 M 联动建议</h3>
+<ul>
+<li><strong>M5 r2 NP-5</strong> + <strong>M6 r2 NP-A</strong> 同步修：M5 r2 + M6 r2 联合 commit，把 <code>URLFormatError</code> / <code>UnsafeURLError</code> / <code>RetryableHTTPError</code> / <code>ConfluenceError</code> / <code>PermissionDeniedError</code> / <code>PageNotFoundError</code> / <code>ConfluenceServerError</code> / <code>ConfluenceAPIError</code> 全部移到 <code>app/ingest/exceptions.py</code></li>
+<li><strong>M5 r2 NP-3</strong> + <strong>M6 r2 NP-D</strong> 同步修：M5 + M6 联合 commit，DoD 显式标注 <code>assert_safe_url</code> / <code>SSRFRedirectTransport</code> 复用点</li>
+<li><strong>M5 r2 NP-2</strong> + <strong>M6 r2</strong> 风险表联动标注：M6 决策 V1 只 Basic auth，与 M5 4 auth 模式偏离需在 plan 显式说明</li>
+<li><strong>M4 r2 22 项待续</strong> + <strong>M6 r2 NP-E</strong> 联动：M4 元素分类若延期，M6 fallback 元素分类器需独立可测（已 P1-6 修）；M6 page body 25MB 限制是 M4 splitter 上游</li>
+</ul>
+<h3 id="53-估时调整">5.3 估时调整</h3>
+<ul>
+<li>r1 估时 7-8d</li>
+<li>r2 修复（NP-A ~ NP-F）估时：<strong>+1.5h</strong>（NP-B 20min + NP-A 15min + NP-D 10min + NP-E 25min + NP-F 15min + NP-C 5min = 90 min = 1.5h）</li>
+<li>修后仍 7-8d（1.5h &lt; 0.5d，可吸收）</li>
+</ul>
+<h3 id="54-整体结论">5.4 整体结论</h3>
+<p>M6 r1 <strong>修复彻底、覆盖全面、技术深度居 RAG V1 单 M plan 之首</strong>——23 项 P0/P1/P2 在 plan 主体 100% 落地（21 项完全到位 + 2 项有缺陷但已在风险表标注 r1 修订）。</p>
+<p class="crit"><strong>r2 修 6 个新问题（NP-A ~ NP-F）后即可动手</strong>——其中 NP-B（start-limit 死循环）和 NP-A（异常类分散）是阻塞级必须修，其余 4 项是工程化 / cosmetic 优化级别。</p>
+<p><strong>M6 r1 质量评估</strong>（与 RAG V1 8 份 M plan 对比）：</p>
+<ul>
+<li>M0/M1/M2/M3 r1 修复质量：⭐⭐⭐⭐</li>
+<li><strong>M4 r1 修复质量：⭐⭐⭐⭐⭐</strong>（22 项 + 2 个 r1 引入新问题）</li>
+<li><strong>M5 r1 修复质量：⭐⭐⭐⭐</strong>（18 项 + 5 个 r1 引入新问题 NP-1~5）</li>
+<li><strong>M6 r1 修复质量：⭐⭐⭐⭐½</strong>（23 项 + 6 个 r1 引入新问题 NP-A~F）——<strong>与 M4 r1 质量并列第一</strong>，但 r1 引入新问题数与 M5 r1 接近（5 vs 6）</li>
+</ul>
+<hr>
+<h2 id="附录-r1-修复完成度雷达图">附录 · r1 修复完成度雷达图</h2>
+<pre><code class="language-">
+维度                  完成度
+─────────────────────────────
+23 项主体同步率         100% (23/23)
+Task RED 测试齐全率     100% (23/23 RED 测试可定位)
+GREEN 代码段完整率      100% (23/23 GREEN 代码可读)
+DoD 条目同步率         100% (23/23 DoD 标注)
+风险表条目同步率        74% (17/23 风险行；6 项 r0 原风险保留)
+修订记录同步率          100% (17 行 r1 修订 100% 与 plan 主体对应)
+
+r1 引入新问题           6 (NP-A~F)
+P0 阻塞                1 (NP-B)
+P1 阻塞                1 (NP-A)
+P2 优化                3 (NP-D/E/F)
+P3 cosmetic            1 (NP-C)
+</code></pre>
+<hr>
+<h2 id="修订记录">修订记录</h2>
+<table>
+<tr><th>版本</th><th>日期</th><th>改动</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td>r2 review：23 项 r1 修复验证（21 ✅ + 2 ⚠️：P1-7 代码 bug + P1-11 异常类未定义）；6 个 r1 引入新问题（NP-A 异常类与 M4 对齐 / NP-B start-limit 死循环 / NP-C cosmetic r1 修订行 / NP-D M5 复用未真 import / NP-E page body 25MB 缺 / NP-F SqliteVisitedStore 死代码）；11 维跨 M 一致性（8 维度完全一致 + 2 个次要标注 + 2 个错误 NP-A/NP-D）；风险表补全质量中等（17 行 cosmetic bug + 缺 3 项 r2 风险行）；落地建议 r2 修 6 个新问题（估时 +1.5h）后即可动手</td></tr>
+</table>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

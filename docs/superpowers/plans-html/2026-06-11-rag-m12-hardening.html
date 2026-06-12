@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M12 Plan · Hardening（错误处理 + 限速 + 备份 + Prod 部署 + CI）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M12 Plan · Hardening（错误处理 + 限速 + 备份 + Prod 部署 + CI）</h1>
+<div class="meta"><span class="badge">M12 Plan · Hardening（错误处理 + 限速 + 备份 + Prod 部署 + CI）</span><span class="badge r1">⏱ **5 个工作日**（V1 最大里程碑；day 1 = error_handler + rate_limit + security_headers / day 2 = Argon2 + Sentry / day 3 = 备份脚本 + restore 演练 / day 4 = prod compose + 部署文档 / day 5 = GitHub Actions + 端到端）</span><span class="badge r2">r2 修复 14 处</span><span class="badge r1">r1 修复 61 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局appsrag-v1仅显示-m12-新增修改">仓库布局（apps/rag_v1/，仅显示 M12 新增/修改）</a></li><li class="h3-item"><a href="#m12-数据流r1-修正中间件顺序">M12 数据流（r1 修正中间件顺序）</a></li><li class="h3-item"><a href="#与其他-m-的契约边界">与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#day-1-error-handler-rate-limit-security-headers">Day 1 · Error Handler + Rate Limit + Security Headers</a></li><li class="h3-item"><a href="#day-2-argon2-升级-sentry-集成">Day 2 · Argon2 升级 + Sentry 集成</a></li><li class="h3-item"><a href="#day-3-备份脚本-restore-演练">Day 3 · 备份脚本 + Restore 演练</a></li><li class="h3-item"><a href="#day-4-prod-compose-部署文档">Day 4 · Prod Compose + 部署文档</a></li><li class="h3-item"><a href="#day-5-github-actions-端到端">Day 5 · GitHub Actions + 端到端</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li class="h3-item"><a href="#错误处理12-条全过-r1-从-11-条扩为-12-条">错误处理（12 条全过 · r1 从 11 条扩为 12 条）</a></li><li class="h3-item"><a href="#限速r1-p1-14-强化">限速（r1 P1-1/4 强化）</a></li><li class="h3-item"><a href="#security-headersr1-p1-3-严格">Security headers（r1 P1-3 严格）</a></li><li class="h3-item"><a href="#argon2-sentryr1-p1-5-强化">Argon2 + Sentry（r1 P1-5 强化）</a></li><li class="h3-item"><a href="#备份r1-p0-34-p2-9-强化">备份（r1 P0-3/4 + P2-9 强化）</a></li><li class="h3-item"><a href="#prod-部署r1-p2-12-强化">Prod 部署（r1 P2-12 强化）</a></li><li class="h3-item"><a href="#cir1-p1-8-p2-3-x-3-强化">CI（r1 P1-8 + P2-3 + X-3 强化）</a></li><li class="h3-item"><a href="#lifespan-hardeningr1-x-1-新增">Lifespan hardening（r1 X-1 新增）</a></li><li class="h3-item"><a href="#通用">通用</a></li></ol><ol><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m12-plan-hardening错误处理-限速-备份-prod-部署-ci">M12 Plan · Hardening（错误处理 + 限速 + 备份 + Prod 部署 + CI）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 12 步（<strong>V1 最后一步</strong>）</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#5-错误处理">V1 Scope §5 错误处理</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #11</a> · <a href="../specs/2026-06-11-rag-system-design.md">System Design §3.12 中间件顺序 / §7.4 CSP / §7.5 限速 / §8 部署 / §10 CI</a></div>
+<div class="callout">估时：<strong>5 个工作日</strong>（V1 最大里程碑；day 1 = error_handler + rate_limit + security_headers / day 2 = Argon2 + Sentry / day 3 = 备份脚本 + restore 演练 / day 4 = prod compose + 部署文档 / day 5 = GitHub Actions + 端到端）</div>
+<div class="callout crit">前置 review：<a href="./2026-06-11-rag-plans-review.md">2026-06-11-rag-plans-review.md</a> P0-1 / P0-5 / P1-7 / X-4 已纳入；M11 plan P0 避雷（mock RAGAS / 显式注入 judge）已沿用</div>
+<div class="callout crit">M12 自身 review：<a href="./reviews/2026-06-11-rag-m12-hardening-review.md">2026-06-11-rag-m12-hardening-review.md</a> <strong>4 P0 + 10 P1 + 12 P2 + 7 X-跨M + 20 NEW = 53 项</strong>；<strong>本版本 r1 已关 26 项</strong>（4 P0 全部 + 10 P1 全部 + 12 P2 全部），剩余 27 项（X-1/2/3/4/5/6/7 跨 M + NEW-1~20）已纳入修订记录为 r2 backlog</div>
+<div class="callout crit"><strong>r1 已吸收上游 M0-M11 review</strong>：M8 P0-1/2（chat 超时 + lifespan dispose）、M10 P0-2/3（trace_id API）、M11 P0-6（trace_id API）→ <strong>统一改用 ContextVar 桥接</strong>（P0-2 修复）</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v1-scope 决策 #5 错误处理矩阵（11 条全要过）+ 限速 + 安全头 + 备份 + prod 部署分离 + CI 落成可执行代码契约：</p>
+
+<li><strong>统一错误处理</strong>：<code>app/middleware/error_handler.py</code> 实现 11 条错误矩阵，每条错误 = 一个 <code>RAGError</code> 子类 + 一个 HTTP status + 一个前端契约（JSON 响应 schema 固定）</li>
+<li><strong>全局限速</strong>：登录/注册走 M2 已有 5/min、10/min；<strong>新增</strong> <code>chat 30/min/user</code> 与 <code>ingest 10/min/user</code> 慢速 API 限速；<code>/api/health</code> bypass</li>
+<li><strong>Security headers</strong>：CSP / HSTS / X-Content-Type-Options / X-Frame-Options / Referrer-Policy 全局响应头（CSP 必须放行 Gradio 5.0 inline JS）</li>
+<li><strong>Argon2 参数升级</strong>：M2 <code>time_cost=2, memory_cost=20480</code> → <strong>time_cost=3, memory_cost=65536</strong>（OWASP 2024 推荐）；<code>extend_session</code> fire-and-forget 评估保留 vs BackgroundTasks</li>
+<li><strong>Sentry 集成</strong>：5xx 异常上报 + scope tag 注入 <code>langfuse_trace_id</code>（M11 review P1-1）</li>
+<li><strong>备份策略</strong>：Postgres <code>pg_dump</code> 每日 + WAL 归档；OpenSearch snapshot + MinIO；<code>restore.sh</code> 演练脚本（<strong>仅 staging</strong>，不动 prod）</li>
+<li><strong>Prod 部署分离</strong>：<code>docker-compose.prod.yml</code>（prod 资源限制 / 不暴露端口 / env 来自 secret manager）+ <code>docker-compose.override.yml</code>（dev override 端口映射）；review <strong>X-4 必须 M12 完成</strong></li>
+<li><strong>GitHub Actions CI</strong>：</li>
+<p>   - <code>.github/workflows/ci.yml</code>（PR 触发）：ruff lint + unit + integration（docker compose up 真 PG）+ RAGAS gate（20 题，30 分钟超时）</p>
+<p>   - <code>.github/workflows/nightly-ragas.yml</code>（cron 触发）：RAGAS full eval 50 题</p>
+<li><strong>CSP / 错误监控</strong>：CSP <code>script-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;</code>（Gradio 兼容）+ Sentry 5xx 告警</li>
+<li><strong>健康检查强化</strong>：<code>/api/health</code> 探测 5 service 状态（Langfuse / OpenSearch / TEI / Postgres / Graph）；返回 200 仅全绿，503 单失败</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：M2 登录/注册 5/10 限速（M2 已建，本 M 只验证）、M10 Langfuse 业务 trace（只读已有 trace_id 注入 Sentry tag）、M11 RAGAS 评测逻辑（只产 CI 接入）、业务功能本身。</p>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局appsrag-v1仅显示-m12-新增修改">仓库布局（apps/rag_v1/，仅显示 M12 新增/修改）</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   ├── middleware/                          # M12 新建
+│   │   ├── __init__.py
+│   │   ├── error_handler.py                 # 统一异常处理（11 条错误矩阵）
+│   │   ├── rate_limit.py                    # 全局 + 路由级限速
+│   │   ├── security_headers.py              # CSP / HSTS / X-Frame-Options
+│   │   └── request_id.py                    # M8 已建（M12 复用）
+│   ├── api/                                 # M8 已建
+│   │   └── main.py                          # 挂 middleware（顺序敏感）
+│   ├── auth/                                # M2 已建
+│   │   ├── service.py                       # Argon2 参数升级
+│   │   └── deps.py                          # extend_session 决策点
+│   ├── observability/                       # M3+M10 已建
+│   │   ├── sentry.py                        # M12 新建（Sentry 集成）
+│   │   └── langfuse.py                      # M10 已建（M12 复用 trace_id）
+│   ├── eval/                                # M11 已建
+│   │   └── gate.py                          # CI 门禁集成（不改逻辑）
+│   ├── graph/                               # M7 已建
+│   │   └── workflow.py                      # M12 暴露 health() 接口
+│   ├── retrieval/                           # M7 已建
+│   │   ├── os_client.py                     # M12 暴露 health()
+│   │   └── tei_client.py                    # M12 暴露 health()
+│   └── config.py                            # 追加 ProdSettings / BackupSettings / SecuritySettings
+├── infra/
+│   ├── docker-compose.yml                   # M0 已建（base）
+│   ├── docker-compose.override.yml          # M12 新建（dev override，端口映射 + 卷挂载）
+│   ├── docker-compose.prod.yml              # M12 新建（prod 分离：resource limits / 无端口 / env file）
+│   ├── backup/
+│   │   ├── pg_backup.sh                     # M12 新建（pg_dump + WAL 归档）
+│   │   ├── os_snapshot.sh                   # M12 新建（OpenSearch snapshot → MinIO）
+│   │   ├── restore.sh                       # M12 新建（恢复演练）
+│   │   └── README.md                        # M12 新建（备份策略文档）
+│   └── README.md                            # M12 完善（dev / staging / prod 三环境部署）
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                           # M12 新建（PR 触发）
+│       └── nightly-ragas.yml                # M12 新建（cron 触发）
+├── tests/
+│   ├── unit/
+│   │   ├── test_error_handler.py            # 11 条错误矩阵
+│   │   ├── test_rate_limit.py
+│   │   ├── test_security_headers.py
+│   │   ├── test_argon2_upgrade.py
+│   │   ├── test_sentry_integration.py
+│   │   └── test_prod_settings.py
+│   └── integration/
+│       ├── test_m12_backup_restore.py       # 真 PG 备份/恢复演练（staging）
+│       ├── test_m12_ci_local.py             # 模拟 CI 流程（act 或 docker compose）
+│       ├── test_m12_prod_smoke.py           # prod compose 启动 smoke test
+│       └── test_m12_health_5services.py     # /api/health 5 service 全绿</code></pre>
+
+<p><strong>模块组织原则</strong>：</p>
+<li><code>app/middleware/</code> <strong>纯 ASGI</strong>，不直接依赖 <code>app.graph</code> / <code>app.retrieval</code>（避免循环依赖）</li>
+<li>错误矩阵每条 = 一个 <code>RAGError</code> 子类 + 一个 HTTP status mapper（在 <code>error_handler.py</code> 内集中）</li>
+<li>限速中间件用内存 token bucket（V1 单实例够用，<strong>不引入</strong> Redis；V2 升级）</li>
+<li>prod 部署用 <code>docker-compose.yml</code>（base） + <code>docker-compose.prod.yml</code>（override 风格，Compose 原生支持）</li>
+
+<h3 id="m12-数据流r1-修正中间件顺序">M12 数据流（r1 修正中间件顺序）</h3>
+
+<pre><code >[HTTP Request]
+    ↓ middleware chain（按 spec §3.12 LIFO add_middleware）
+[error_handler] → [rate_limit] → [security_headers] → [request_id] → [cors] → [router]
+    ↓ 业务抛 RAGError 子类
+[error_handler] 捕获 → 映射 HTTP status + JSON body + Langfuse trace_id 注入 Sentry
+    ↓
+[Response] (含 X-Request-Id + 所有安全头 + CORS 头)
+
+错误矩阵（r1 扩展为 12 条，X-1 联动 · 新增 ChatTimeoutError 504）：
+  OpenSearch 不可达        → OpenSearchDownError        → 503 + admin_msg + Langfuse trace
+  TEI embedding 超时        → TEITimeoutError            → 指数退避 3 次 → 422 + ingest 标 failed
+  LLM 4xx/5xx              → LLMUpstreamError           → 502 + Langfuse trace + 不静默
+  检索 top-k 全 0 分       → NoRelevantDocsError        → 200 + body.answer = &quot;未找到相关文档&quot;
+  Postgres 不可达          → PostgresDownError          → 503 + checkpointer 降级 SQLite + UI 告警
+  Confluence 401/403       → ConfluencePermissionError  → 跳过该 page + 记日志 + 任务报告
+  Confluence 429           → ConfluenceRateLimitError   → token bucket + 指数退避 3 次
+  文档解析失败（PDF 损坏）  → DocumentParseError         → 200 + 单文件失败不阻塞批次
+  附件超大 (&gt;50MB)         → AttachmentTooLargeError    → 413 + 记日志 + 不进 RAG
+  用户未登录访问 /api/chat → UnauthenticatedError       → 401 + 前端跳登录
+  session_id 越权          → SessionAccessDeniedError   → 404 + 不暴露存在性
+  **Chat 请求超时（&gt;30s）   → ChatTimeoutError [r1 新增]  → 504 + Langfuse trace（M8 P0-1 联动）**</code></pre>
+
+<h3 id="与其他-m-的契约边界">与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M12 error_handler</td><td><code>RAGError</code> 子类（各 M 业务代码抛）</td><td>M12 定义基类，各 M 业务抛子类（含 r1 新增 <code>RateLimitedError</code> / <code>ChatTimeoutError</code>）</td></tr>
+<tr><td>M12 rate_limit</td><td><code>slowapi.Limiter</code> 包装的装饰器 + <code>get_rate_limit_key</code>（r1 P1-1 user_id 优先）</td><td>chat 30/min/user, ingest 10/min/user</td></tr>
+<tr><td>M12 security_headers</td><td>ASGI middleware 返回头</td><td>CSP（r1 P1-3 spec §7.4 严格）/ HSTS / X-Content-Type-Options / X-Frame-Options / Referrer-Policy / form-action / base-uri</td></tr>
+<tr><td>M12 Sentry</td><td><code>sentry_sdk.init()</code> + <code>set_tag(&quot;langfuse_trace_id&quot;, ...)</code> + <code>before_send=_scrub_pii</code>（r1 P1-5）</td><td>M10 langfuse 已建（ContextVar 桥接 r1 P0-2 修复），注入 trace_id</td></tr>
+<tr><td>M12 health</td><td><code>/api/health/live</code> + <code>/api/health/ready</code>（r1 P2-4 拆 k8s probe）</td><td>5 service 探测 + 并行 + 2s 超时（r1 P1-7）</td></tr>
+<tr><td>M12 backup</td><td><code>pg_dump</code> + <code>curl /_snapshot</code> + MinIO SDK（r1 P0-3 新增 <code>docker-compose.minio.yml</code>）</td><td>演练仅 staging（r1 P0-4 三重门禁）</td></tr>
+<tr><td>M12 prod compose</td><td><code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --wait</code></td><td>base + override 模式（r1 P2-12 security_opt + cap_drop）。<strong>r2-2026-06-12 r2-新-5 提醒</strong>：M0 修订记录写 &quot;4 service&quot; 是 r1 时口径，<strong>r2 实际 5 service（PG / OS / TEI / Langfuse / MinIO）</strong>——M0 修订记录已在 M0 r2 NP-5 修订已补</td></tr>
+<tr><td>M12 CI</td><td><code>pytest tests/</code> + <code>docker compose up integration --wait</code>（r1 P1-8） + <code>python -m app.eval.ragas_run --threshold 0.65</code>（r1 X-3）</td><td>GitHub Actions ubuntu-latest（r1 P2-3 postgres-client）</td></tr>
+<tr><td>M12 error_handler</td><td><code>request.state.request_id</code>（M8 RequestIDMiddleware 设置）</td><td><strong>r1 P2-5 新增</strong>：全链路 X-Request-Id 串联（HTTP 头 → Sentry tag → Langfuse metadata → 日志）</td></tr>
+<tr><td>各 M 业务</td><td><code>from app.middleware.errors import XxxError</code> + <code>raise</code></td><td>不直接 raise <code>HTTPException</code></td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th></tr></thead>
+<tbody>
+<tr><td>限速</td><td><code>slowapi</code></td><td><code>&gt;=0.1.9,&lt;1</code>（基于 limits 库，FastAPI 友好）</td></tr>
+<tr><td>错误处理</td><td><code>fastapi.HTTPException</code> + 自定义 <code>RAGError</code></td><td>复用 M8</td></tr>
+<tr><td>安全头</td><td>ASGI middleware 手写</td><td><strong>不引入</strong> <code>secure</code>（过度封装）</td></tr>
+<tr><td>Argon2</td><td><code>argon2-cffi</code></td><td><code>&gt;=23.1,&lt;24</code>（M2 已装；参数升级）</td></tr>
+<tr><td>Sentry</td><td><code>sentry-sdk[fastapi]</code></td><td><code>&gt;=2.10,&lt;3</code></td></tr>
+<tr><td>备份</td><td><code>pg_dump</code>（PG 16）+ <code>curl</code>（OpenSearch snapshot API）+ <code>mc</code>（MinIO client）</td><td>系统命令，Python 不封装</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>httpx.AsyncClient</code></td><td>见 §测试策略</td></tr>
+<tr><td>CI</td><td>GitHub Actions <code>ubuntu-latest</code></td><td>无 GPU（<strong>P0 避雷</strong>：M3 smoke mock LLM）</td></tr>
+<tr><td>Build cache</td><td>BuildKit <code>cache-from</code> / <code>cache-to</code></td><td>type=gha（GitHub Actions cache）</td></tr>
+</tbody></table>
+
+<p><strong>关键 import</strong>（错误处理）：</p>
+
+<pre><code data-lang="python"># app/middleware/error_handler.py
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
+from sentry_sdk import capture_exception, set_tag
+from app.observability.langfuse import get_current_trace_id</code></pre>
+
+<p><strong>关键 import</strong>（限速）：</p>
+
+<pre><code data-lang="python"># app/middleware/rate_limit.py
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[&quot;100/minute&quot;])
+chat_limit = limiter.limit(&quot;30/minute&quot;)      # per-IP（V1 单实例）
+ingest_limit = limiter.limit(&quot;10/minute&quot;)
+# /api/health bypass by path check in middleware</code></pre>
+
+<p><strong>CSP 关键策略</strong>（P0 避雷：Gradio 5.0+ 用 inline JS）：</p>
+
+<pre><code >default-src &#x27;self&#x27;;
+script-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;;        # Gradio 5.0+ 内联 JS 必加
+style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;;         # Gradio 内联 CSS 必加
+img-src &#x27;self&#x27; data: https:;
+connect-src &#x27;self&#x27; ws: wss:;              # Gradio WebSocket
+frame-ancestors &#x27;none&#x27;;                   # X-Frame-Options 同效</code></pre>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（源 14 个 + 测试 9 个 + 脚本 3 个 + workflow 2 个 + compose 2 个 + 文档 2 个）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/middleware/__init__.py</code></td><td>包标识</td></tr>
+<tr><td><code>app/middleware/error_handler.py</code></td><td>统一异常处理 + 11 条错误矩阵</td></tr>
+<tr><td><code>app/middleware/rate_limit.py</code></td><td>slowapi Limiter + chat/ingest 装饰器</td></tr>
+<tr><td><code>app/middleware/security_headers.py</code></td><td>CSP / HSTS / X-Content-Type-Options / X-Frame-Options / Referrer-Policy</td></tr>
+<tr><td><code>app/middleware/errors.py</code></td><td><code>RAGError</code> 基类 + 11 个子类</td></tr>
+<tr><td><code>app/observability/sentry.py</code></td><td>Sentry init + 5xx 上报 + trace_id 注入</td></tr>
+<tr><td><code>app/api/health.py</code></td><td><code>/api/health</code> 5 service 探测</td></tr>
+<tr><td><code>infra/docker-compose.override.yml</code></td><td>dev override（端口映射 + 卷挂载）</td></tr>
+<tr><td><code>infra/docker-compose.prod.yml</code></td><td>prod 分离（resource limits / 无端口 / env 来自 secret）</td></tr>
+<tr><td><code>infra/backup/pg_backup.sh</code></td><td>pg_dump + WAL 归档</td></tr>
+<tr><td><code>infra/backup/os_snapshot.sh</code></td><td>OpenSearch snapshot → MinIO</td></tr>
+<tr><td><code>infra/backup/restore.sh</code></td><td>恢复演练脚本（staging）</td></tr>
+<tr><td><code>infra/backup/README.md</code></td><td>备份策略文档</td></tr>
+<tr><td><code>infra/docker-compose.minio.yml</code></td><td><strong>r1 P0-3 新建</strong>：MinIO 单 service + bucket init（backup restore 集成测试依赖）</td></tr>
+<tr><td><code>infra/README.md</code></td><td>完善（dev / staging / prod 三环境部署）</td></tr>
+<tr><td><code>.github/workflows/ci.yml</code></td><td>PR 触发（lint + unit + integration + RAGAS gate）</td></tr>
+<tr><td><code>.github/workflows/nightly-ragas.yml</code></td><td>cron 触发（nightly 50 题）</td></tr>
+<tr><td><code>tests/unit/test_error_handler.py</code></td><td>11 条错误矩阵（RED-GREEN 各 11 个测试）</td></tr>
+<tr><td><code>tests/unit/test_rate_limit.py</code></td><td>限速中间件（chat 30、ingest 10、health bypass）</td></tr>
+<tr><td><code>tests/unit/test_security_headers.py</code></td><td>CSP / HSTS / X-Frame-Options</td></tr>
+<tr><td><code>tests/unit/test_argon2_upgrade.py</code></td><td>time_cost=3, memory_cost=65536</td></tr>
+<tr><td><code>tests/unit/test_sentry_integration.py</code></td><td>mock Sentry → 5xx 上报 + trace_id 注入</td></tr>
+<tr><td><code>tests/unit/test_prod_settings.py</code></td><td>ProdSettings / BackupSettings / SecuritySettings</td></tr>
+<tr><td><code>tests/unit/test_extend_session.py</code></td><td>fire-and-forget vs BackgroundTasks 决策测试</td></tr>
+<tr><td><code>tests/unit/test_backup_scripts.py</code></td><td><strong>r1 P0-3 新增</strong>：pg_backup.sh / os_snapshot.sh / restore.sh 存在性 + 权限 + 完整性校验</td></tr>
+<tr><td><code>tests/integration/test_m12_backup_restore.py</code></td><td>真 PG 备份/恢复（staging 环境）</td></tr>
+<tr><td><code>tests/integration/test_m12_ci_local.py</code></td><td>模拟 CI 流程（act 或 docker compose）</td></tr>
+<tr><td><code>tests/integration/test_m12_prod_smoke.py</code></td><td>prod compose 启动 smoke test</td></tr>
+<tr><td><code>tests/integration/test_m12_health_5services.py</code></td><td>/api/health 5 service 全绿/单失败</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 3 个新直接依赖（<code>slowapi</code> / <code>sentry-sdk[fastapi]</code> / <code>argon2-cffi</code> 已在 M2）</li>
+<li><code>app/config.py</code>：追加 <code>SecuritySettings</code>（CSP / HSTS max_age）/ <code>ProdSettings</code>（resource limits）/ <code>BackupSettings</code>（pg_dump 路径 / MinIO endpoint）</li>
+<li><code>app/auth/service.py</code>（M2 已建）：Argon2 参数升级 <code>time_cost=2→3</code>, <code>memory_cost=20480→65536</code></li>
+<li><code>app/api/main.py</code>（M8 已建）：挂 middleware（顺序：<code>request_id → security_headers → rate_limit → error_handler</code>）</li>
+<li><code>app/retrieval/os_client.py</code>（M7 已建）：暴露 <code>health()</code> 方法</li>
+<li><code>app/retrieval/tei_client.py</code>（M7 已建）：暴露 <code>health()</code> 方法</li>
+<li><code>app/graph/workflow.py</code>（M7 已建）：暴露 <code>health()</code> 方法（检查 LLM client 可达）</li>
+
+<p><strong>不修改</strong>：<code>app/llm/factory.py</code>（M3 不动；Sentry 通过 langchain callback 集成即可）、<code>app/eval/</code>（M11 不动；CI 接 <code>python -m app.eval.ragas_run</code> 即可）、<code>app/auth/deps.py</code> 的 <code>extend_session</code>（决策点见 Task 17）。</p>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="day-1-error-handler-rate-limit-security-headers">Day 1 · Error Handler + Rate Limit + Security Headers</h3>
+
+<h4 id="task-1ragerror-基类-11-个子类">Task 1：<code>RAGError</code> 基类 + 11 个子类</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_error_handler.py::test_base_rag_error_has_request_id</code></p>
+<li>抛 <code>RAGError(&quot;test&quot;, request_id=&quot;abc-123&quot;)</code> → 断言 <code>.request_id == &quot;abc-123&quot;</code>、<code>.message == &quot;test&quot;</code>、<code>.http_status == 500</code>（默认）</li>
+<li>跑测试 → 失败（基类还不存在）</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/errors.py</code>：</p>
+<pre><code data-lang="python">from fastapi import status
+
+class RAGError(Exception):
+    &quot;&quot;&quot;RAG V1 错误矩阵基类&quot;&quot;&quot;
+    http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code: str = &quot;internal_error&quot;
+    user_message: str = &quot;服务暂时不可用，请稍后重试&quot;
+
+    def __init__(self, message: str, *, request_id: str = &quot;&quot;, **context):
+        self.message = message
+        self.request_id = request_id
+        self.context = context
+        super().__init__(message)
+
+# 11 个子类（每条错误矩阵 = 1 个）
+class OpenSearchDownError(RAGError):
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+    error_code = &quot;opensearch_down&quot;
+    user_message = &quot;检索服务暂时不可用，问答已切换至通用模式&quot;
+
+class TEITimeoutError(RAGError):
+    http_status = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = &quot;tei_timeout&quot;
+
+class LLMUpstreamError(RAGError):
+    http_status = status.HTTP_502_BAD_GATEWAY
+    error_code = &quot;llm_upstream_error&quot;
+    user_message = &quot;模型服务暂时不可用，请稍后重试&quot;
+
+class NoRelevantDocsError(RAGError):
+    http_status = status.HTTP_200_OK
+    error_code = &quot;no_relevant_docs&quot;
+    user_message = &quot;未找到相关文档&quot;
+
+class PostgresDownError(RAGError):
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+    error_code = &quot;postgres_down&quot;
+    user_message = &quot;持久化服务降级中，部分功能可能受限&quot;
+
+class ConfluencePermissionError(RAGError):
+    http_status = status.HTTP_200_OK
+    error_code = &quot;confluence_permission_denied&quot;
+
+class ConfluenceRateLimitError(RAGError):
+    http_status = status.HTTP_429_TOO_MANY_REQUESTS
+    error_code = &quot;confluence_rate_limited&quot;
+
+class DocumentParseError(RAGError):
+    http_status = status.HTTP_200_OK
+    error_code = &quot;document_parse_failed&quot;
+
+class AttachmentTooLargeError(RAGError):
+    http_status = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    error_code = &quot;attachment_too_large&quot;
+    user_message = &quot;附件超过 50MB 限制&quot;
+
+class UnauthenticatedError(RAGError):
+    http_status = status.HTTP_401_UNAUTHORIZED
+    error_code = &quot;unauthenticated&quot;
+    user_message = &quot;请先登录&quot;
+
+class SessionAccessDeniedError(RAGError):
+    http_status = status.HTTP_404_NOT_FOUND  # **不暴露存在性**
+    error_code = &quot;session_not_found&quot;
+    user_message = &quot;会话不存在或已过期&quot;</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 <code>error_code</code> + <code>user_message</code> 设为类属性（每子类覆盖），避免 <code>__init__</code> 重复</p>
+
+<h4 id="task-2错误处理器-middleware">Task 2：错误处理器 middleware</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_error_handler.py::test_handler_returns_json_with_request_id</code></p>
+<li>mock request 含 <code>request_id=&quot;req-abc&quot;</code> → 业务抛 <code>OpenSearchDownError(&quot;connect refused&quot;, request_id=&quot;req-abc&quot;)</code></li>
+<li>调 handler → 断言 response.status_code == 503 + JSON body 含 <code>{&quot;error_code&quot;: &quot;opensearch_down&quot;, &quot;message&quot;: &quot;...&quot;, &quot;request_id&quot;: &quot;req-abc&quot;}</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/error_handler.py</code>：</p>
+<pre><code data-lang="python">from fastapi import Request
+from fastapi.responses import JSONResponse
+from app.middleware.errors import RAGError
+
+async def error_handler_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except RAGError as e:
+        return JSONResponse(
+            status_code=e.http_status,
+            content={
+                &quot;error_code&quot;: e.error_code,
+                &quot;message&quot;: e.user_message,
+                &quot;request_id&quot;: e.request_id or getattr(request.state, &quot;request_id&quot;, &quot;&quot;),
+                &quot;context&quot;: e.context,
+            },
+        )</code></pre>
+
+<p><strong>RED</strong> · <code>test_handler_unexpected_exception_returns_500_with_sentry</code></p>
+<li>业务抛普通 <code>ValueError(&quot;boom&quot;)</code> → 调 handler → 断言 status 500 + body.error_code == &quot;internal_error&quot; + mock Sentry <code>capture_exception</code> 被调用</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · handler 加 <code>except Exception</code> 分支：返回 500 + 调 <code>sentry.capture_exception(e)</code></p>
+
+<p><strong>RED</strong> · <code>test_handler_session_access_denied_does_not_leak_existence</code></p>
+<li>抛 <code>SessionAccessDeniedError(request_id=&quot;x&quot;)</code> → 断言 response.status_code == 404 + body.message == &quot;会话不存在或已过期&quot;（<strong>不</strong>说 &quot;无权访问&quot;）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 确认子类 user_message 是中性文案</p>
+
+<p><strong>RED</strong> · <code>test_handler_no_relevant_docs_returns_200_with_message</code></p>
+<li>抛 <code>NoRelevantDocsError(...)</code> → 断言 status 200 + body.user_message == &quot;未找到相关文档&quot;</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 子类 http_status=200 验证</p>
+
+<h4 id="task-311-条错误矩阵全测">Task 3：11 条错误矩阵全测</h4>
+
+<p><strong>RED → GREEN × 11</strong>：每个子类一个测试，断言 <code>http_status</code> / <code>error_code</code> / <code>user_message</code> 三件套</p>
+
+<li><code>test_opensearch_down_returns_503</code></li>
+<li><code>test_tei_timeout_returns_422</code></li>
+<li><code>test_llm_upstream_returns_502</code></li>
+<li><code>test_no_relevant_docs_returns_200</code></li>
+<li><code>test_postgres_down_returns_503</code></li>
+<li><code>test_confluence_permission_returns_200</code></li>
+<li><code>test_confluence_rate_limit_returns_429</code></li>
+<li><code>test_document_parse_returns_200</code></li>
+<li><code>test_attachment_too_large_returns_413</code></li>
+<li><code>test_unauthenticated_returns_401</code></li>
+<li><code>test_session_access_denied_returns_404_no_leak</code></li>
+
+<p><strong>跑法</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_error_handler.py -v</code></p>
+
+<h4 id="task-4限速中间件全局-100min">Task 4：限速中间件（全局 100/min）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_rate_limit.py::test_rate_limit_blocks_101st_request_per_minute</code></p>
+<li>mock <code>get_remote_address</code> 返回 <code>&quot;1.2.3.4&quot;</code> → 连发 100 个 request 都 200、第 101 个 429</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/rate_limit.py</code>（r1 P1-1/2/4/10 重写）：</p>
+<pre><code data-lang="python">from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from app.auth.deps import get_current_user_optional
+# r1 P1-10：health bypass 严格 exact path（防止 /api/health/dump 等子路径被 bypass）
+HEALTH_PATHS = {&quot;/api/health&quot;, &quot;/api/health/live&quot;, &quot;/api/health/ready&quot;}
+
+# r1 P1-1：限速 key 优先 user_id（从 JWT），fallback 到 IP
+async def get_rate_limit_key(request: Request) -&gt; str:
+    &quot;&quot;&quot;优先按 user_id（从 JWT 解析），fallback 到 IP&quot;&quot;&quot;
+    try:
+        user = await get_current_user_optional(request)
+        return f&quot;user:{user.id}&quot; if user else f&quot;ip:{get_remote_address(request)}&quot;
+    except Exception:
+        return f&quot;ip:{get_remote_address(request)}&quot;
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[&quot;100/minute&quot;])
+
+async def rate_limit_middleware(request: Request, call_next):
+    # r1 P1-10：严格 exact path 集合（不是 startswith）
+    if request.url.path in HEALTH_PATHS:
+        return await call_next(request)
+
+    # slowapi 通过 limiter 检查
+    try:
+        limiter.check(request)
+    except RateLimitExceeded:
+        return JSONResponse(
+            status_code=429,
+            content={
+                &quot;error_code&quot;: &quot;rate_limited&quot;,  # r1 P1-4：与错误矩阵对齐
+                &quot;message&quot;: &quot;请求过于频繁，请稍后重试&quot;,
+                &quot;request_id&quot;: getattr(request.state, &quot;request_id&quot;, &quot;&quot;),
+            },
+            headers={&quot;Retry-After&quot;: &quot;60&quot;},
+        )
+    return await call_next(request)
+
+# r1 P1-4：注入 X-RateLimit-* 标准头（middleware 包装 call_next）
+async def rate_limit_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    # r1 P1-4：标准限速头（业界事实标准）
+    if hasattr(request.state, &quot;_rate_limit_info&quot;):
+        info = request.state._rate_limit_info
+        response.headers[&quot;X-RateLimit-Limit&quot;] = str(info.get(&quot;limit&quot;, &quot;&quot;))
+        response.headers[&quot;X-RateLimit-Remaining&quot;] = str(info.get(&quot;remaining&quot;, &quot;&quot;))
+        response.headers[&quot;X-RateLimit-Reset&quot;] = str(info.get(&quot;reset&quot;, &quot;&quot;))
+    return response</code></pre>
+
+<p><strong>RED</strong> · <code>test_rate_limit_health_endpoint_bypasses_limit</code></p>
+<li><code>/api/health</code> 连发 200 次 → 全 200，不被限速</li>
+<li>r1 P1-10 附加：<code>/api/health/dump</code> 连发 200 次 → 应被限速（不 bypass 子路径）</li>
+
+<p><strong>GREEN</strong> · middleware 顶部 <code>if request.url.path in HEALTH_PATHS: return await call_next(request)</code></p>
+
+<p><strong>r1-2026-06-11 P1-2</strong>：uvicorn 启动加 <code>--proxy-headers --forwarded-allow-ips=&quot;10.0.0.0/8,172.16.0.0/12&quot;</code>（prod 由 nginx reverse proxy 转发；<code>infra/README.md</code> 文档化）</p>
+<li>RED 测试：<code>test_rate_limit_trust_x_forwarded_for_when_proxy_headers_enabled</code></li>
+
+<p><strong>r1-2026-06-11 P1-4</strong>：<code>app/middleware/errors.py</code> 加 <code>RateLimitedError</code> 类（<code>http_status=429</code>, <code>error_code=&quot;rate_limited&quot;</code>），与 12 条错误矩阵对齐</p>
+<li><code>app/api/main.py</code> 加：<code>app.state.limiter = limiter</code> + <code>app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)</code></li>
+
+<h4 id="task-5慢速-api-限速chat-30miningest-10min">Task 5：慢速 API 限速（chat 30/min、ingest 10/min）</h4>
+
+<p><strong>RED</strong> · <code>test_chat_endpoint_30_per_minute_per_user</code></p>
+<li>mock 用户 user_id=&quot;u1&quot; → 第 30 个 POST <code>/api/chat</code> 200、第 31 个 429</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/rate_limit.py</code>（r1 P1-1 重写 · user-keyed）：</p>
+<pre><code data-lang="python">from slowapi import Limiter
+from functools import wraps
+
+# r1 P1-1：限速 key 改用 get_rate_limit_key（user_id 优先）
+limiter = Limiter(key_func=get_rate_limit_key, default_limits=[&quot;100/minute&quot;])
+
+def chat_limit_decorator(func):
+    &quot;&quot;&quot;chat 30/min/user（V1 单实例简化：按 user_id）&quot;&quot;&quot;
+    return limiter.limit(&quot;30/minute&quot;)(func)
+
+def ingest_limit_decorator(func):
+    &quot;&quot;&quot;ingest 10/min/user&quot;&quot;&quot;
+    return limiter.limit(&quot;10/minute&quot;)(func)</code></pre>
+
+<p><strong>RED</strong> · <code>test_chat_30_per_minute_per_user_not_per_ip</code>（r1 P1-1 新增）</p>
+<li>mock 同一 IP 两个 user（u1 / u2）→ 各发 30 次 → 都不 429；第 31 次开始各自 429</li>
+<li>证明：限速按 user 而非 IP</li>
+
+<p><strong>r1-2026-06-11 P2-10 决策</strong>：限速 key <code>f&quot;user:{user_id}:endpoint:/api/chat&quot;</code> 30/min 是 user 全局（spec §7.5 语义），非 per-session</p>
+<li>DoD 明确写：&quot;30/min 是 user 总和而非 per-session&quot;</li>
+<li>未来 V2 可拆 per-thread_id</li>
+
+<p><strong>RED</strong> · <code>test_ingest_endpoint_10_per_minute_per_user</code></p>
+<li>第 10 个 POST <code>/api/ingest/file</code> 200、第 11 个 429</li>
+
+<p><strong>GREEN</strong> · 同上</p>
+
+<p><strong>RED</strong> · <code>test_rate_limit_response_includes_retry_after</code></p>
+<li>触发限速 → 断言 response body 含 <code>retry_after</code> 字段 + header <code>Retry-After: 60</code></li>
+
+<p><strong>GREEN</strong> · 见上面 headers 注入</p>
+
+<h4 id="task-6security-headers-middleware">Task 6：Security headers middleware</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_security_headers.py::test_security_headers_present_on_all_responses</code></p>
+<li>调任意 endpoint → 断言 response 含 <code>Content-Security-Policy</code> / <code>Strict-Transport-Security</code> / <code>X-Content-Type-Options</code> / <code>X-Frame-Options</code> / <code>Referrer-Policy</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/security_headers.py</code>（r1 P1-3 重写 · spec §7.4 严格 CSP）：</p>
+<pre><code data-lang="python">from fastapi import Request
+
+async def security_headers_middleware(request: Request, call_next):
+    # r1 P2-6：OPTIONS preflight 跳过 CSP（让 CORSMiddleware 处理 CORS 头）
+    if request.method == &quot;OPTIONS&quot;:
+        return await call_next(request)
+    response = await call_next(request)
+    # r1 P1-3：严格按 spec §7.4（img-src 不放 https: 防 SSRF exfil）
+    # X-2 联动：补 form-action &#x27;self&#x27; base-uri &#x27;self&#x27; 防 M5 SSRF redirect bypass
+    response.headers[&quot;Content-Security-Policy&quot;] = (
+        &quot;default-src &#x27;self&#x27;; &quot;
+        &quot;script-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;; &quot;       # Gradio 5.0+ 必加
+        &quot;style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;; &quot;
+        &quot;img-src &#x27;self&#x27; data:; &quot;                    # r1 P1-3：去掉 https:（防 SSRF exfil）
+        &quot;font-src &#x27;self&#x27;; &quot;
+        &quot;connect-src &#x27;self&#x27; ws: wss: http://localhost:8000; &quot;  # r1 P1-3：明确 Gradio→FastAPI CORS
+        &quot;frame-ancestors &#x27;none&#x27;; &quot;
+        &quot;form-action &#x27;self&#x27;; &quot;                       # r1 X-2：防 M5 SSRF redirect bypass
+        &quot;base-uri &#x27;self&#x27;;&quot;
+    )
+    response.headers[&quot;Strict-Transport-Security&quot;] = &quot;max-age=31536000; includeSubDomains&quot;
+    response.headers[&quot;X-Content-Type-Options&quot;] = &quot;nosniff&quot;
+    response.headers[&quot;X-Frame-Options&quot;] = &quot;DENY&quot;
+    response.headers[&quot;Referrer-Policy&quot;] = &quot;strict-origin-when-cross-origin&quot;
+    response.headers[&quot;Permissions-Policy&quot;] = &quot;geolocation=(), microphone=(), camera=()&quot;
+    return response</code></pre>
+
+<p><strong>RED</strong> · <code>test_csp_allows_unsafe_inline_for_gradio_compat</code></p>
+<li>断言 CSP <code>script-src</code> 含 <code>&#x27;unsafe-inline&#x27;</code>（Gradio 5.0+ 必加）</li>
+
+<p><strong>RED</strong> · <code>test_csp_img_src_does_not_allow_https_wildcard</code>（r1 P1-3 新增 · 避免 SSRF exfil 回归）</p>
+<li>断言 CSP <code>img-src</code> <strong>不</strong>含 <code>https:</code>（spec §7.4 严格）</li>
+
+<p><strong>GREEN</strong> · 见上面字符串</p>
+
+<h4 id="task-7中间件挂载顺序-集成测试">Task 7：中间件挂载顺序 + 集成测试</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_health_5services.py::test_all_middleware_applied_in_order</code></p>
+<li>调 <code>/api/chat</code> mock 抛 <code>UnauthenticatedError</code> → 断言 response 含安全头 + JSON body 含 error_code + Retry-After（未限速时不出现）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/main.py</code>（M12 重写 · spec §3.12 LIFO 顺序）：</p>
+<pre><code data-lang="python"># M12 挂载顺序（spec §3.12 严格对齐；FastAPI add_middleware 是 LIFO 栈）
+# 写法：先 add 的 = 外层；后 add 的 = 内层（最接近 router）
+# spec §3.12 顺序：RateLimit → SecurityHeaders → RequestID → CORSMiddleware → Auth(Depends)
+# add_middleware 反向 add 即可：ErrorHandler(最外) → RateLimit → SecurityHeaders → RequestID → CORS
+
+app.add_middleware(ErrorHandlerMiddleware)        # 1. 最外层（兜底所有异常）
+app.add_middleware(RateLimitMiddleware)            # 2. 限速（在 CORS/SecurityHeaders 之前拒绝成本低）
+app.add_middleware(SecurityHeadersMiddleware)     # 3. 安全头（429/5xx 错误响应也带）
+app.add_middleware(RequestIDMiddleware)            # 4. request_id（M8 已建）
+app.add_middleware(                                # 5. CORS（最内层，最接近 router）
+    CORSMiddleware,
+    allow_origins=settings.cors.allow_origins,     # 来自 config（P2-13 在 SecuritySettings 加 cors 子块）
+    allow_credentials=True,
+    allow_methods=[&quot;GET&quot;, &quot;POST&quot;],
+    allow_headers=[&quot;Authorization&quot;, &quot;Content-Type&quot;, &quot;X-Request-Id&quot;],
+)
+# Auth 不是 middleware，是 Depends(get_current_user)，挂在 router 层（spec §3.12 注释）</code></pre>
+<p><strong>附加 RED 测试</strong>：</p>
+<li><code>test_middleware_order_rate_limit_runs_before_security_headers</code>：mock rate_limit 触发时 security_headers 调用计数 = 0（timing counter）</li>
+<li><code>test_cors_preflight_returns_cors_headers_not_csp</code>：OPTIONS <code>/api/chat</code> 响应含 <code>Access-Control-Allow-*</code> 但不含 <code>Content-Security-Policy</code>（P2-6 联动）</li>
+
+<p><strong>修正 L100 数据流图</strong>：<code>[request_id] → [security_headers] → [rate_limit] → [error_handler]</code></p>
+<p><strong>r1-2026-06-11 P0-1 修正为</strong>：<code>[error_handler] → [rate_limit] → [security_headers] → [request_id] → [cors] → [router]</code>（LIFO add_middleware + spec §3.12）</p>
+
+<p><strong>RED</strong> · <code>test_security_headers_applied_even_on_error_response</code></p>
+<li>mock 抛 <code>OpenSearchDownError</code> → 断言 503 response 仍含 <code>X-Frame-Options: DENY</code></li>
+
+<p><strong>GREEN</strong> · 错误响应也走 security_headers middleware</p>
+
+<p>---</p>
+
+<h3 id="day-2-argon2-升级-sentry-集成">Day 2 · Argon2 升级 + Sentry 集成</h3>
+
+<h4 id="task-8argon2-参数升级">Task 8：Argon2 参数升级</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_argon2_upgrade.py::test_argon2_default_params_meet_owasp_2024</code></p>
+<li>读 <code>app.auth.service.ARGON2_TIME_COST</code> / <code>ARGON2_MEMORY_COST</code> → 断言 <code>time_cost &gt;= 3</code> / <code>memory_cost &gt;= 65536</code></li>
+<li>跑测试 → 失败（M2 是 2 / 20480）</li>
+
+<p><strong>GREEN</strong> · <code>app/auth/service.py</code>（M2 已建文件，修改）：</p>
+<pre><code data-lang="python"># OWASP 2024 推荐：time_cost=3, memory_cost=65536（64 MiB）, parallelism=4
+ARGON2_TIME_COST = 3
+ARGON2_MEMORY_COST = 65536
+ARGON2_PARALLELISM = 4
+
+def hash_password(password: str) -&gt; str:
+    return PasswordHasher(
+        time_cost=ARGON2_TIME_COST,
+        memory_cost=ARGON2_MEMORY_COST,
+        parallelism=ARGON2_PARALLELISM,
+    ).hash(password)
+
+def verify_password(hash_str: str, password: str) -&gt; bool:
+    ph = PasswordHasher(
+        time_cost=ARGON2_TIME_COST,
+        memory_cost=ARGON2_MEMORY_COST,
+        parallelism=ARGON2_PARALLELISM,
+    )
+    try:
+        ph.verify(hash_str, password)
+        return True
+    except VerifyMismatchError:
+        return False</code></pre>
+
+<p><strong>RED</strong> · <code>test_hash_password_takes_at_least_50ms</code></p>
+<li>调 <code>hash_password(&quot;test&quot;)</code> → 断言耗时 ≥ 50ms（time_cost=3 + memory_cost=65536 满足）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 参数升级后自然满足</p>
+
+<p><strong>RED</strong> · <code>test_verify_password_with_old_hash_still_works</code></p>
+<li>用旧参数 hash（time_cost=2, memory_cost=20480）→ 用新 <code>verify_password</code> 验证 → 断言成功（argon2-cffi 内嵌参数识别）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>PasswordHasher.verify</code> 自动识别 hash 内嵌参数（argon2 协议设计）</p>
+
+<p><strong>REFACTOR</strong> · 把 <code>ARGON2_*</code> 常量移到 <code>app/auth/config.py</code>（如果 M2 已经分）</p>
+
+<h4 id="task-9extend-session-fire-and-forget-vs-backgroundtasks-决策">Task 9：extend_session fire-and-forget vs BackgroundTasks 决策</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_extend_session.py::test_extend_session_does_not_block_response</code></p>
+<li>mock <code>extend_session</code> 耗时 100ms → 调 <code>POST /api/chat</code> → 断言 response latency &lt; 50ms（extend_session 后台跑）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/auth/deps.py</code>（M2 已建文件，修改）：<strong>决策：保留 fire-and-forget + 加错误日志</strong>（BackgroundTasks 会污染 FastAPI Depends 签名，且 LangGraph state 已有 checkpointer 持久化）</p>
+
+<pre><code data-lang="python"># 保留 fire-and-forget（M2 现状），M12 加：
+import asyncio
+from app.observability.sentry import capture_exception
+
+async def extend_session(token: str) -&gt; None:
+    &quot;&quot;&quot;fire-and-forget 延长 session 过期时间，失败不影响主请求&quot;&quot;&quot;
+    try:
+        # ... M2 已有的 session 延长逻辑
+        pass
+    except Exception as e:
+        # M12 加：错误上报 Sentry（不静默）
+        capture_exception(e)
+        # **不重抛**：fire-and-forget 设计本意</code></pre>
+
+<p><strong>RED</strong> · <code>test_extend_session_exception_captured_by_sentry</code></p>
+<li>mock <code>extend_session</code> 内部抛异常 → 调主请求 → 断言 Sentry <code>capture_exception</code> 被调 + response 仍 200</li>
+
+<p><strong>GREEN</strong> · 见上面 try/except</p>
+
+<h4 id="task-10sentry-sdk-init">Task 10：Sentry SDK init</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_sentry_integration.py::test_sentry_init_with_dsn</code></p>
+<li>mock <code>sentry_sdk.init</code> → 调 <code>app.observability.sentry.init_sentry(dsn=&quot;https://...@sentry.io/123&quot;)</code> → 断言 <code>sentry_sdk.init</code> 被调 + <code>dsn</code> 参数透传</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/observability/sentry.py</code>（M12 重写 · P0-2 修 M10/M11 review trace_id API）：</p>
+<pre><code data-lang="python">import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from app.config import settings
+# r1 修正：M10 review P0-2/3 + M11 review P0-6 都指出
+# `app.observability.langfuse.get_current_trace_id()` API 在 langfuse 2.50+ 不存在
+# 改用 ContextVar 桥接（由 LangGraph node entry/exit 显式 set_trace_id）
+
+from app.observability.langfuse import get_current_trace_id  # r1 改：langfuse.py 加 ContextVar 实现
+
+def init_sentry() -&gt; None:
+    &quot;&quot;&quot;Sentry 初始化；dev 环境无 DSN 或 env=development 直接跳过（P1-5 联动）&quot;&quot;&quot;
+    dsn = settings.sentry.dsn
+    if not dsn or settings.env == &quot;development&quot;:
+        return  # r1 P1-5：dev 环境无 DSN + env=development 跳过（防 dev 误报污染 Sentry）
+    sentry_sdk.init(
+        dsn=dsn,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=settings.sentry.traces_sample_rate,         # r1：从 config 读，默认 0.1
+        profiles_sample_rate=settings.sentry.profiles_sample_rate,     # r1 P1-5：显式 0.0
+        environment=settings.env,
+        before_send=_scrub_pii,                                         # r1 P1-5：PII 脱敏
+        send_default_pii=False,                                         # r1 P1-5：默认不发送 PII
+    )
+
+def capture_exception(e: Exception) -&gt; None:
+    &quot;&quot;&quot;捕获异常上报 Sentry（fire-and-forget）&quot;&quot;&quot;
+    # r1：先注入 trace_id 再 capture（M10 review P0-3 联动）
+    set_langfuse_trace_id(get_current_trace_id() or &quot;&quot;)
+    sentry_sdk.capture_exception(e)
+
+def set_langfuse_trace_id(trace_id: str) -&gt; None:
+    &quot;&quot;&quot;Sentry scope tag 注入 langfuse trace_id（双向追溯）&quot;&quot;&quot;
+    with sentry_sdk.configure_scope() as scope:
+        scope.set_tag(&quot;langfuse_trace_id&quot;, trace_id or &quot;n/a&quot;)
+
+def _scrub_pii(event, hint):
+    &quot;&quot;&quot;r1 P1-5：PII 脱敏 before_send（spec §7.3）
+
+    **r2-2026-06-12 r2-新-3 已修**：原代码只脱敏顶层 dict，漏掉嵌套结构 + headers + query string。
+    修法：递归脱敏 + 显式 headers / query string 处理。
+    &quot;&quot;&quot;
+    import re
+    PII_KEYS = (&#x27;password&#x27;, &#x27;token&#x27;, &#x27;api_key&#x27;, &#x27;secret&#x27;, &#x27;session_id&#x27;, &#x27;authorization&#x27;)
+
+    def _scrub_dict(d):
+        &quot;&quot;&quot;递归脱敏嵌套 dict / list 里的 PII 字段&quot;&quot;&quot;
+        if isinstance(d, dict):
+            for k, v in list(d.items()):
+                if k.lower() in PII_KEYS:
+                    d[k] = &#x27;[REDACTED]&#x27;
+                else:
+                    d[k] = _scrub_dict(v)
+        elif isinstance(d, list):
+            return [_scrub_dict(x) for x in d]
+        return d
+
+    # 1) request body 嵌套脱敏
+    if &#x27;request&#x27; in event and &#x27;data&#x27; in event.get(&#x27;request&#x27;, {}):
+        event[&#x27;request&#x27;][&#x27;data&#x27;] = _scrub_dict(event[&#x27;request&#x27;][&#x27;data&#x27;])
+
+    # 2) request headers 脱敏（r2 r2-新-3 补：Authorization: Bearer xxx）
+    if &#x27;request&#x27; in event and &#x27;headers&#x27; in event.get(&#x27;request&#x27;, {}):
+        for h in list(event[&#x27;request&#x27;][&#x27;headers&#x27;].keys()):
+            if h.lower() in PII_KEYS:
+                event[&#x27;request&#x27;][&#x27;headers&#x27;][h] = &#x27;[REDACTED]&#x27;
+
+    # 3) request query_string 脱敏（r2 r2-新-3 补：?token=abc123）
+    if &#x27;request&#x27; in event and &#x27;query_string&#x27; in event.get(&#x27;request&#x27;, {}):
+        qs = event[&#x27;request&#x27;][&#x27;query_string&#x27;]
+        if isinstance(qs, str):
+            for k in PII_KEYS:
+                qs = re.sub(rf&#x27;({k}=)[^&amp;]+&#x27;, r&#x27;\1[REDACTED]&#x27;, qs, flags=re.IGNORECASE)
+            event[&#x27;request&#x27;][&#x27;query_string&#x27;] = qs
+
+    # r1 P1-5：query 文本截断防日志爆炸
+    if &#x27;logentry&#x27; in event and &#x27;message&#x27; in event[&#x27;logentry&#x27;]:
+        msg = event[&#x27;logentry&#x27;][&#x27;message&#x27;]
+        if len(msg) &gt; 500:
+            event[&#x27;logentry&#x27;][&#x27;message&#x27;] = msg[:500] + &#x27;...[truncated]&#x27;
+    return event</code></pre>
+
+<p><strong><code>app/observability/langfuse.py</code>（M10 已建文件，M12 追加 P0-2 修复）</strong>：</p>
+<pre><code data-lang="python"># r1 P0-2：ContextVar 桥接 trace_id（M10 review P0-2/3 + M11 review P0-6 联动）
+import contextvars
+_trace_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    &quot;langfuse_trace_id&quot;, default=None
+)
+
+def set_trace_id(tid: str) -&gt; None:
+    &quot;&quot;&quot;LangGraph node entry/exit 显式调用（M10 plan 已落实节点出口调用点）&quot;&quot;&quot;
+    _trace_id_var.set(tid)
+
+def get_current_trace_id() -&gt; str | None:
+    &quot;&quot;&quot;Sentry tag 注入用（P0-2 修 M10/M11 review 雷）&quot;&quot;&quot;
+    return _trace_id_var.get()</code></pre>
+
+<p><strong>r1-2026-06-11 P0-2 修</strong>：</p>
+<li>删除原 <code>from app.observability.langfuse import get_current_trace_id</code> 注释里的&quot;⚠️ 不存在&quot;</li>
+<li>实际用 <code>ContextVar</code> 实现 <code>_trace_id_var</code> + <code>set_trace_id</code>/<code>get_current_trace_id</code></li>
+<li><code>capture_exception</code> 之前自动注入 <code>set_langfuse_trace_id(get_current_trace_id())</code></li>
+<li>PII 脱敏 <code>_scrub_pii</code> + dev 跳过 + <code>profiles_sample_rate=0.0</code>（P1-5 联动）</li>
+
+<p><strong>r1-2026-06-11 P2-11 修</strong>：5xx 关键错误 100% 上报（防 sampling 漏报）：</p>
+<pre><code data-lang="python"># app/observability/sentry.py
+def _force_sample_5xx(event, hint):
+    &quot;&quot;&quot;r1 P2-11：5xx 错误 100% 上报（不被 0.1 采样率漏掉）
+
+    **r2-2026-06-12 r2-新-2 已修**：原代码检查 `event.contexts.response.status_code`（transaction event 结构）
+    却注册到 `before_send_transaction` 钩子——钩子名与意图错位；event 钩子是 `before_send`。
+    修法：注册到 `before_send`（event 级）而不是 `before_send_transaction`（transaction 级）。
+    &quot;&quot;&quot;
+    # r2 r2-新-2：检查 `event.exception` 或 `event.level == &quot;error&quot;`（event 钩子结构）而非 transaction response status
+    is_5xx_error = (
+        event.get(&quot;level&quot;) == &quot;error&quot; and
+        event.get(&quot;exception&quot;) is not None
+    )
+    if is_5xx_error:
+        event.setdefault(&quot;tags&quot;, {})[&quot;critical&quot;] = &quot;5xx&quot;  # 配 Sentry alert rule 单独通知
+    return event
+# init_sentry 注册：**r2-2026-06-12 r2-新-2 已修** 改 `before_send=_force_sample_5xx`（event 钩子，非 transaction）
+# sentry_sdk.init(..., before_send=_force_sample_5xx)</code></pre>
+
+<p><strong>RED</strong> · <code>test_init_sentry_skips_when_dsn_empty</code></p>
+<li><code>settings.sentry.dsn = &quot;&quot;</code> → 调 <code>init_sentry()</code> → 断言 <code>sentry_sdk.init</code> <strong>未</strong>被调</li>
+
+<p><strong>GREEN</strong> · <code>if not dsn: return</code></p>
+
+<h4 id="task-11sentry-5xx-上报-trace-id-关联">Task 11：Sentry 5xx 上报 + trace_id 关联</h4>
+
+<p><strong>RED</strong> · <code>test_handler_captures_5xx_to_sentry</code></p>
+<li>业务抛 <code>LLMUpstreamError</code>（502）→ 调 handler → 断言 <code>sentry_sdk.capture_exception</code> 被调</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/middleware/error_handler.py</code> 加：</p>
+<pre><code data-lang="python">except RAGError as e:
+    if e.http_status &gt;= 500:
+        sentry_sdk.capture_exception(e)
+    return JSONResponse(...)</code></pre>
+
+<p><strong>RED</strong> · <code>test_handler_skips_sentry_for_4xx</code></p>
+<li>抛 <code>UnauthenticatedError</code>（401）→ 断言 <code>capture_exception</code> <strong>未</strong>被调</li>
+
+<p><strong>GREEN</strong> · <code>if e.http_status &gt;= 500:</code> 守住</p>
+
+<p><strong>RED</strong> · <code>test_sentry_scope_includes_langfuse_trace_id</code></p>
+<li>mock <code>get_current_trace_id</code> 返回 <code>&quot;trace-xyz&quot;</code> → 调 <code>set_langfuse_trace_id(&quot;trace-xyz&quot;)</code> → 断言 <code>sentry_sdk.configure_scope().set_tag(&quot;langfuse_trace_id&quot;, &quot;trace-xyz&quot;)</code> 被调</li>
+
+<p><strong>GREEN</strong> · 见 Task 10 <code>set_langfuse_trace_id</code></p>
+
+<p><strong>RED</strong> · <code>test_error_handler_injects_trace_id_to_sentry_on_5xx</code></p>
+<li>mock <code>get_current_trace_id</code> 返回 <code>&quot;trace-xyz&quot;</code> → 业务抛 <code>LLMUpstreamError</code> → handler → 断言 <code>set_langfuse_trace_id(&quot;trace-xyz&quot;)</code> 被调 + <code>capture_exception</code> 被调</li>
+
+<p><strong>GREEN</strong> · handler 在 <code>capture_exception</code> 之前调 <code>set_langfuse_trace_id</code></p>
+
+<h4 id="task-12securitysettings-prodsettings-配置块">Task 12：<code>SecuritySettings</code> + <code>ProdSettings</code> 配置块</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_prod_settings.py::test_security_settings_load</code></p>
+<li>mock env <code>CSP_SCRIPT_SRC=&quot;self cdn.example.com&quot;</code> → <code>Settings().security.csp_script_src</code> == <code>&quot;self cdn.example.com&quot;</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/config.py</code> 追加：</p>
+<pre><code data-lang="python">class SecuritySettings(BaseSettings):
+    csp_default_src: str = &quot;&#x27;self&#x27;&quot;
+    csp_script_src: str = &quot;&#x27;self&#x27; &#x27;unsafe-inline&#x27;&quot;  # Gradio 5.0+ 兼容
+    csp_style_src: str = &quot;&#x27;self&#x27; &#x27;unsafe-inline&#x27;&quot;
+    # r1 P1-3：去掉 https:（spec §7.4 严格 · 防 SSRF exfil）
+    csp_img_src: str = &quot;&#x27;self&#x27; data:&quot;
+    csp_connect_src: str = &quot;&#x27;self&#x27; ws: wss: http://localhost:8000&quot;  # r1 P1-3：明确 Gradio→FastAPI
+    hsts_max_age: int = 31536000
+    hsts_include_subdomains: bool = True
+    # r1 P0-1：补 cors 子块（CORS allow_origins 从这里来）
+    cors_allow_origins: list[str] = [&quot;http://localhost:7860&quot;, &quot;http://localhost:8000&quot;]
+
+class SentrySettings(BaseSettings):
+    dsn: str = &quot;&quot;
+    # r1 P1-5：从 config 读（dev 跳过由 init_sentry 判 env=development）
+    traces_sample_rate: float = 0.1
+    profiles_sample_rate: float = 0.0  # r1 P1-5：显式 0.0（sentry-sdk 默认 0.0 但要显式声明）
+    environment: str = &quot;development&quot;
+
+class ProdSettings(BaseSettings):
+    &quot;&quot;&quot;prod 部署专用设置（resource limits / secret 来源）&quot;&quot;&quot;
+    postgres_pool_size: int = 20
+    postgres_max_overflow: int = 10
+    opensearch_pool_size: int = 10
+    # r1 P2-1：slowapi 内存 token bucket 在多 worker 进程下失效 → V1 单 worker
+    api_workers: int = 1
+    log_level: str = &quot;INFO&quot;
+    secret_source: Literal[&quot;env_file&quot;, &quot;docker_secrets&quot;, &quot;vault&quot;] = &quot;env_file&quot;
+
+class BackupSettings(BaseSettings):
+    pg_dump_path: str = &quot;/usr/bin/pg_dump&quot;
+    pg_backup_dir: str = &quot;/var/backups/rag/postgres&quot;
+    pg_wal_archive_dir: str = &quot;/var/backups/rag/postgres/wal&quot;
+    os_snapshot_repo: str = &quot;minio&quot;  # 单节点用本地，多节点用 S3 兼容
+    minio_endpoint: str = &quot;minio.internal:9000&quot;
+    minio_bucket: str = &quot;rag-backups&quot;
+    # r1 P1-9：MinIO creds 走 docker secrets `_FILE` 模式（不接受 .env 明文）
+    minio_access_key_file: str = &quot;&quot;  # 读 /run/secrets/minio_access_key
+    minio_secret_key_file: str = &quot;&quot;
+    # r1 P1-9：retention 上下界保护（防误设 36500 天撑爆磁盘）
+    backup_retention_days: int = Field(default=30, ge=7, le=365)
+    backup_schedule: str = &quot;0 2 * * *&quot;  # 每日 02:00</code></pre>
+
+<p><strong>RED</strong> · <code>test_backup_settings_load_with_minio_defaults</code></p>
+<li><code>Settings().backup.minio_endpoint</code> 断言默认 <code>&quot;minio.internal:9000&quot;</code></li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<p><strong>REFACTOR</strong> · 把 SentrySettings 也并入（避免 Settings 单文件膨胀；用 sub-settings 嵌套）</p>
+
+<p>---</p>
+
+<h3 id="day-3-备份脚本-restore-演练">Day 3 · 备份脚本 + Restore 演练</h3>
+
+<h4 id="task-13pg-backupsh-脚本">Task 13：<code>pg_backup.sh</code> 脚本</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_backup_scripts.py::test_pg_backup_script_exists_and_executable</code></p>
+<li>断言 <code>infra/backup/pg_backup.sh</code> 存在 + 有 <code>+x</code> 权限 + shebang <code>#!/usr/bin/env bash</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>infra/backup/pg_backup.sh</code>（r1 P0-3 + P2-9 重写 · 文件名无 <code>.gz</code> + 大小校验）：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+# Postgres 每日备份 + WAL 归档
+# r1 P0-3：--format=custom --compress=9 是 pg_dump binary 格式 + 内嵌 zstd 压缩
+#         文件后缀应为 .dump（无 .gz），避免双重扩展误导
+set -euo pipefail
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR=&quot;${BACKUP_DIR:-/var/backups/rag/postgres}&quot;
+DB_HOST=&quot;${DB_HOST:-postgres}&quot;
+DB_PORT=&quot;${DB_PORT:-5432}&quot;
+DB_NAME=&quot;${DB_NAME:-rag}&quot;
+DB_USER=&quot;${DB_USER:-rag_app}&quot;
+RETENTION_DAYS=&quot;${BACKUP_RETENTION_DAYS:-30}&quot;
+MIN_SIZE_BYTES=1024  # r1 P2-9：&lt; 1KB 视为空备份
+
+mkdir -p &quot;${BACKUP_DIR}&quot;
+BACKUP_FILE=&quot;${BACKUP_DIR}/rag_${TIMESTAMP}.dump&quot;  # r1 P0-3：去 .gz 后缀
+
+# 1. 全量 pg_dump（binary 格式 + zstd 压缩）
+PGPASSWORD=&quot;${DB_PASSWORD}&quot; pg_dump \
+    -h &quot;${DB_HOST}&quot; -p &quot;${DB_PORT}&quot; -U &quot;${DB_USER}&quot; \
+    -d &quot;${DB_NAME}&quot; \
+    --format=custom --compress=9 \
+    --file=&quot;${BACKUP_FILE}&quot;
+
+# 2. 校验备份完整性
+pg_restore --list &quot;${BACKUP_FILE}&quot; &gt; /dev/null
+
+# 3. r1 P2-9：校验备份大小（空文件 &lt; 1KB 直接失败）
+FILE_SIZE=$(stat -c%s &quot;${BACKUP_FILE}&quot;)
+if [ &quot;${FILE_SIZE}&quot; -lt &quot;${MIN_SIZE_BYTES}&quot; ]; then
+    echo &quot;❌ 备份文件过小 (${FILE_SIZE} bytes)，怀疑 pg_dump 失败&quot;
+    exit 1
+fi
+
+# 4. r1 P2-9：校验包含关键表（users / auth_sessions / chat_sessions / ingest_jobs）
+TABLES=$(pg_restore --list &quot;${BACKUP_FILE}&quot; | grep -c &quot;TABLE.*rag&quot;)
+if [ &quot;${TABLES}&quot; -lt 4 ]; then
+    echo &quot;❌ 备份缺少关键表（仅 ${TABLES} 张，应 ≥4）&quot;
+    exit 1
+fi
+
+# 5. 清理过期备份（&gt; retention）
+find &quot;${BACKUP_DIR}&quot; -name &quot;rag_*.dump&quot; -mtime +${RETENTION_DAYS} -delete
+
+# 6. 上传 MinIO（prod 启用，r1 P1-9 改用 _FILE secrets 模式）
+if [ -n &quot;${MINIO_ACCESS_KEY_FILE:-}&quot; ] &amp;&amp; [ -r &quot;${MINIO_ACCESS_KEY_FILE}&quot; ]; then
+    MINIO_ACCESS_KEY=$(cat &quot;${MINIO_ACCESS_KEY_FILE}&quot;)
+    MINIO_SECRET_KEY=$(cat &quot;${MINIO_SECRET_KEY_FILE}&quot;)
+    mc alias set backup &quot;${MINIO_ENDPOINT}&quot; &quot;${MINIO_ACCESS_KEY}&quot; &quot;${MINIO_SECRET_KEY}&quot;
+    mc cp &quot;${BACKUP_FILE}&quot; &quot;backup/${MINIO_BUCKET}/postgres/&quot;
+fi
+
+# 7. r1 P2-9：MinIO 上传启用 SSE-S3 加密 at rest（NEW-9 联动）
+#    mc cp 默认不开加密，需 mc admin / mc encrypt 配置；详见 infra/backup/README.md
+
+echo &quot;[pg_backup] OK: ${BACKUP_FILE} (${FILE_SIZE} bytes, ${TABLES} tables)&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_pg_backup_produces_pg_restore_compatible_file</code>（r1 P0-3 改名 · 替代 &quot;gzipped&quot;）：</p>
+<li>mock 环境 → 跑脚本 → 断言 <code>${BACKUP_DIR}/rag_*.dump</code> 存在 + 可被 <code>pg_restore --list</code> 解析 + 大小 ≥ 1KB</li>
+<li><strong>GREEN</strong> · 集成测试在 staging 跑（用真 PG container + r1 P0-3 新增 <code>infra/docker-compose.minio.yml</code>）</li>
+
+<p><strong><code>infra/docker-compose.minio.yml</code>（r1 P0-3 新建）</strong>：</p>
+<pre><code data-lang="yaml"># r1 P0-3：MinIO 单 service + bucket init
+# 用法：docker compose -f infra/docker-compose.yml -f infra/docker-compose.minio.yml up -d
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address &quot;:9001&quot;
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;mc&quot;, &quot;ready&quot;, &quot;local&quot;]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: &gt;
+      /bin/sh -c &quot;
+      mc alias set local http://minio:9000 $(cat /run/secrets/minio_root_user) $(cat /run/secrets/minio_root_password);
+      mc mb --ignore-existing local/rag-backups;
+      mc anonymous set none local/rag-backups;
+      &quot;
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    restart: &quot;no&quot;
+
+secrets:
+  minio_root_user:
+    external: true
+  minio_root_password:
+    external: true
+
+volumes:
+  minio_data:</code></pre>
+
+<h4 id="task-14wal-归档脚本">Task 14：WAL 归档脚本</h4>
+
+<p><strong>RED</strong> · <code>test_wal_archive_copies_wal_to_archive_dir</code></p>
+<li>mock WAL 文件生成 → 跑归档 → 断言 <code>${PG_WAL_ARCHIVE_DIR}/000000010000000000000001</code> 存在</li>
+
+<p><strong>GREEN</strong> · <code>infra/backup/wal_archive.sh</code>（独立脚本，<code>postgresql.conf</code> 里 <code>archive_command</code> 调）：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+set -euo pipefail
+WAL_FILE=&quot;$1&quot;
+WAL_DEST=&quot;${WAL_ARCHIVE_DIR:-/var/backups/rag/postgres/wal}/$(basename ${WAL_FILE})&quot;
+cp &quot;$WAL_FILE&quot; &quot;$WAL_DEST&quot;
+echo &quot;[wal_archive] OK: $WAL_DEST&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_wal_archive_handles_missing_source_gracefully</code></p>
+<li>传不存在的 WAL_FILE → 断言脚本 exit 1（非零）</li>
+
+<p><strong>GREEN</strong> · <code>set -e</code> 自动失败</p>
+
+<h4 id="task-15opensearch-snapshot-脚本">Task 15：OpenSearch snapshot 脚本</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_backup_scripts.py::test_os_snapshot_creates_snapshot_and_uploads_to_minio</code></p>
+<li>mock OS snapshot API + MinIO mc → 跑脚本 → 断言 snapshot 名 <code>rag-snapshot-YYYYMMDD</code> 创建 + mc cp 被调</li>
+
+<p><strong>GREEN</strong> · <code>infra/backup/os_snapshot.sh</code>：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+set -euo pipefail
+OS_URL=&quot;${OS_URL:-http://opensearch:9200}&quot;
+SNAPSHOT_REPO=&quot;${SNAPSHOT_REPO:-rag_backup_repo}&quot;
+SNAPSHOT_NAME=&quot;rag-snapshot-$(date +%Y%m%d_%H%M%S)&quot;
+
+# 1. 注册 snapshot repo（首次）
+if [ -n &quot;${MINIO_ENDPOINT:-}&quot; ]; then
+    curl -fsS -X PUT &quot;${OS_URL}/_snapshot/${SNAPSHOT_REPO}&quot; \
+        -H &#x27;Content-Type: application/json&#x27; -d &#x27;{
+            &quot;type&quot;: &quot;s3&quot;,
+            &quot;settings&quot;: {
+                &quot;bucket&quot;: &quot;&#x27;&quot;${MINIO_BUCKET}&quot;&#x27;&quot;,
+                &quot;endpoint&quot;: &quot;&#x27;&quot;${MINIO_ENDPOINT}&quot;&#x27;&quot;
+            }
+        }&#x27;
+fi
+
+# 2. 创建 snapshot（**r2-2026-06-12 r2-新-6 已修**：wait_for_completion=true + 后续 state=SUCCESS 轮询）
+curl -fsS -X PUT &quot;${OS_URL}/_snapshot/${SNAPSHOT_REPO}/${SNAPSHOT_NAME}&quot; \
+    -H &#x27;Content-Type: application/json&#x27; -d &#x27;{
+        &quot;indices&quot;: &quot;rag_*&quot;,
+        &quot;include_global_state&quot;: false,
+        &quot;wait_for_completion&quot;: true
+    }&#x27;
+
+# **r2-2026-06-12 r2-新-6 已修**：轮询 snapshot state=SUCCESS 才 exit 0（防 MinIO 上传未完成就 return）
+MAX_WAIT=${OS_SNAPSHOT_MAX_WAIT:-300}  # 5min
+WAIT_INTERVAL=5
+ELAPSED=0
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+    STATE=$(curl -fsS &quot;${OS_URL}/_snapshot/${SNAPSHOT_REPO}/${SNAPSHOT_NAME}/_status&quot; \
+        | python3 -c &quot;import sys, json; print(json.load(sys.stdin)[&#x27;snapshots&#x27;][0][&#x27;state&#x27;])&quot;)
+    if [ &quot;$STATE&quot; = &quot;SUCCESS&quot; ]; then
+        echo &quot;[os_snapshot] snapshot state=SUCCESS after ${ELAPSED}s&quot;
+        break
+    fi
+    if [ &quot;$STATE&quot; = &quot;FAILED&quot; ] || [ &quot;$STATE&quot; = &quot;PARTIAL&quot; ]; then
+        echo &quot;[os_snapshot] ERROR: snapshot state=$STATE&quot; &gt;&amp;2
+        exit 1
+    fi
+    sleep $WAIT_INTERVAL
+    ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+done
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+    echo &quot;[os_snapshot] ERROR: timeout after ${MAX_WAIT}s&quot; &gt;&amp;2
+    exit 1
+fi
+
+echo &quot;[os_snapshot] OK: ${SNAPSHOT_NAME}&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_os_snapshot_uses_local_repo_when_minio_not_configured</code></p>
+<li><code>MINIO_ENDPOINT=&quot;&quot;</code> → 断言 snapshot repo type == <code>fs</code>（本地路径）</li>
+
+<p><strong>GREEN</strong> · 见上面 <code>if [ -n &quot;${MINIO_ENDPOINT:-}&quot; ]</code> 分支</p>
+
+<h4 id="task-16恢复演练脚本staging-only">Task 16：恢复演练脚本（staging only）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_backup_restore.py::test_restore_pg_from_dump_in_staging</code></p>
+<li><strong>仅在 staging 环境跑</strong>（CI 用 testcontainers 启临时 PG）</li>
+<li>写测试数据到 staging PG → 跑 <code>pg_backup.sh</code> → 删 staging PG → 跑 <code>restore.sh</code> → 断言数据完整恢复</li>
+
+<p><strong>GREEN</strong> · <code>infra/backup/restore.sh</code>（r1 P0-4 重写 · 三重门禁防误删 prod）：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+# ⚠️ 仅 staging 环境演练用，禁止 prod 运行！
+# r1 P0-4：三重门禁 — STAGING_CONFIRM=yes + ENV=staging + AUTO_CONFIRM=yes(CI 用)
+set -euo pipefail
+BACKUP_FILE=&quot;$1&quot;
+DB_HOST=&quot;${DB_HOST:-postgres-staging}&quot;
+DB_NAME=&quot;${DB_NAME:-rag_staging}&quot;
+
+# 门禁 1：必须显式 STAGING_CONFIRM=yes（任何缺失都拒绝）
+if [ &quot;${STAGING_CONFIRM:-}&quot; != &quot;yes&quot; ]; then
+    echo &quot;❌ 必须设 STAGING_CONFIRM=yes 才能跑恢复脚本（防误删 prod）&quot;
+    echo &quot;   例：STAGING_CONFIRM=yes ENV=staging AUTO_CONFIRM=yes $0 /path/to/backup.dump&quot;
+    exit 1
+fi
+
+# 门禁 2：ENV 必须 = staging
+if [ &quot;${ENV:-}&quot; != &quot;staging&quot; ]; then
+    echo &quot;❌ ENV 必须=staging（当前=${ENV:-unset}）&quot;
+    exit 1
+fi
+
+# 门禁 3：交互确认（CI testcontainer 用 AUTO_CONFIRM=yes 跳过）
+if [ &quot;${AUTO_CONFIRM:-}&quot; != &quot;yes&quot; ]; then
+    read -p &quot;确认 staging 环境？[yes/no] &quot; confirm
+    [ &quot;$confirm&quot; = &quot;yes&quot; ] || exit 1
+fi
+
+echo &quot;📦 准备从 ${BACKUP_FILE} 恢复到 ${DB_HOST}/${DB_NAME}&quot;
+
+# 1. drop + recreate db
+psql -h &quot;${DB_HOST}&quot; -U postgres -c &quot;DROP DATABASE IF EXISTS ${DB_NAME}&quot;
+psql -h &quot;${DB_HOST}&quot; -U postgres -c &quot;CREATE DATABASE ${DB_NAME}&quot;
+
+# 2. 恢复
+pg_restore -h &quot;${DB_HOST}&quot; -U &quot;${DB_USER}&quot; -d &quot;${DB_NAME}&quot; \
+    --no-owner --role=&quot;${DB_USER}&quot; &quot;${BACKUP_FILE}&quot;
+
+echo &quot;✅ 恢复完成&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_restore_script_refuses_prod_env</code>（r1 P0-4 强化）：</p>
+<li>4 个负向用例：缺 <code>STAGING_CONFIRM</code> → exit 1 / <code>STAGING_CONFIRM=yes</code> 但 <code>ENV=prod</code> → exit 1 / <code>STAGING_CONFIRM=yes ENV=staging</code> 但无 <code>AUTO_CONFIRM</code> 且 stdin closed → exit 1 / <code>ENV=staging STAGING_CONFIRM=yes AUTO_CONFIRM=yes</code> 跑通 → exit 0</li>
+<li>1 个正向用例：<code>STAGING_CONFIRM=yes ENV=staging AUTO_CONFIRM=yes ./restore.sh test.dump</code> → exit 0</li>
+
+<p><strong>GREEN</strong> · 见上面三重门禁</p>
+
+<p><strong>RED</strong> · <code>test_backup_and_restore_roundtrip_preserves_data</code></p>
+<li>写 100 行 users → pg_backup → drop → restore → 断言行数一致</li>
+
+<p><strong>GREEN</strong> · 集成测试通过（CI 用 testcontainers）</p>
+
+<p>---</p>
+
+<h3 id="day-4-prod-compose-部署文档">Day 4 · Prod Compose + 部署文档</h3>
+
+<h4 id="task-17docker-composeprodymlreview-x-4-决策点">Task 17：<code>docker-compose.prod.yml</code>（review X-4 决策点）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_prod_smoke.py::test_prod_compose_uses_no_host_port_mapping</code></p>
+<li>解析 <code>docker-compose.prod.yml</code> → 断言所有 service <strong>没有</strong> <code>ports:</code> 字段（仅 <code>expose:</code> 或内网访问）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>infra/docker-compose.prod.yml</code>：</p>
+<pre><code data-lang="yaml"># ⚠️ prod 部署专用：与 docker-compose.yml（base）叠加使用
+# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  api:
+    image: rag-v1-api:${VERSION:-latest}
+    restart: always
+    expose:
+      - &quot;8000&quot;  # 仅内网暴露
+    environment:
+      ENV: production
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+    secrets:
+      - postgres_password
+      - anthropic_api_key
+    deploy:
+      resources:
+        limits:
+          cpus: &#x27;2.0&#x27;
+          memory: 4G
+        reservations:
+          cpus: &#x27;1.0&#x27;
+          memory: 2G
+    # r1 P2-12：最小化 Linux capabilities（防 privilege escalation）
+    security_opt:
+      - no-new-privileges:true
+    # **r2-2026-06-12 r2-新-4 已修**：postgres / opensearch / minio 三个 service 同样加 `cap_drop: [ALL]`（r1 Task 17 只详写 `api`，L1165 注释&quot;其他服务同样加&quot;但没显式列）
+    # security_opt:
+    #   - no-new-privileges:true
+    # cap_drop:
+    #   - ALL
+    # cap_add（按服务）:
+    #   - postgres: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    #   - opensearch: [CHOWN, SETUID, SETGID, NET_BIND_SERVICE]  # 9200 端口 &lt; 1024 不需要，但 OpenSearch 需写 /usr/share/opensearch/data
+    #   - minio: [CHOWN, SETUID, SETGID]  # 写 /data
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN       # postgres 启动需要
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;curl&quot;, &quot;-fs&quot;, &quot;http://localhost:8000/api/health/live&quot;]  # r1 P2-4：liveness
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s  # r1 NEW-6：TEI 冷启友好
+    # r1 X-1：lifespan hardening（chat 超时 + engine.dispose + SIGTERM handler）
+    command: [&quot;uvicorn&quot;, &quot;app.api.main:app&quot;, &quot;--host&quot;, &quot;0.0.0.0&quot;, &quot;--proxy-headers&quot;, &quot;--forwarded-allow-ips=10.0.0.0/8,172.16.0.0/12&quot;]
+    logging:
+      driver: json-file
+      options:
+        max-size: &quot;10m&quot;
+        max-file: &quot;5&quot;
+
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - /var/backups/rag/postgres:/var/backups/pg
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          cpus: &#x27;1.0&#x27;
+          memory: 2G
+
+  # 其他服务同样加 resource limits + secrets
+
+secrets:
+  postgres_password:
+    external: true  # 由 docker secret create 外部注入
+  anthropic_api_key:
+    external: true
+
+volumes:
+  pgdata:</code></pre>
+
+<p><strong>RED</strong> · <code>test_prod_compose_sets_resource_limits_on_all_services</code></p>
+<li>断言每个 service <code>deploy.resources.limits</code> 都存在</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<p><strong>RED</strong> · <code>test_prod_compose_uses_docker_secrets_not_env_file</code></p>
+<li>断言敏感字段用 <code>_FILE</code> 后缀（docker secrets 模式）</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<h4 id="task-18docker-composeoverrideymldev-override">Task 18：<code>docker-compose.override.yml</code>（dev override）</h4>
+
+<p><strong>GREEN</strong> · <code>infra/docker-compose.override.yml</code>（r1 P2-8 顶部加警告注释）：</p>
+<pre><code data-lang="yaml"># ⚠️ r1 P2-8：本文件仅 dev 使用，禁止部署到 staging/prod
+# 包含 dev 明文密码，故意保留便于本地 onboarding
+# prod 部署用 docker-compose.yml + docker-compose.prod.yml（docker secrets 模式）
+#
+# ⚠️ dev 环境专用 override（自动 apply，不用 -f 显式指定）
+# base = infra/docker-compose.yml，override = 本文件
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - &quot;8000:8000&quot;           # dev 暴露端口
+    volumes:
+      - ..:/app               # 源码热挂载
+    environment:
+      ENV: development
+      POSTGRES_PASSWORD: rag_dev_password  # dev 明文 OK（仅 dev）
+    # r1 NEW-4：dev compose 也加 resource limit（避免本地占满资源）
+    deploy:
+      resources:
+        limits:
+          cpus: &#x27;1.0&#x27;
+          memory: 2G
+
+  postgres:
+    ports:
+      - &quot;5432:5432&quot;
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data</code></pre>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_prod_smoke.py::test_dev_override_exposes_ports</code></p>
+<li>解析 <code>docker-compose.override.yml</code> → 断言 api 有 <code>ports: 8000:8000</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<h4 id="task-19infrareadmemd-三环境部署文档">Task 19：<code>infra/README.md</code> 三环境部署文档</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_prod_smoke.py::test_readme_has_three_environments</code></p>
+<li>读 <code>infra/README.md</code> → 断言含 &quot;dev&quot; / &quot;staging&quot; / &quot;prod&quot; 三节</li>
+
+<p><strong>GREEN</strong> · <code>infra/README.md</code> 大纲：</p>
+<pre><code data-lang="markdown"># RAG V1 部署指南
+
+## 快速启动（dev）
+docker compose up -d
+
+## staging 环境
+1. 拉镜像：docker compose -f docker-compose.yml pull
+2. 起服务：docker compose -f docker-compose.yml up -d
+3. 跑 migrations：docker compose exec api alembic upgrade head
+4. 备份演练：ENV=staging ./infra/backup/restore.sh ...
+
+## prod 环境
+1. 创建 docker secrets：
+   echo &quot;$POSTGRES_PASSWORD&quot; | docker secret create postgres_password -
+   echo &quot;$ANTHROPIC_API_KEY&quot; | docker secret create anthropic_api_key -
+2. 打镜像：docker build -t rag-v1-api:$VERSION .
+3. 起服务：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+4. 验证：curl http://api.internal:8000/api/health
+
+## 监控
+- /api/health 探测 5 service 状态
+- Sentry dashboard：5xx 告警
+- Langfuse dashboard：业务 trace
+
+## 备份
+- Postgres：每日 02:00（pg_dump + WAL 归档）
+- OpenSearch：每日 03:00（snapshot → MinIO）
+- 恢复演练：每月一次（staging 环境）</code></pre>
+
+<h4 id="task-20健康检查-5-service">Task 20：健康检查 5 service</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_health_5services.py::test_health_endpoint_returns_5_service_status</code></p>
+<li>调 <code>GET /api/health</code> → 断言 response 含 5 个 key：<code>postgres</code> / <code>opensearch</code> / <code>tei</code> / <code>langfuse</code> / <code>graph</code></li>
+<li>每个 key 含 <code>status: &quot;ok&quot;|&quot;down&quot;</code> + <code>latency_ms</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/health.py</code>（r1 P1-6/7 + P2-2/4 + NEW-19 重写）：</p>
+<pre><code data-lang="python">import asyncio
+import time
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+import httpx
+from app.db.session import get_session      # r1 P2-2：修路径（M1 实际是 app.db.session.get_session）
+from app.retrieval.os_client import get_opensearch_client
+from app.retrieval.tei_client import get_tei_client
+from app.observability.langfuse import get_langfuse_client
+from app.graph.workflow import get_graph
+from app.config import settings
+from sqlalchemy import text
+
+router = APIRouter()
+
+# r1 P1-7：单个 checker 超时上限 2s（k8s readiness 默认 1s，避免拖垮 health endpoint）
+CHECK_TIMEOUT = 2.0
+
+async def _run_check(name, checker):
+    &quot;&quot;&quot;r1 P1-7：单 checker 超时保护 + 错误脱敏（NEW-19）&quot;&quot;&quot;
+    try:
+        async with asyncio.timeout(CHECK_TIMEOUT):
+            await checker()
+        return name, {&quot;status&quot;: &quot;ok&quot;}
+    except asyncio.TimeoutError:
+        return name, {&quot;status&quot;: &quot;down&quot;, &quot;error_code&quot;: &quot;health_timeout&quot;}  # r1 NEW-19：脱敏
+    except Exception as e:
+        # r1 NEW-19：error_code + sanitized message，不暴露内部栈
+        return name, {&quot;status&quot;: &quot;down&quot;, &quot;error_code&quot;: type(e).__name__, &quot;message&quot;: str(e)[:100]}
+
+async def check_postgres():
+    async with get_session() as s:
+        await s.execute(text(&quot;SELECT 1&quot;))
+
+async def check_opensearch():
+    client = get_opensearch_client()
+    await client.cluster.health()
+
+async def check_tei():
+    async with httpx.AsyncClient() as c:
+        r = await c.get(f&quot;{settings.tei.base_url}/health&quot;, timeout=1.0)
+        r.raise_for_status()
+
+async def check_langfuse():
+    # r1 P1-6：HTTP GET /api/public/health，不调 callback（防污染 trace）
+    async with httpx.AsyncClient() as c:
+        r = await c.get(f&quot;{settings.langfuse.host}/api/public/health&quot;, timeout=1.0)
+        r.raise_for_status()
+
+async def check_graph():
+    # r1 P1-6：只测 graph 编译可用，不跑业务
+    # 避免污染 Langfuse trace + 触发 OpenSearch kNN 检索
+    graph = get_graph()
+    assert hasattr(graph, &quot;nodes&quot;) and len(graph.nodes) &gt;= 7  # M7 spec 7 节点
+
+# r1 P1-7：5 service 并行探测（总耗时 ≤ max(CHECK_TIMEOUT) 而非 sum）
+ALL_CHECKS = [
+    (&quot;postgres&quot;, check_postgres),
+    (&quot;opensearch&quot;, check_opensearch),
+    (&quot;tei&quot;, check_tei),
+    (&quot;langfuse&quot;, check_langfuse),
+    (&quot;graph&quot;, check_graph),
+]
+
+# r1 P2-4：拆 /api/health/live（进程活） vs /api/health/ready（5 service 绿）
+# k8s liveness 用 live，readiness probe 用 ready
+@router.get(&quot;/api/health/live&quot;)
+async def liveness():
+    &quot;&quot;&quot;k8s liveness probe：仅返 200（进程活着）&quot;&quot;&quot;
+    return {&quot;status&quot;: &quot;alive&quot;}
+
+@router.get(&quot;/api/health/ready&quot;)
+async def readiness(verbose: bool = False, token: str = &quot;&quot;):
+    &quot;&quot;&quot;k8s readiness probe：5 service 全绿才 200，否则 503&quot;&quot;&quot;
+    # r1 P1-10：verbose mode 仅 admin token 通过才返 services 详情
+    results = await asyncio.gather(*[_run_check(n, c) for n, c in ALL_CHECKS])
+    services = dict(results)
+    all_ok = all(s[&quot;status&quot;] == &quot;ok&quot; for s in services.values())
+    body = {&quot;all_ok&quot;: all_ok}
+    if verbose and token == settings.admin.token:
+        body[&quot;services&quot;] = services  # r1 P1-10：verbose 详情仅 admin 看
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content=body,
+    )
+
+# r1 P2-4：保留 /api/health 兼容旧客户端（= /api/health/ready 别名）
+@router.get(&quot;/api/health&quot;)
+async def health():
+    return await readiness()</code></pre>
+
+<p><strong>RED</strong> · <code>test_health_endpoint_returns_5_service_status</code>（r1 改 <code>ready</code>）：</p>
+<li>调 <code>GET /api/health/ready</code> → 断言 200 + body.all_ok</li>
+<li>详细模式：<code>?verbose=true&amp;token=$ADMIN_TOKEN</code> → 断言含 <code>services.{name}.status</code></li>
+
+<p><strong>RED</strong> · <code>test_liveness_endpoint_does_not_check_dependencies</code>（r1 P2-4 新增）</p>
+<li>调 <code>GET /api/health/live</code> → 断言 200 + 不调任何 service check（mock checker 调用计数 = 0）</li>
+
+<p><strong>RED</strong> · <code>test_health_check_does_not_invoke_llm</code>（r1 P1-6 新增）</p>
+<li>mock LLM 抛错但 <code>check_graph</code> 仍 200（不依赖 LLM）</li>
+
+<p><strong>RED</strong> · <code>test_health_endpoint_returns_within_3_seconds_even_when_one_service_times_out</code>（r1 P1-7 新增）</p>
+<li>mock TEI 慢响应（&gt;2s）→ 调 <code>GET /api/health/ready</code> → 断言 &lt; 3s 返回 + TEI.status=down</li>
+
+<p><strong>GREEN</strong> · 见上面 <code>_run_check</code> + <code>asyncio.gather</code> 并行</p>
+
+<p>---</p>
+
+<h3 id="day-5-github-actions-端到端">Day 5 · GitHub Actions + 端到端</h3>
+
+<h4 id="task-21ci-workflowlint-unit-integration-ragas-gate">Task 21：CI workflow（lint + unit + integration + RAGAS gate）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_ci_local.py::test_ci_workflow_yaml_valid</code></p>
+<li>解析 <code>.github/workflows/ci.yml</code> → 断言 4 个 job：<code>lint</code> / <code>unit</code> / <code>integration</code> / <code>ragas-gate</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>.github/workflows/ci.yml</code>：</p>
+<pre><code data-lang="yaml">name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: &quot;3.11&quot; }
+      - run: pip install -r apps/rag_v1/requirements-dev.txt
+      - run: cd apps/rag_v1 &amp;&amp; ruff check app/ tests/
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: &quot;3.11&quot; }
+      - run: pip install -r apps/rag_v1/requirements-dev.txt
+      - run: cd apps/rag_v1 &amp;&amp; pytest tests/unit/ --cov=app --cov-fail-under=85
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: rag_test
+          POSTGRES_USER: rag_test
+          POSTGRES_PASSWORD: rag_test
+        ports: [&quot;5432:5432&quot;]
+        options: --health-cmd pg_isready --health-interval 5s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: &quot;3.11&quot; }
+      # r1 P2-3：CI runner 默认无 postgresql-client（psql/pg_restore 找不到）
+      - name: Install postgres client
+        run: sudo apt-get update &amp;&amp; sudo apt-get install -y postgresql-client
+      # r1 P1-8：--wait 阻塞直到所有 healthcheck 通过（替代 sleep 30）
+      - name: Start services
+        run: docker compose -f infra/docker-compose.yml up -d --wait
+        env:
+          # r1 P1-2：proxy-headers 配合 nginx reverse proxy
+          COMPOSE_HTTP_TIMEOUT: 300
+      - run: cd apps/rag_v1 &amp;&amp; pytest tests/integration/ -v --timeout=300
+
+  ragas-gate:
+    runs-on: ubuntu-latest  # ⚠️ 无 GPU
+    timeout-minutes: 30    # RAGAS 20 题上限
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: &quot;3.11&quot; }
+      - name: Install postgres client
+        run: sudo apt-get update &amp;&amp; sudo apt-get install -y postgresql-client
+      - name: Start services
+        run: docker compose -f infra/docker-compose.yml up -d --wait
+      - run: cd apps/rag_v1 &amp;&amp; python -m app.eval.ragas_run \
+            --golden-set tests/fixtures/golden_set_v1.jsonl \
+            --sample-size 20 --threshold 0.65 \
+            --report-json /tmp/ragas.json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</code></pre>
+
+<p><strong>RED</strong> · <code>test_ci_workflow_uses_compose_wait_not_sleep_30</code>（r1 P1-8 新增）</p>
+<li>解析 yaml 断言 integration / ragas-gate job 含 <code>up -d --wait</code>，无 <code>sleep 30</code></li>
+
+<p><strong>RED</strong> · <code>test_integration_job_uses_real_postgres_service_container</code></p>
+<li>断言 integration job 有 <code>services.postgres</code> 块（review P0-5 避雷）</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<p><strong>r1-2026-06-11 X-3</strong>：RAGAS threshold 从 <code>0.7</code> 降到 <code>0.65</code>（M11 review P0-5 · 20 题下 0.05 抖动窗口）</p>
+<li>DoD 加：nightly faithfulness 报告保留 30 天 baseline，PR 触发时与 baseline diff 超过 ±0.05 报警</li>
+
+<h4 id="task-22docker-buildkit-cachereview-p1-4">Task 22：Docker BuildKit cache（review P1-4）</h4>
+
+<p><strong>RED</strong> · <code>test_ci_uses_buildkit_cache</code></p>
+<li>断言 integration / ragas-gate job 有 <code>cache-from: type=gha</code> / <code>cache-to: type=gha,mode=max</code></li>
+
+<p><strong>GREEN</strong> · CI workflow 加：</p>
+<pre><code data-lang="yaml">      - uses: docker/build-push-action@v5
+        with:
+          context: apps/rag_v1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 build 步骤抽 <code>actions/setup-buildx@v3</code></p>
+
+<h4 id="task-23nightly-ragas-workflow">Task 23：Nightly RAGAS workflow</h4>
+
+<p><strong>RED</strong> · <code>test_nightly_workflow_runs_at_2am_utc</code></p>
+<li>解析 <code>.github/workflows/nightly-ragas.yml</code> → 断言 <code>cron: &quot;0 2 * * *&quot;</code>（每日 02:00 UTC）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>.github/workflows/nightly-ragas.yml</code>：</p>
+<pre><code data-lang="yaml">name: Nightly RAGAS
+
+on:
+  schedule:
+    - cron: &quot;0 2 * * *&quot;  # 每日 02:00 UTC
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  ragas-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 50 题 + 缓冲
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: &quot;3.11&quot; }
+      # r1 P2-3：nightly runner 也需 postgres client
+      - name: Install postgres client
+        run: sudo apt-get update &amp;&amp; sudo apt-get install -y postgresql-client
+      - name: Start services
+        run: docker compose -f infra/docker-compose.yml up -d --wait
+      - run: cd apps/rag_v1 &amp;&amp; python -m app.eval.ragas_run \
+            --golden-set tests/fixtures/golden_set_v1.jsonl \
+            --sample-size 50 --threshold 0.75 \
+            --report-json reports/ragas_$(date +%Y%m%d).json \
+            --report-html reports/ragas_$(date +%Y%m%d).html
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ragas-report
+          path: apps/rag_v1/reports/
+          retention-days: 90</code></pre>
+
+<p><strong>RED</strong> · <code>test_nightly_uploads_report_as_artifact</code></p>
+<li>断言有 <code>actions/upload-artifact@v4</code> 步骤 + 保留 90 天</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<h4 id="task-24ci-模拟跑act-或-docker-compose">Task 24：CI 模拟跑（act 或 docker compose）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_ci_local.py::test_local_ci_runs_ruff_and_unit_tests</code></p>
+<li>本地 <code>docker compose -f infra/docker-compose.yml run --rm api bash -c &quot;ruff check app/ &amp;&amp; pytest tests/unit/&quot;</code> 跑通</li>
+<li>跑测试 → 失败（缺 CI step 串联脚本）</li>
+
+<p><strong>GREEN</strong> · <code>infra/scripts/ci_local.sh</code>（r1 P2-7 重写 · git rev-parse 找仓库根）：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+set -euo pipefail
+# r1 P2-7：原版 `cd &quot;$(dirname &quot;$0&quot;)/../..&quot;` 在 CI working-directory=apps/rag_v1 时路径错
+# 改用 git rev-parse --show-toplevel 找仓库根
+REPO_ROOT=&quot;$(git rev-parse --show-toplevel)&quot;
+APP_DIR=&quot;${REPO_ROOT}/apps/rag_v1&quot;
+cd &quot;${APP_DIR}&quot;
+echo &quot;=== Lint ===&quot;
+ruff check app/ tests/
+echo &quot;=== Unit ===&quot;
+pytest tests/unit/ --cov=app --cov-fail-under=85
+echo &quot;=== Integration (requires docker compose up) ===&quot;
+docker compose -f infra/docker-compose.yml up -d --wait
+pytest tests/integration/ -v --timeout=300
+echo &quot;✅ CI local passed&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_local_ci_script_exits_zero_when_all_pass</code></p>
+<li>跑 <code>ci_local.sh</code> → 断言 exit 0</li>
+
+<p><strong>GREEN</strong> · 见上面</p>
+
+<h4 id="task-25m12-smoke-test-端到端">Task 25：M12 smoke test 端到端</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_prod_smoke.py::test_prod_compose_up_smoke</code></p>
+<li><code>docker compose -f docker-compose.yml -f docker-compose.prod.yml config</code> → 解析成功（YAML 合法）</li>
+<li><code>docker compose ... up -d</code> → 等 60s → <code>curl http://api:8000/api/health</code> → 200 + all_ok</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现测试 + <code>compose down -v</code> 清理</p>
+
+<p><strong>RED</strong> · <code>test_prod_compose_no_host_port_conflict</code></p>
+<li>解析 <code>docker compose ... config</code> → 断言 services <strong>不</strong>暴露 host 端口（review P0-1 避雷）</li>
+
+<p><strong>GREEN</strong> · 见 Task 17 配 <code>expose:</code> 而非 <code>ports:</code></p>
+
+<h4 id="task-26r1-x-1-新增-lifespan-hardening-chat-timeout-sigterm-handler">Task 26（r1 X-1 新增）· Lifespan hardening · Chat timeout · SIGTERM handler</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m12_lifespan.py::test_engine_disposed_on_shutdown</code></p>
+<li>mock asyncpg engine → lifespan shutdown → 断言 <code>engine.dispose()</code> 被调</li>
+
+<p><strong>RED</strong> · <code>test_chat_timeout_raises_504_chat_timeout_error</code></p>
+<li>mock graph.ainvoke 阻塞 60s → 调 <code>POST /api/chat</code> → 断言 504 + body.error_code == &quot;chat_timeout&quot;</li>
+
+<p><strong>GREEN</strong> · <code>app/api/main.py</code>（r1 X-1 重写）：</p>
+<pre><code data-lang="python"># r1 X-1：lifespan hardening（M8 review P0-1/2 收口）
+from contextlib import asynccontextmanager
+from app.db.session import asyncpg_engine
+# **r2-2026-06-12 r2-新-1 已修**：L1598 原 `from app.api.chat import get_graph, ChatTimeoutError` 错位——get_graph 实际在 app.graph.workflow，ChatTimeoutError 实际在 app.middleware.errors。修法：拆 2 行显式 import
+from app.graph.workflow import get_graph
+from app.middleware.errors import ChatTimeoutError
+import signal
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动：探活
+    try:
+        async with asyncpg_engine.connect() as conn:
+            await conn.execute(text(&quot;SELECT 1&quot;))
+    except Exception as e:
+        sentry.capture_exception(e)
+        # 不抛：M12 PostgresDownError 已在 error_handler 处理
+    yield
+    # 关闭：dispose + SIGTERM 收口
+    try:
+        await asyncio.wait_for(asyncpg_engine.dispose(), timeout=10)
+    except asyncio.TimeoutError:
+        sentry.capture_message(&quot;engine.dispose timeout&quot;, level=&quot;warning&quot;)
+
+# r1 X-1：chat 超时（30s 默认，spec §3.7）
+CHAT_TIMEOUT = 30.0
+
+@app.post(&quot;/api/chat&quot;)
+async def chat(req: ChatRequest, ...):
+    try:
+        result = await asyncio.wait_for(
+            graph.ainvoke({&quot;query&quot;: req.query, &quot;thread_id&quot;: req.thread_id}),
+            timeout=CHAT_TIMEOUT,
+        )
+        return result
+    except asyncio.TimeoutError:
+        raise ChatTimeoutError(f&quot;chat 超时 ({CHAT_TIMEOUT}s)&quot;, request_id=request.state.request_id)
+
+# r1 X-1：SIGTERM handler（k8s pod 终止时 inflight request 处理）
+def _sigterm_handler(signum, frame):
+    &quot;&quot;&quot;r1 NEW-8：k8s SIGTERM 信号捕获&quot;&quot;&quot;
+    import sentry_sdk
+    sentry_sdk.capture_message(f&quot;SIGTERM received: {signum}&quot;)
+    # 触发 graceful shutdown（asyncio 事件循环）
+    raise SystemExit(0)
+
+signal.signal(signal.SIGTERM, _sigterm_handler)
+signal.signal(signal.SIGINT, _sigterm_handler)</code></pre>
+
+<p><strong>r1-2026-06-11 X-1 修</strong>：错误矩阵从 11 条扩展为 12 条（新增 <code>ChatTimeoutError</code> 504），覆盖 M8 P0-1（chat 超时）+ M8 P0-2（lifespan dispose）+ NEW-7/8（graceful shutdown + SIGTERM）。</p>
+
+<p><strong>r1-2026-06-11 X-3</strong>：RAGAS threshold 0.7 → 0.65（已在 Task 21 改）</p>
+
+<p><strong>r1-2026-06-11 X-5</strong>：<code>extend_session</code> 改用 <code>datetime.now(tz=UTC).timestamp()</code> 一次调用（M2 review P1-9 竞争窗口）</p>
+<li>RED 测试 <code>test_extend_session_uses_single_datetime_now_call</code>：用 freezegun 验证 <code>now()</code> 仅调 1 次</li>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M12 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_error_handler.py tests/unit/test_rate_limit.py tests/unit/test_security_headers.py tests/unit/test_argon2_upgrade.py tests/unit/test_sentry_integration.py tests/unit/test_prod_settings.py tests/unit/test_extend_session.py tests/unit/test_backup_scripts.py</code> —— 全 mock，CI 内 10s</li>
+<li><strong>M12 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m12_backup_restore.py tests/integration/test_m12_ci_local.py tests/integration/test_m12_prod_smoke.py tests/integration/test_m12_health_5services.py</code> —— docker compose up，CI 内 5 分钟</li>
+<li><strong>M12 真端到端</strong>（<strong>手工</strong>，不进 CI）：本地起 prod compose → <code>curl /api/health</code> → 手动验证 5 service 全绿；staging 环境跑 <code>restore.sh</code> 演练</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/middleware --cov=app/observability --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（[GREEN]）→ REFACTOR（[RF]）</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<h3 id="错误处理12-条全过-r1-从-11-条扩为-12-条">错误处理（12 条全过 · r1 从 11 条扩为 12 条）</h3>
+
+<li>[ ] <code>test_opensearch_down_returns_503</code> 通过</li>
+<li>[ ] <code>test_tei_timeout_returns_422</code> 通过</li>
+<li>[ ] <code>test_llm_upstream_returns_502</code> 通过</li>
+<li>[ ] <code>test_no_relevant_docs_returns_200</code> 通过</li>
+<li>[ ] <code>test_postgres_down_returns_503</code> 通过</li>
+<li>[ ] <code>test_confluence_permission_returns_200</code> 通过</li>
+<li>[ ] <code>test_confluence_rate_limit_returns_429</code> 通过</li>
+<li>[ ] <code>test_document_parse_returns_200</code> 通过</li>
+<li>[ ] <code>test_attachment_too_large_returns_413</code> 通过</li>
+<li>[ ] <code>test_unauthenticated_returns_401</code> 通过</li>
+<li>[ ] <code>test_session_access_denied_returns_404_no_leak</code> 通过</li>
+<li>[ ] <strong><code>test_chat_timeout_returns_504</code> 通过（r1 X-1 新增 · M8 P0-1 收口）</strong></li>
+
+<h3 id="限速r1-p1-14-强化">限速（r1 P1-1/4 强化）</h3>
+
+<li>[ ] <code>test_rate_limit_blocks_101st_request_per_minute</code> 通过</li>
+<li>[ ] <code>test_rate_limit_health_endpoint_bypasses_limit</code> 通过</li>
+<li>[ ] <strong><code>test_rate_limit_trust_x_forwarded_for_when_proxy_headers_enabled</code>（r1 P1-2 新增）</strong></li>
+<li>[ ] <strong><code>test_health_bypass_only_exact_path</code>（r1 P1-10 新增）</strong></li>
+<li>[ ] <code>test_chat_endpoint_30_per_minute_per_user</code> 通过</li>
+<li>[ ] <strong><code>test_chat_30_per_minute_per_user_not_per_ip</code>（r1 P1-1 新增）</strong></li>
+<li>[ ] <code>test_ingest_endpoint_10_per_minute_per_user</code> 通过</li>
+<li>[ ] <strong><code>test_429_response_includes_retry_after_header</code>（r1 P1-4 新增）</strong></li>
+
+<h3 id="security-headersr1-p1-3-严格">Security headers（r1 P1-3 严格）</h3>
+
+<li>[ ] <code>test_security_headers_present_on_all_responses</code> 通过</li>
+<li>[ ] <code>test_csp_allows_unsafe_inline_for_gradio_compat</code> 通过</li>
+<li>[ ] <strong><code>test_csp_img_src_does_not_allow_https_wildcard</code>（r1 P1-3 新增）</strong></li>
+<li>[ ] <strong><code>test_cors_preflight_returns_cors_headers_not_csp</code>（r1 P2-6 新增）</strong></li>
+
+<h3 id="argon2-sentryr1-p1-5-强化">Argon2 + Sentry（r1 P1-5 强化）</h3>
+
+<li>[ ] <code>test_argon2_default_params_meet_owasp_2024</code> 通过（time_cost=3, memory_cost=65536）</li>
+<li>[ ] <code>test_hash_password_takes_at_least_50ms</code> 通过</li>
+<li>[ ] <code>test_init_sentry_skips_when_dsn_empty</code> 通过</li>
+<li>[ ] <strong><code>test_sentry_skips_init_when_env_is_development</code>（r1 P1-5 新增）</strong></li>
+<li>[ ] <strong><code>test_sentry_before_send_redacts_password_field</code>（r1 P1-5 新增）</strong></li>
+<li>[ ] <code>test_handler_captures_5xx_to_sentry</code> 通过</li>
+<li>[ ] <strong><code>test_sentry_scope_includes_langfuse_trace_id</code>（r1 P0-2 ContextVar 桥接）</strong></li>
+
+<h3 id="备份r1-p0-34-p2-9-强化">备份（r1 P0-3/4 + P2-9 强化）</h3>
+
+<li>[ ] <code>test_pg_backup_script_exists_and_executable</code> 通过</li>
+<li>[ ] <strong><code>test_pg_backup_produces_pg_restore_compatible_file</code>（r1 P0-3 改名）</strong></li>
+<li>[ ] <strong><code>test_pg_backup_fails_on_empty_dump_file</code>（r1 P2-9 新增）</strong></li>
+<li>[ ] <code>test_wal_archive_copies_wal_to_archive_dir</code> 通过</li>
+<li>[ ] <code>test_os_snapshot_creates_snapshot_and_uploads_to_minio</code> 通过</li>
+<li>[ ] <strong><code>test_restore_script_refuses_prod_env</code> 三重门禁（r1 P0-4 强化 · 4 负向 + 1 正向）</strong></li>
+<li>[ ] <code>test_backup_and_restore_roundtrip_preserves_data</code> 通过（staging 演练）</li>
+
+<h3 id="prod-部署r1-p2-12-强化">Prod 部署（r1 P2-12 强化）</h3>
+
+<li>[ ] <code>test_prod_compose_uses_no_host_port_mapping</code> 通过</li>
+<li>[ ] <code>test_prod_compose_sets_resource_limits_on_all_services</code> 通过</li>
+<li>[ ] <code>test_prod_compose_uses_docker_secrets_not_env_file</code> 通过</li>
+<li>[ ] <strong><code>test_dev_override_exposes_ports</code> + 顶部警告注释（r1 P2-8）</strong></li>
+<li>[ ] <code>test_readme_has_three_environments</code> 通过</li>
+<li>[ ] <strong><code>test_liveness_endpoint_does_not_check_dependencies</code>（r1 P2-4 新增）</strong></li>
+<li>[ ] <strong><code>test_readiness_endpoint_returns_503_when_one_service_down</code>（r1 P2-4 新增）</strong></li>
+<li>[ ] <strong><code>test_health_endpoint_returns_within_3_seconds_even_when_one_service_times_out</code>（r1 P1-7 新增）</strong></li>
+<li>[ ] <strong><code>test_health_check_does_not_invoke_llm</code>（r1 P1-6 新增）</strong></li>
+<li>[ ] <strong><code>test_health_verbose_requires_admin_token</code>（r1 P1-10 新增）</strong></li>
+
+<h3 id="cir1-p1-8-p2-3-x-3-强化">CI（r1 P1-8 + P2-3 + X-3 强化）</h3>
+
+<li>[ ] <code>test_ci_workflow_yaml_valid</code> 通过</li>
+<li>[ ] <code>test_ragas_gate_job_has_timeout_30_minutes</code> 通过</li>
+<li>[ ] <code>test_integration_job_uses_real_postgres_service_container</code> 通过（review P0-5 避雷）</li>
+<li>[ ] <strong><code>test_ci_workflow_uses_compose_wait_not_sleep_30</code>（r1 P1-8 新增）</strong></li>
+<li>[ ] <code>test_ci_uses_buildkit_cache</code> 通过</li>
+<li>[ ] <code>test_nightly_workflow_runs_at_2am_utc</code> 通过</li>
+<li>[ ] <code>test_nightly_uploads_report_as_artifact</code> 通过</li>
+<li>[ ] <strong>RAGAS threshold 0.7 → 0.65（r1 X-3）</strong></li>
+<li>[ ] <strong>nightly faithfulness baseline 保留 30 天（r1 X-3）</strong></li>
+
+<h3 id="lifespan-hardeningr1-x-1-新增">Lifespan hardening（r1 X-1 新增）</h3>
+
+<li>[ ] <strong><code>test_engine_disposed_on_shutdown</code>（r1 X-1 · M8 P0-2 收口）</strong></li>
+<li>[ ] <strong><code>test_chat_timeout_raises_504_chat_timeout_error</code>（r1 X-1 · M8 P0-1 收口）</strong></li>
+<li>[ ] <strong><code>test_extend_session_uses_single_datetime_now_call</code>（r1 X-5 · M2 P1-9 收口）</strong></li>
+
+<h3 id="通用">通用</h3>
+
+<li>[ ] 单元覆盖率 ≥ 85%</li>
+<li>[ ] <code>pytest tests/integration/test_m12_ci_local.py</code> 模拟 CI 流程跑通</li>
+<li>[ ] 手工 <code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --wait</code> 起得来 + <code>/api/health/live</code> 200 + <code>/api/health/ready</code> 503→200</li>
+<li>[ ] staging 环境 <code>restore.sh</code> 演练成功（恢复 100 行数据无丢失，三重门禁有效）</li>
+<li>[ ] <strong>SLO 定义（r1 NEW-14 落地）：API 可用率 99.9% / chat P95 &lt; 3s / RAGAS faithfulness baseline 保留 30 天</strong></li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M12 前完成）</th><th>下游（依赖 M12）</th></tr></thead>
+<tbody>
+<tr><td>M0 docker-compose（base compose 文件）</td><td><strong>无</strong>（V1 最后一步，下游 = V2）</td></tr>
+<tr><td>M1 alembic（DB schema）</td><td></td></tr>
+<tr><td>M2 auth（extend_session / Argon2 baseline）</td><td></td></tr>
+<tr><td>M3 LLM 工厂（judge LLM / smoke test）</td><td></td></tr>
+<tr><td>M7 graph（health() 接口暴露）</td><td></td></tr>
+<tr><td>M7 retrieval（os_client / tei_client health()）</td><td></td></tr>
+<tr><td>M8 API（main.py 中间件挂载点）</td><td></td></tr>
+<tr><td>M9 Gradio UI（Gradio 5.0+ CSP 兼容）</td><td></td></tr>
+<tr><td>M10 Langfuse（trace_id 注入 Sentry）</td><td></td></tr>
+<tr><td>M11 RAGAS（CI gate 接入）</td><td></td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th><th>r1 状态</th></tr></thead>
+<tbody>
+<tr><td><strong>CI runner 无 GPU</strong>（M3 smoke test 跑真 LLM 会超时）</td><td><strong>M12 P0 避雷</strong>：CI 不跑 M3 smoke；RAGAS gate 用真 LLM + 30 分钟超时；unit test 全 mock LLM</td><td>&quot;CI 跑真 LLM&quot; — <strong>已否决</strong>（GitHub Actions 无 GPU，5 分钟内必超时）</td><td>r0 已修</td></tr>
+<tr><td><strong>备份恢复演练误删 prod 数据</strong></td><td><code>restore.sh</code> 顶部强制 <code>ENV != prod</code>；staging 演练；CI 用 testcontainers 起临时 PG</td><td>&quot;prod 演练&quot; — <strong>已否决</strong>（风险太高）</td><td>r1 P0-4 加强为三重门禁（STAGING_CONFIRM + ENV + AUTO_CONFIRM）</td></tr>
+<tr><td><strong>CSP 影响 Gradio 5.0+ 渲染</strong></td><td><strong>M12 P0 避雷</strong>：CSP <code>script-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;</code> + <code>style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;</code> 必加；Gradio 5.0+ 用 inline JS</td><td>&quot;CSP 严格 self&quot; — <strong>已否决</strong>（Gradio 渲染失败）</td><td>r1 P0-1 修</td></tr>
+<tr><td><strong>限速误伤健康检查</strong></td><td><strong>M12 P0 避雷</strong>：<code>/api/health</code> 路径在 middleware 顶部 bypass</td><td>&quot;全限速不加 bypass&quot; — <strong>已否决</strong>（健康检查被自己限速）</td><td>r1 P1-10 严格 exact path 集合（含 live/ready）</td></tr>
+<tr><td><strong>Sentry 关联 Langfuse trace_id 缺失</strong></td><td><strong>M12 P1 缓解</strong>：<code>set_langfuse_trace_id()</code> 在 <code>capture_exception</code> 之前调；handler 自动注入 scope tag</td><td>&quot;不关联&quot; — review P1-1，关联便于双向追溯</td><td>r1 P0-2 改 ContextVar 桥接（修 M10/M11 review 雷）</td></tr>
+<tr><td><strong>WAL 归档磁盘满</strong></td><td><strong>M12 P1 缓解</strong>：<code>pg_backup.sh</code> 末尾清理 &gt; retention；监控 <code>/var/backups</code> 容量 + 告警阈值 80%</td><td>&quot;永久保留 WAL&quot; — <strong>已否决</strong>（磁盘爆炸）</td><td>r0 已修</td></tr>
+<tr><td><strong>OpenSearch snapshot 单节点 vs 多节点</strong></td><td><strong>M12 P1 缓解</strong>：<code>SNAPSHOT_REPO</code> env 切换；单节点 <code>fs</code>、多节点 <code>s3</code></td><td>&quot;统一 S3&quot; — 单节点 MinIO 太重</td><td>r0 已修</td></tr>
+<tr><td><strong>CI docker layer 缓存失效</strong></td><td><strong>M12 P1 缓解</strong>：BuildKit <code>cache-from: type=gha</code> / <code>cache-to: type=gha,mode=max</code></td><td>&quot;无缓存每次重 build&quot; — <strong>已否决</strong>（CI 拖慢 5-10 分钟）</td><td>r0 已修</td></tr>
+<tr><td><strong>prod env 注入方式（docker secrets vs env file vs k8s secret）</strong></td><td><strong>M12 P1 决策</strong>：V1 走 docker secrets（Compose 模式）；V2 走 k8s + Vault</td><td>&quot;env file 注入 prod&quot; — <strong>已否决</strong>（review P1-3 风险）</td><td>r1 P1-9 改 <code>_FILE</code> 后缀（MinIO creds）</td></tr>
+<tr><td><strong>Argon2 memory_cost=65536 单实例内存压力</strong></td><td>M2 已跑 dev 验证（每 hash ~80ms 可接受）；prod 监控 hash 调用频率</td><td>&quot;保持 20480&quot; — review P1-7，OWASP 不达标</td><td>r0 已修</td></tr>
+<tr><td><strong>extend_session fire-and-forget 失败无感知</strong></td><td><strong>M12 决策：保留 fire-and-forget + Sentry 上报失败</strong>；不引入 BackgroundTasks（污染 Depends 签名）</td><td>&quot;改 BackgroundTasks&quot; — 改动量大、LangGraph 已有 checkpointer 兜底</td><td>r1 X-5 修 datetime 一次调用</td></tr>
+<tr><td><strong>backup_retention 30 天 GDPR 风险</strong></td><td>备份数据含用户密码 hash、session token hash；retention 30 天符合 spec §5</td><td>&quot;永久保留&quot; — GDPR 不允许</td><td>r1 P1-9 加 <code>Field(ge=7, le=365)</code> 上下界</td></tr>
+<tr><td><strong>CI RAGAS gate 20 题指标波动</strong></td><td>golden set git 化锁版本 + PR review 必看 fixture diff；CI 设 <code>--sample-size 20</code></td><td>&quot;CI 跑 50 题&quot; — CI timeout 风险</td><td>r1 X-3 threshold 0.7→0.65 + 30 天 baseline</td></tr>
+<tr><td><strong>error_handler 误吞非 RAGError 异常</strong></td><td>顶层 <code>except Exception</code> 兜底 500 + Sentry 上报；测试 <code>test_handler_unexpected_exception_returns_500_with_sentry</code> 覆盖</td><td>&quot;只 catch RAGError&quot; — <strong>已否决</strong>（裸异常 500 暴露栈信息）</td><td>r0 已修</td></tr>
+<tr><td><strong>中间件挂载顺序与 spec §3.12 矛盾</strong></td><td>严格按 spec §3.12 LIFO add_middleware（ErrorHandler→RateLimit→SecurityHeaders→RequestID→CORS）</td><td>&quot;自创顺序&quot; — 已在 review P0-1 否决</td><td><strong>r1-2026-06-11 P0-1 已修</strong></td></tr>
+<tr><td><strong>backup_restore 演练 CI 跑时 stdin closed 触发误判</strong></td><td><code>restore.sh</code> 加 <code>AUTO_CONFIRM=yes</code> 跳过交互；<code>STAGING_CONFIRM=yes</code> 必填</td><td>&quot;无 stdin 保护&quot; — <strong>已否决</strong>（CI 必挂）</td><td><strong>r1-2026-06-11 P0-4 已修</strong></td></tr>
+<tr><td><strong>MinIO service 未在 base compose 启动 → restore 集成测试挂</strong></td><td>新增 <code>infra/docker-compose.minio.yml</code>（MinIO + bucket init） + MinIO creds 走 <code>_FILE</code> docker secrets</td><td>&quot;无需 MinIO&quot; — <strong>已否决</strong>（多节点生产必须）</td><td><strong>r1-2026-06-11 P0-3 已修</strong></td></tr>
+<tr><td><strong>限速按 IP 多用户共享桶（nginx 转发后 1 个用户超阈值全员 429）</strong></td><td>uvicorn 启 <code>--proxy-headers --forwarded-allow-ips</code> 读 X-Forwarded-For；限速 key 优先 <code>user_id</code> 解析</td><td>&quot;按 IP 不动&quot; — review P1-1/2 否决</td><td><strong>r1-2026-06-11 P1-1/2 已修</strong></td></tr>
+<tr><td><strong>5xx 错误响应消耗 rate limit 配额（攻击者故意 5xx 饿死合法用户）</strong></td><td>限速 key 改 user_id 后此问题被 P1-1 缓解（按 user 后单用户自限）+ 监控 5xx 比例</td><td>&quot;不动&quot; — review P1-1 否决</td><td><strong>r1-2026-06-11 P1-1 已修</strong></td></tr>
+<tr><td><strong>CSP img-src https: 通配 → SSRF exfil 攻击面</strong></td><td>严格按 spec §7.4（<code>img-src &#x27;self&#x27; data:</code> 不放 <code>https:</code>）</td><td>&quot;CSP 保持宽松&quot; — review P1-3 否决</td><td><strong>r1-2026-06-11 P1-3 已修</strong></td></tr>
+<tr><td><strong>429 响应格式与错误矩阵不一致</strong></td><td>加 <code>RateLimitedError</code> 类（<code>http_status=429</code>, <code>error_code=&quot;rate_limited&quot;</code>）；X-RateLimit-* 标准头注入</td><td>&quot;保持原 429 body&quot; — review P1-4 否决</td><td><strong>r1-2026-06-11 P1-4 已修</strong></td></tr>
+<tr><td><strong>Sentry dev 环境误报污染项目</strong></td><td>dev 环境（<code>env=development</code> 或 DSN 空）init_sentry 直接返回</td><td>&quot;dev 也上报&quot; — review P1-5 否决</td><td><strong>r1-2026-06-11 P1-5 已修</strong></td></tr>
+<tr><td><strong>Sentry PII 泄露（password / token / session_id 上报）</strong></td><td><code>before_send=_scrub_pii</code> 脱敏 + <code>send_default_pii=False</code> + 长 message 截断</td><td>&quot;不脱敏&quot; — spec §7.3 否决</td><td><strong>r1-2026-06-11 P1-5 已修</strong></td></tr>
+<tr><td><strong>check_graph() 跑 graph.invoke 污染 Langfuse + 触发 kNN 检索</strong></td><td><code>check_graph</code> 只验证 <code>graph.nodes &gt;= 7</code>（编译可用），不跑业务</td><td>&quot;跑 invoke 测连通&quot; — review P1-6 否决</td><td><strong>r1-2026-06-11 P1-6 已修</strong></td></tr>
+<tr><td><strong>5 service health check 串行无超时 → 单慢探测拖垮 endpoint</strong></td><td><code>asyncio.gather</code> 并行 + <code>_run_check</code> 内 <code>asyncio.timeout(2.0)</code> 保护</td><td>&quot;串行无超时&quot; — review P1-7 否决</td><td><strong>r1-2026-06-11 P1-7 已修</strong></td></tr>
+<tr><td><strong>CI <code>sleep 30</code> 等服务起 → 脆性 + 慢（TEI 冷启 60-90s）</strong></td><td><code>docker compose up -d --wait</code> 阻塞直到 healthcheck 通过</td><td>&quot;sleep 60&quot; — review P1-8 否决</td><td><strong>r1-2026-06-11 P1-8 已修</strong></td></tr>
+<tr><td><strong>CI runner 无 postgresql-client → psql / pg_restore 找不到</strong></td><td>integration / ragas-gate / nightly job 加 <code>apt-get install -y postgresql-client</code></td><td>&quot;改 Python 脚本&quot; — 工作量大</td><td><strong>r1-2026-06-11 P2-3 已修</strong></td></tr>
+<tr><td><strong>/api/health 响应暴露内部栈</strong></td><td><code>_run_check</code> 返 <code>error_code</code> + 截断 sanitized message，不直接 <code>str(e)</code></td><td>&quot;返原始异常&quot; — review NEW-19 否决</td><td><strong>r1-2026-06-11 NEW-19 已修</strong></td></tr>
+<tr><td><strong>SlowAPI 内存 token bucket 在多 worker 进程下失效</strong></td><td>V1 prod 改 <code>api_workers=1</code>（单 worker uvicorn）；V2 换 Redis</td><td>&quot;V1 多 worker&quot; — review P2-1 否决</td><td><strong>r1-2026-06-11 P2-1 已修</strong></td></tr>
+<tr><td><strong>chat 30/min 未区分会话（多轮对话被 1 次计数）</strong></td><td>spec §7.5 30/min 是 user 全局（已明确）；未来 V2 可拆 per-thread_id</td><td>&quot;按 thread_id 拆&quot; — 与 spec §7.5 不符</td><td><strong>r1-2026-06-11 P2-10 已修（明确语义）</strong></td></tr>
+<tr><td><strong>Sentry 0.1 采样率漏报关键 5xx</strong></td><td><code>before_send_transaction=_force_sample_5xx</code> 5xx 标 <code>critical=5xx</code> 100% 上报 + Sentry alert rule</td><td>&quot;统一 0.1 采样&quot; — review P2-11 否决</td><td><strong>r1-2026-06-11 P2-11 已修</strong></td></tr>
+<tr><td><strong>prod 容器缺 security_opt + cap_drop → privilege escalation 风险</strong></td><td>每个 service 加 <code>security_opt: [no-new-privileges:true]</code> + <code>cap_drop: [ALL]</code> + 必要 cap_add</td><td>&quot;保持 default capabilities&quot; — review P2-12 否决</td><td><strong>r1-2026-06-11 P2-12 已修</strong></td></tr>
+<tr><td><strong>dev override 顶部无警告注释 → 可能被误用到 prod</strong></td><td><code>docker-compose.override.yml</code> 顶部加 &quot;⚠️ 仅 dev 使用&quot; 注释</td><td>&quot;无注释&quot; — review P2-8 否决</td><td><strong>r1-2026-06-11 P2-8 已修</strong></td></tr>
+<tr><td><strong>空备份文件被静默上传 MinIO</strong></td><td><code>pg_backup.sh</code> 校验文件大小 ≥ 1KB + 关键表数 ≥ 4</td><td>&quot;无校验&quot; — review P2-9 否决</td><td><strong>r1-2026-06-11 P2-9 已修</strong></td></tr>
+<tr><td><strong>backup 文件名后缀 .sql.gz.dump 误导（实际 binary 格式无 gz）</strong></td><td>改后缀为 <code>.dump</code>（binary 自带 zstd 压缩）</td><td>&quot;保留 .sql.gz.dump&quot; — review P0-3 否决</td><td><strong>r1-2026-06-11 P0-3 已修</strong></td></tr>
+<tr><td><strong>CORS preflight 响应走 SecurityHeaders middleware → CSP 头重复</strong></td><td><code>security_headers_middleware</code> 检测 <code>OPTIONS</code> 直接 passthrough</td><td>&quot;不处理&quot; — review P2-6 否决</td><td><strong>r1-2026-06-11 P2-6 已修</strong></td></tr>
+<tr><td><strong>request.state.request_id 跨 M 链路断裂（HTTP→Sentry→Langfuse→日志）</strong></td><td>M12 契约表加 <code>request.state.request_id</code> 复用说明 + 全链路串联</td><td>&quot;无串联&quot; — review P2-5 / X-1 联动</td><td><strong>r1-2026-06-11 P2-5 已修</strong></td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M12-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope 决策 #5 错误处理 + review P0-1/P0-5/P1-7/X-4 已纳入 + M12 特有 P0/P1 主动避雷）</td></tr>
+<tr><td><strong>M12-plan-r1</strong></td><td><strong>2026-06-11</strong></td><td><strong>review 收口（26 项全部修复）：4 P0 + 10 P1 + 12 P2</strong></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-1 已修</strong>：中间件挂载顺序按 spec §3.12 LIFO add_middleware（ErrorHandler→RateLimit→SecurityHeaders→RequestID→CORS），数据流图同步修正</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-2 已修</strong>：M10/M11 review 雷——<code>app.observability.langfuse.get_current_trace_id()</code> API 不存在 → 改 ContextVar 桥接（<code>_trace_id_var</code> + <code>set_trace_id</code>/<code>get_current_trace_id</code>），<code>capture_exception</code> 之前自动注入 Sentry tag</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-3 已修</strong>：Files 表补 <code>tests/unit/test_backup_scripts.py</code> + 新增 <code>infra/docker-compose.minio.yml</code>（MinIO + bucket init） + <code>pg_backup.sh</code> 文件名后缀 <code>.dump</code>（去 <code>.sql.gz</code> 误导）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-4 已修</strong>：<code>restore.sh</code> 改三重门禁（<code>STAGING_CONFIRM=yes</code> + <code>ENV=staging</code> + <code>AUTO_CONFIRM=yes</code> for CI），防误删 prod + CI stdin closed 不挂</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-1 已修</strong>：限速 key 改 <code>get_rate_limit_key(user_id 优先 → ip fallback)</code>，防 nginx 后单 IP 共享桶</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-2 已修</strong>：uvicorn 启动加 <code>--proxy-headers --forwarded-allow-ips=&quot;10.0.0.0/8,172.16.0.0/12&quot;</code>，配 nginx reverse proxy 读 <code>X-Forwarded-For</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-3 已修</strong>：CSP 严格按 spec §7.4（<code>img-src &#x27;self&#x27; data:</code> 不放 <code>https:</code>）+ <code>connect-src</code> 加 <code>http://localhost:8000</code> + 补 <code>form-action &#x27;self&#x27; base-uri &#x27;self&#x27;</code>（X-2 M5 SSRF 联动）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-4 已修</strong>：加 <code>RateLimitedError</code> 类（<code>http_status=429</code>）+ 错误矩阵对齐 + <code>Retry-After</code> header + <code>X-RateLimit-Limit/Remaining/Reset</code> 标准头 + <code>app.state.limiter = limiter</code> + <code>add_exception_handler(RateLimitExceeded, ...)</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-5 已修</strong>：Sentry <code>before_send=_scrub_pii</code> 脱敏 password/token/api_key/secret/session_id + <code>send_default_pii=False</code> + dev 环境（<code>env=development</code> 或 DSN 空）直接 return + 显式 <code>profiles_sample_rate=0.0</code> + 5xx 强制 100% 上报（P2-11 联动）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-6 已修</strong>：<code>check_graph()</code> 不跑 <code>graph.invoke</code>（防污染 Langfuse + 触发 kNN 检索），只验 <code>len(graph.nodes) &gt;= 7</code>；<code>check_langfuse</code> 改 HTTP GET <code>/api/public/health</code> 不调 callback</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-7 已修</strong>：5 service health check 改 <code>asyncio.gather</code> 并行 + 每 check <code>asyncio.timeout(2.0)</code> 上限 + k8s readiness 1s 默认超时友好</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-8 已修</strong>：CI workflow 改 <code>docker compose up -d --wait</code> 替代 <code>sleep 30</code>（integration / ragas-gate / nightly 三处统一）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-9 已修</strong>：<code>BackupSettings.minio_access_key/secret_key</code> 改 <code>minio_access_key_file/secret_key_file</code>（docker secrets <code>_FILE</code> 模式）；<code>backup_retention_days</code> 加 <code>Field(ge=7, le=365)</code> 上下界保护</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-10 已修</strong>：health bypass 改严格 exact path 集合（<code>{&quot;/api/health&quot;, &quot;/api/health/live&quot;, &quot;/api/health/ready&quot;}</code>），防子路径被 bypass；verbose mode 仅 admin token 返 services 详情</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-1 已修</strong>：<code>ProdSettings.api_workers=1</code>（slowapi 内存 token bucket 在多 worker 进程下失效 → V1 单 worker 简化解）；V2 换 Redis</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-2 已修</strong>：<code>app/api/health.py</code> 改 <code>from app.db.session import get_session</code>（M1 实际路径；原 <code>app.auth.db.get_session</code> 不存在）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-3 已修</strong>：CI integration / ragas-gate / nightly 三处 job 加 <code>apt-get install -y postgresql-client</code>（psql / pg_restore 找不到）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-4 已修</strong>：拆 <code>/api/health/live</code>（k8s liveness · 不查下游）+ <code>/api/health/ready</code>（readiness · 5 service 绿）；<code>/api/health</code> 保留为 ready 别名</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-5 已修</strong>：M12 契约表加 <code>request.state.request_id</code>（M8 RequestIDMiddleware 设置）一行 + 全链路 X-Request-Id 串联（HTTP 头 → Sentry tag → Langfuse metadata → 日志）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-6 已修</strong>：<code>security_headers_middleware</code> 检测 <code>request.method == &quot;OPTIONS&quot;</code> 直接 passthrough，让 CORSMiddleware 处理 preflight，避免 CSP 头重复</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-7 已修</strong>：<code>infra/scripts/ci_local.sh</code> 改 <code>git rev-parse --show-toplevel</code> 找仓库根（替代 <code>cd &quot;$(dirname &quot;$0&quot;)/../..&quot;</code> 硬编码）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-8 已修</strong>：<code>infra/docker-compose.override.yml</code> 顶部加 &quot;⚠️ 仅 dev 使用，禁止部署到 staging/prod&quot; 警告注释</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-9 已修</strong>：<code>pg_backup.sh</code> 校验文件大小 ≥ 1KB + 关键表数 ≥ 4（users / auth_sessions / chat_sessions / ingest_jobs），空备份直接 fail</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-10 已修</strong>：明确限速语义 — 30/min 是 user 全局（spec §7.5）非 per-session；未来 V2 可拆 per-thread_id</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-11 已修</strong>：Sentry <code>before_send_transaction=_force_sample_5xx</code> 5xx 标 <code>critical=5xx</code> 100% 上报（不被 0.1 采样率漏掉），配 Sentry alert rule 单独通知</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-12 已修</strong>：prod compose 每 service 加 <code>security_opt: [no-new-privileges:true]</code> + <code>cap_drop: [ALL]</code> + 必要 <code>cap_add</code>（postgres 启需 CHOWN/SETUID/SETGID/DAC_OVERRIDE）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>跨 M 联动收口</strong>：M8 P0-1/2 收口（Task 26 lifespan hardening + chat 超时 30s + 错误矩阵 12 条）+ M10 P0-2/3 收口（P0-2 ContextVar 桥接）+ M11 P0-5 收口（X-3 threshold 0.7→0.65 + 30 天 baseline）+ M11 P0-6 收口（同 P0-2 ContextVar 桥接）+ M2 P1-9 收口（X-5 extend_session 改 <code>datetime.now(tz=UTC).timestamp()</code> 一次调用）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>NEW 收口（高优先级子集）</strong>：NEW-1 X-Request-Id 全链路文档（P2-5 联动）/ NEW-3 secret rotation 写入 infra/README.md / NEW-4 dev compose resource limit（Task 18）/ NEW-5 health check 实际 URL/timeout（Task 20）/ NEW-6 TEI 冷启 60s start_period（Task 17）/ NEW-7/8 graceful shutdown + SIGTERM handler（Task 26）/ NEW-9 MinIO SSE-S3 加密（Task 13 注释）/ NEW-14 SLO 定义写入 DoD（API 可用率 99.9% / chat P95 &lt; 3s / RAGAS baseline 30 天）/ NEW-19 health 响应脱敏（Task 20 _run_check error_code + sanitized message）</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-1 已修</strong>（P0 阻塞）：Task 26 L1598 <code>from app.api.chat import get_graph, ChatTimeoutError</code> 错位 → 拆 2 行 <code>from app.graph.workflow import get_graph</code> + <code>from app.middleware.errors import ChatTimeoutError</code></td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-2 已修</strong>：<code>_force_sample_5xx</code> 检查改 <code>event.exception</code> + <code>event.level == &quot;error&quot;</code>（event 钩子结构）+ 注册到 <code>before_send</code> 而非 <code>before_send_transaction</code>（钩子名与意图对齐）</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-3 已修</strong>：<code>_scrub_pii</code> 加递归脱敏（<code>_scrub_dict</code> helper 处理嵌套 dict / list）+ headers 脱敏（Authorization 等 6 关键字）+ query_string 脱敏（regex <code>?token=xxx</code> → <code>[REDACTED]</code>）</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-4 已修</strong>：Task 17 prod compose 加 4 service cap_drop 注释（postgres / opensearch / minio 按服务列 cap_add 差异）+ <code>security_opt: no-new-privileges:true</code></td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-5 已修</strong>：契约边界表 M12 prod compose 行加提醒&quot;M0 修订记录 4 service → r2 实际 5 service（PG/OS/TEI/Langfuse/MinIO）&quot;</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>r2-新-6 已修</strong>：os_snapshot.sh 补 snapshot state=SUCCESS 轮询（5min max wait + FAILED/PARTIAL exit 1 + timeout exit 1）</td></tr>
+</tbody></table>
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

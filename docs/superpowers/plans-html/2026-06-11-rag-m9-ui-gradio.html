@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M9 Plan · Gradio Web UI（4 tab：login / sessions / chat / ingest）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M9 Plan · Gradio Web UI（4 tab：login / sessions / chat / ingest）</h1>
+<div class="meta"><span class="badge">M9 Plan · Gradio Web UI（4 tab：login / sessions / chat / ingest）</span><span class="badge r1">⏱ **5 个工作日**（RAG V1 最大里程碑）</span><span class="badge r2">r2 修复 9 处</span><span class="badge r1">r1 修复 24 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局m9-增量">仓库布局（M9 增量）</a></li><li class="h3-item"><a href="#m9-与其他-m-的契约边界">M9 与其他 M 的契约边界</a></li><li class="h3-item"><a href="#langfuse-链路字段命名规范r2-必改-与-m8-r2-新-1-同步">Langfuse 链路字段命名规范（r2 必改 · 与 M8 r2 新-1 同步）</a></li><li class="h3-item"><a href="#4-tab-内部结构">4 tab 内部结构</a></li><li class="h3-item"><a href="#关键数据流post-apichat-透传-trace-id-统一">关键数据流（POST /api/chat 透传 · trace_id 统一）</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#day-1-theme-api-client-auth-state基础设施">Day 1 · theme + api_client + auth_state（基础设施）</a></li><li class="h3-item"><a href="#day-2-login-sessions-tab前置依赖-含-r1-p1-7-logout-r1-p1-9-confirm">Day 2 · login + sessions tab（前置依赖 · 含 r1-P1-7 logout + r1-P1-9 confirm）</a></li><li class="h3-item"><a href="#day-3-chat-tab核心消息流-source-渲染-含-r1-p1-123410-r1-p2-8">Day 3 · chat tab（核心，消息流 + source 渲染 · 含 r1-P1-1/2/3/4/10 + r1-P2-8）</a></li><li class="h3-item"><a href="#day-4-ingest-tab-进度轮询含-r1-p1-56-r1-p2-25">Day 4 · ingest tab + 进度轮询（含 r1-P1-5/6 + r1-P2-2/5）</a></li><li class="h3-item"><a href="#day-5-装配-e2e-集成含-r1-p0-12-r1-p2-7-launch-4-参数">Day 5 · 装配 + E2E 集成（含 r1-P0-1/2 + r1-P2-7 launch 4 参数）</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#m9-特有-p0-避雷review-报告衍生-r2-保留原命名">M9 特有 P0 避雷（review 报告衍生 · r2 保留原命名）</a></li><li><a href="#m9-特有-p1-避雷">M9 特有 P1 避雷</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m9-plan-gradio-web-ui4-tablogin-sessions-chat-ingest">M9 Plan · Gradio Web UI（4 tab：login / sessions / chat / ingest）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 9 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#4-api-列表">V1 Scope §4 API 列表</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#4-UI">§4.1 UI 4 tab</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策 #7 FastAPI+Gradio</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策 #16 多模态 V1 仅元数据</a></div>
+<div class="callout">上游：<a href="./2026-06-10-rag-m2-auth.md">M2 auth 鉴权</a> · <a href="./2026-06-10-rag-m7-graph.md">M7 LangGraph 7 节点</a> · <a href="./2026-06-11-rag-m8-api-chat.md">M8 FastAPI 路由层</a></div>
+<div class="callout">下游：M10 Langfuse（前端 X-Request-Id 透传，UI 显示 trace_id 链接）· M11 RAGAS（不直接调 M9）· M12 Hardening（CORS 已在 M8 配）</div>
+<div class="callout crit">避雷基线：<a href="./2026-06-11-rag-plans-review.md">P0/P1 review 报告</a>（P0-1 端口 7860 不冲突 / P1-4 ORM updated_at / P1-6 复合索引 / P1-11 鉴权完整 / P2-7 session 统一导入 / X-3 全局 settings / X-2 pytest rootdir）</div>
+<div class="callout">估时：<strong>5 个工作日</strong>（RAG V1 最大里程碑）</div>
+<div class="callout">范本目的：把 M8 JSON API 包成用户可用的 Web UI——4 tab 拆模块、TDD 红绿、避免 Gradio 5.0+ 渲染陷阱</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v0.4 V1 Scope §4.1 UI 4 tab 落成 Gradio Web 应用：</p>
+
+<li><strong><code>app/ui/gradio_app.py</code> 入口</strong>：<code>gr.Blocks(theme=build_theme(), css=CUSTOM_CSS)</code> 装配 4 个 <code>gr.Tab</code></li>
+<li><strong><code>app/ui/theme.py</code> 暗色主题</strong>：背景 <code>#0d1117</code> + 强调色 <code>#58a6ff</code> + 字体 <code>PingFang SC, Microsoft YaHei</code> + <code>gr.themes.Monochrome()</code> 基底</li>
+<li><strong><code>app/ui/api_client.py</code> HTTP 客户端</strong>：httpx <code>AsyncClient</code> 封装 M8 全部端点</li>
+<li><strong><code>app/ui/auth_state.py</code> 鉴权状态</strong>：<code>gr.BrowserState</code> 持久化 token + user_id，刷新不丢</li>
+<li><strong>4 tab 独立模块</strong>：每 tab 一个 <code>.py</code>，导出 <code>build_tab()</code> 工厂</li>
+<li><strong>Source 引用渲染</strong>：<code>[1][2][3]</code> regex 解析 → <code>gr.Accordion</code> 折叠卡</li>
+<li><strong>Image 缩略图</strong>：M7 返回 <code>image_ref</code> → <code>gr.Image</code>（路径 + Gradio <code>/file=</code> + try/except fallback）</li>
+<li><strong>Ingest 进度</strong>：<code>GET /api/ingest/{job_id}</code> 轮询（<code>asyncio</code> + <code>gr.Progress(track_tqdm=True)</code>）+ 404 显式提示</li>
+<li><strong>错误处理</strong>：401 跳登录 · 404 静默 · 422 表单红框 · 502/503 fallback_message 渲染 · 连续 401 计数 → 跳登录 · <code>raise gr.Error</code> toast（非阻塞）</li>
+<li><strong>E2E 测试</strong>：登录 → ingest sample → chat 多轮 thread 复用 + CORS 跨域集成测试</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：M8 路由实现 · M10 Langfuse 业务 trace（M9 仅透传 <code>X-Request-Id</code>）· M12 限速 / 监控（CORS / 限速挂 M8）</p>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局m9-增量">仓库布局（M9 增量）</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   ├── ui/                                  # M9 主力
+│   │   ├── __init__.py                      # 暴露 build_ui() / launch_ui()
+│   │   ├── gradio_app.py                    # gr.Blocks 入口 + 4 tab 装配 + launch_ui 4 参数
+│   │   ├── api_client.py                    # APIClient(httpx.AsyncClient) 封装 M8 端点 + 401 计数
+│   │   ├── auth_state.py                    # AuthState(token / user_id) + gr.BrowserState 绑定
+│   │   ├── theme.py                         # 暗色 #0d1117 + #58a6ff + 中文字体 CSS + @media mobile
+│   │   ├── errors.py                        # 前端错误分类（401 跳登录 / 422 显式 / 502 显式 / 404 静默） + 401 计数
+│   │   ├── tabs/
+│   │   │   ├── __init__.py
+│   │   │   ├── login.py                     # 注册/登录/登出 tab（含 logout redirect）
+│   │   │   ├── sessions.py                  # 列表/新建/删除/切换 tab（含 confirm 模态）
+│   │   │   ├── chat.py                      # 对话 tab（核心，含 ChatResult dataclass + loading + autoscroll）
+│   │   │   └── ingest.py                    # 文档入库 tab（3 源：file / URL / Confluence，含 50MB 限制 + URL regex 验证）
+│   │   └── components/
+│   │       ├── __init__.py
+│   │       ├── message.py                   # 消息气泡（[1][2][3] 引用解析）
+│   │       ├── source_card.py               # gr.Accordion 折叠卡（含 overflow-wrap: anywhere CSS）
+│   │       ├── image_thumb.py                # gr.Image 缩略图（path → /file= + try/except fallback）
+│   │       └── progress.py                  # ingest 进度条包装（mock gr.Progress）
+│   ├── api/                                 # M8 已建 · M9 调
+│   ├── auth/                                # M2 已建
+│   ├── config.py                            # 追加 UISettings（api_base_url / theme 配色 / cors_origin @property 联动）
+│   └── main.py                              # M8 已建 · FastAPI
+│
+└── tests/
+    ├── unit/
+    │   ├── test_ui_api_client.py            # httpx 调 M8 端点（mock）
+    │   ├── test_ui_auth_state.py            # BrowserState 持久化
+    │   ├── test_ui_theme.py                 # 暗色 + 中文字体 CSS（含 mobile media query）
+    │   ├── test_ui_errors.py                # 401/404/422/502 分类（含 401 计数）
+    │   ├── test_ui_message_parser.py        # [1][2][3] regex 解析（6+ case）
+    │   ├── test_ui_source_card.py           # gr.Accordion 数据构造（含 overflow-wrap CSS）
+    │   ├── test_ui_image_thumb.py           # image_ref 路径转 /file= URL + try/except fallback
+    │   └── test_ui_tabs.py                  # 4 tab 工厂 + 切换不串扰
+    ├── integration/
+    │   ├── conftest.py                      # pg_session fixture（修 P0-5）
+    │   ├── test_m9_gradio_e2e.py            # 端到端：login → ingest sample → chat 多轮
+    │   └── test_gradio_can_call_fastapi_chat.py  # CORS 跨域集成测试（r1-P0-1）
+    └── ui/                                  # Gradio 端到端（用 httpx + asyncio 调真实 M8）
+        ├── test_m9_blocks_render.py         # 4 tab render 不报错
+        └── test_chatbot_messages_format_renders.py  # 5.0+ 兼容性测试（r1-P2-1）</code></pre>
+
+<h3 id="m9-与其他-m-的契约边界">M9 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M10 Langfuse trace</td><td><code>X-Request-Id</code> 透传到 M8</td><td>M9 UI 拿 trace_id 渲链接到 <code>LANGFUSE_HOST/trace/{id}</code></td></tr>
+<tr><td>M11 RAGAS eval</td><td><strong>不走</strong> M9</td><td>M11 直接调 <code>graph.ainvoke()</code></td></tr>
+<tr><td>M12 Hardening</td><td>改 <code>app/ui/api_client.py</code> 加限速客户端</td><td>不动 M9 结构</td></tr>
+</tbody></table>
+
+<h3 id="langfuse-链路字段命名规范r2-必改-与-m8-r2-新-1-同步">Langfuse 链路字段命名规范（r2 必改 · 与 M8 r2 新-1 同步）</h3>
+
+<div class="callout"><strong>关键决策</strong>：<code>trace_id == request_id == X-Request-Id == Langfuse trace.id</code> 四名同串同值——M8 r2 已统一 M8 <code>ChatResponse.trace_id</code> 字段，M9 plan 全部同步。</div>
+
+<table>
+<thead><tr><th>层级</th><th>名称</th><th>含义</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td>HTTP Header 协议级</td><td><code>X-Request-Id</code></td><td>M8 RequestIdMiddleware 注入/透传的请求 ID（uuid4）</td><td>M8 plan</td></tr>
+<tr><td>M8 ChatResponse 字段</td><td><code>trace_id: str</code></td><td>与 header 同值，响应 JSON 字段名</td><td>M8 plan（r2 已统一）</td></tr>
+<tr><td>M9 Gradio 渲染</td><td><code>trace_id</code></td><td>UI 拿此值拼 Langfuse 链接（与 M8 字段同）</td><td>M9 plan</td></tr>
+<tr><td>M10 Langfuse trace.id</td><td>Langfuse 内部 trace ID</td><td>与 <code>trace_id</code> 同一字符串值</td><td>M10 plan</td></tr>
+<tr><td>M11 RAGAS eval</td><td><code>trace_id</code></td><td>用 <code>get_client().get_current_trace_id()</code></td><td>M11 plan</td></tr>
+</tbody></table>
+
+<p><strong>明确规则</strong>（M9 → M8 → M10 链路）：</p>
+
+<pre><code >客户端 Gradio
+  ↓ POST /api/chat header: X-Request-Id: &lt;uuid&gt;
+M8 RequestIdMiddleware 注入（保留或新生成）
+  ↓ LangChain ChatOpenAI 透传 headers={&quot;X-Request-Id&quot;: ...}
+M10 LangfuseCallbackHandler 接收 → trace.id = X-Request-Id 值
+  ↓ M8 ChatResponse {&quot;trace_id&quot;: &lt;uuid&gt;, ...}  # 与 header 同值
+M9 UI response[&#x27;trace_id&#x27;] → f&quot;🔗 [trace]({LANGFUSE_HOST}/trace/{trace_id})&quot;</code></pre>
+
+<p><strong>修订历史</strong>：M8 r1 用 <code>request_id</code>，M8 r2 已统一 <code>trace_id</code>（修新-1）。M9 r1 主体混用 <code>request_id</code>/<code>trace_id</code>，r2 全部统一为 <code>trace_id</code>。</p>
+
+<h3 id="4-tab-内部结构">4 tab 内部结构</h3>
+
+<pre><code >gr.Blocks(theme=build_theme(), css=CUSTOM_CSS)
+├── Tab 1: login     → gr.Markdown + gr.Tabs(登录/注册) + gr.Button + logout button
+├── Tab 2: sessions  → gr.Dataframe + gr.Button(刷新/新建/删除/切换) + confirm modal + gr.State(session_id)
+├── Tab 3: chat      → gr.Chatbot(type=&quot;messages&quot;, autoscroll=True) + gr.Textbox(submit_btn=True) + gr.Accordion(sources) + gr.Gallery(images, on_error=...) + trace link
+└── Tab 4: ingest    → gr.Tabs(文件上传 / URL+4auth / Confluence) + gr.Progress(track_tqdm=True) + file size 50MB guard</code></pre>
+
+<h3 id="关键数据流post-apichat-透传-trace-id-统一">关键数据流（POST /api/chat 透传 · trace_id 统一）</h3>
+
+<pre><code data-lang="python">user input → Chat submit handler
+  → APIClient.post_chat(query, session_id, bearer_token)
+  → POST {api_base}/api/chat  header: Bearer + X-Request-Id(uuid4)
+  ← 200 { answer, sources, image_refs, session_id, trace_id }  # r2 统一 trace_id
+  → parse [1][2][3] from answer (regex)
+  → render gr.Chatbot + gr.Accordion(sources) + gr.Gallery(image_refs, on_error=...)
+  → display X-Request-Id as &quot;🔗 trace&quot; link to Langfuse using response[&#x27;trace_id&#x27;]</code></pre>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td>Web UI 框架</td><td><code>gradio</code></td><td><code>&gt;=5.0,&lt;6</code></td><td>V1 Scope §4.1 决策 #7</td></tr>
+<tr><td>异步 HTTP 客户端</td><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code></td><td>M3 沿用</td></tr>
+<tr><td>状态持久化</td><td><code>gr.BrowserState</code></td><td>5.0+ 内置</td><td>Gradio 5.0 新 API</td></tr>
+<tr><td>字体</td><td><code>PingFang SC, Microsoft YaHei</code></td><td>系统字体</td><td>V1 Scope §4.1 暗色主题</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code></td><td>见 §测试</td><td>沿用 M3</td></tr>
+<tr><td>Gradio E2E</td><td><code>gradio.testing</code></td><td>5.0+ 内置</td><td>5.0 新模块</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>：</p>
+
+<pre><code data-lang="python">import gradio as gr
+from gradio.themes import Monochrome
+state = gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)  # 5.0+ 新 API
+import httpx
+from gradio.testing import GradioTestClient  # 5.0+ 测试</code></pre>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新建</strong>（19 个源文件 + 11 个测试文件）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th><th>r1/r2 状态</th></tr></thead>
+<tbody>
+<tr><td><code>app/ui/__init__.py</code></td><td>暴露 <code>build_ui()</code> / <code>launch_ui()</code></td><td>r0</td></tr>
+<tr><td><code>app/ui/gradio_app.py</code></td><td><code>gr.Blocks</code> 入口 + 4 tab 装配 + <code>launch()</code>（<strong>r1-P2-7：4 参数 launch</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/api_client.py</code></td><td><code>APIClient(httpx.AsyncClient)</code> 封装 M8 全部端点（<strong>r1-P1-8：401 计数</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/auth_state.py</code></td><td><code>AuthState</code> dataclass + <code>gr.BrowserState</code> 绑定</td><td>r0</td></tr>
+<tr><td><code>app/ui/theme.py</code></td><td><code>build_theme()</code> + <code>CUSTOM_CSS</code>（<strong>r1-P1-10：overflow-wrap: anywhere</strong> + <strong>r1-P2-3：@media mobile</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/errors.py</code></td><td><code>UIError</code> 分类（401/404/422/502）+ 渲染策略（<strong>r1-P1-8：401 计数</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/tabs/__init__.py</code></td><td>暴露 4 个 <code>build_tab()</code></td><td>r0</td></tr>
+<tr><td><code>app/ui/tabs/login.py</code></td><td>登录/注册/登出 tab（<strong>r1-P1-7：logout 跳 login</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/tabs/sessions.py</code></td><td>列表/新建/删除/切换 tab（<strong>r1-P1-9：confirm modal</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/tabs/chat.py</code></td><td>对话 tab（核心）（<strong>r1-P1-1 loading</strong> + <strong>r1-P1-3 autoscroll</strong> + <strong>r1-P1-4 keyboard</strong> + <strong>r1-P2-8 ChatResult dataclass</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/tabs/ingest.py</code></td><td>文件/URL/Confluence 三子 tab（<strong>r1-P1-5 50MB 限制</strong> + <strong>r1-P1-6 URL regex 验证</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/components/__init__.py</code></td><td>组件暴露</td><td>r0</td></tr>
+<tr><td><code>app/ui/components/message.py</code></td><td><code>parse_citations(answer)</code> regex 解析 + <code>build_message()</code></td><td>r0</td></tr>
+<tr><td><code>app/ui/components/source_card.py</code></td><td><code>build_source_accordions(sources)</code>（<strong>r1-P1-10：overflow-wrap: anywhere</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/components/image_thumb.py</code></td><td><code>image_ref_to_url(ref)</code> → Gradio <code>/file=</code>（<strong>r1-P0-3：try/except fallback</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>app/ui/components/progress.py</code></td><td><code>IngestProgress</code> 轮询 + <code>gr.Progress</code>（<strong>r1-P2-2：404 Warning</strong> + <strong>r1-P2-5：mock track_tqdm</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/unit/test_ui_api_client.py</code></td><td>httpx 调 M8 端点（mock）</td><td>r0</td></tr>
+<tr><td><code>tests/unit/test_ui_auth_state.py</code></td><td>BrowserState 持久化</td><td>r0</td></tr>
+<tr><td><code>tests/unit/test_ui_theme.py</code></td><td>暗色 + 中文字体 CSS（含 <strong>r1-P2-3 mobile media query</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/unit/test_ui_errors.py</code></td><td>401/404/422/502 分类（<strong>r1-P1-8：401 计数</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/unit/test_ui_message_parser.py</code></td><td>[1][2][3] regex 解析（6+ case）</td><td>r0</td></tr>
+<tr><td><code>tests/unit/test_ui_source_card.py</code></td><td>gr.Accordion 数据构造（含 <strong>r1-P1-10 overflow-wrap</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/unit/test_ui_image_thumb.py</code></td><td>image_ref 路径转 /file= URL + <strong>r1-P0-3 fallback</strong></td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/unit/test_ui_tabs.py</code></td><td>4 tab 工厂 + 切换不串扰（<strong>r1-P2-6：test_auth_state_not_leaked_to_session_state</strong>）</td><td>r0 + r2 回填</td></tr>
+<tr><td><code>tests/integration/conftest.py</code></td><td><code>pg_session</code> fixture（修 P0-5 真 PG）</td><td>r0</td></tr>
+<tr><td><code>tests/integration/test_m9_gradio_e2e.py</code></td><td>端到端：login → ingest sample → chat 多轮</td><td>r0</td></tr>
+<tr><td><code>tests/integration/test_gradio_can_call_fastapi_chat.py</code></td><td><strong>r1-P0-1：mock M8 CORSMiddleware 验证 Access-Control-Allow-Origin</strong></td><td>r2 新增</td></tr>
+<tr><td><code>tests/ui/test_m9_blocks_render.py</code></td><td>4 tab render 不报错</td><td>r0</td></tr>
+<tr><td><code>tests/ui/test_chatbot_messages_format_renders.py</code></td><td><strong>r1-P2-1：gr.Chatbot(type=&quot;messages&quot;) 5.0+ 兼容性</strong></td><td>r2 新增</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 <code>gradio&gt;=5.0,&lt;6</code> 直接依赖</li>
+<li><code>app/config.py</code>（M0+M1+M2+M3+M7+M8 累计）：追加 <code>UISettings</code>（<code>api_base_url</code> / <code>theme_bg</code> / <code>theme_accent</code> / <code>font_family</code> / <code>cors_origin</code>（<strong>r1-P1-11：@property 联动 gradio_server_port</strong>）/ <code>gradio_server_name</code> / <code>gradio_server_port</code>）</li>
+<li><code>infra/docker-compose.yml</code>（M0 已建）：追加 <code>gradio</code> service（<strong>r1-P0-2：healthcheck + depends_on fastapi: condition: service_healthy</strong>）</li>
+<li><code>.env.example</code>：追加 <code>GRADIO_SERVER_NAME=0.0.0.0</code> / <code>GRADIO_SERVER_PORT=7860</code> / <code>API_BASE_URL=http://api:8000</code></li>
+
+<p><strong>不修改</strong>：</p>
+<li><code>app/api/</code>（M8 已建，M9 不动路由）</li>
+<li><code>app/graph/</code>（M7 已建）</li>
+<li><code>app/db/</code>（M1 已建，M9 不直接查 DB，全走 M8）</li>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="day-1-theme-api-client-auth-state基础设施">Day 1 · theme + api_client + auth_state（基础设施）</h3>
+
+<h4 id="task-1uisettings-配置块含-r1-p1-11-cors-origin-联动">Task 1：UISettings 配置块（含 r1-P1-11 cors_origin 联动）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_theme.py::test_ui_settings_loads</code></p>
+<li>写测试：mock env <code>API_BASE_URL=http://api:8000</code> → 加载 <code>Settings().ui</code> → 断言 <code>api_base_url == &quot;http://api:8000&quot;</code></li>
+<li>跑测试 → 失败</li>
+<li>跑法：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_ui_theme.py::test_ui_settings_loads</code></li>
+
+<p><strong>GREEN</strong> · 改 <code>app/config.py</code>：</p>
+<pre><code data-lang="python">class UISettings(BaseSettings):
+    api_base_url: str = &quot;http://localhost:8000&quot;
+    theme_bg: str = &quot;#0d1117&quot;
+    theme_accent: str = &quot;#58a6ff&quot;
+    font_family: str = &quot;PingFang SC, Microsoft YaHei, sans-serif&quot;
+    gradio_server_name: str = &quot;0.0.0.0&quot;
+    gradio_server_port: int = 7860
+
+    # r1-P1-11 已修：cors_origin 联动 gradio_server_port（避免端口漂移时 CORS 失配）
+    @property
+    def cors_origin(self) -&gt; str:
+        &quot;&quot;&quot;CORS origin 跟随 gradio_server_port 自动联动，默认 http://localhost:7860。
+        env 覆盖：CORS_ORIGIN=http://staging.example.com:7860&quot;&quot;&quot;
+        env_override = os.getenv(&quot;CORS_ORIGIN&quot;)
+        if env_override:
+            return env_override
+        return f&quot;http://localhost:{self.gradio_server_port}&quot;</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 <code>Settings</code> 拆 <code>app/configs/</code> 子文件（修 X-1，但 M9 不动，留给 M10）</p>
+
+<h4 id="task-2暗色主题-中文字体-css含-r1-p1-10-overflow-wrap-r1-p2-3-mobile-media-query">Task 2：暗色主题 + 中文字体 CSS（含 r1-P1-10 overflow-wrap + r1-P2-3 mobile media query）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_theme.py::test_theme_bg_is_dark</code></p>
+<li>调 <code>build_theme()</code> → 断言返回 <code>gr.Theme</code> 实例 → 序列化变量后含 <code>0d1117</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/theme.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+
+def build_theme() -&gt; gr.Theme:
+    base = gr.themes.Monochrome(
+        primary_hue=gr.themes.Color(&quot;#58a6ff&quot;, &quot;#58a6ff&quot;),
+        neutral_hue=gr.themes.Color(&quot;#0d1117&quot;, &quot;#0d1117&quot;),
+    )
+    return base.set(
+        body_background_fill=&quot;#0d1117&quot;,
+        block_background_fill=&quot;#161b22&quot;,
+        button_primary_background_fill=&quot;#58a6ff&quot;,
+        font=[&quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;, &quot;sans-serif&quot;],
+    )
+
+# r1-P1-10 已修：中文 source 卡溢出防护三件套
+# r1-P2-3 已修：mobile responsive 媒体查询
+CUSTOM_CSS = &quot;&quot;&quot;
+body { background: #0d1117; color: #c9d1d9; }
+.chat-message { word-wrap: break-word; max-width: 100%; }
+.source-card pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+.tab-nav { flex-wrap: wrap; }
+
+/* r1-P2-3 · mobile responsive：折叠 tab 为汉堡菜单 */
+@media (max-width: 640px) {
+    .gradio-container { padding: 0 !important; }
+    .tab-nav { display: none; }
+    .mobile-menu-toggle { display: block; }
+    .chat-message { font-size: 14px; }
+    .source-card pre { font-size: 12px; }
+}
+&quot;&quot;&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_font_family_includes_chinese</code></p>
+<li>断言 <code>build_theme().font[0] in (&quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;)</code></li>
+
+<p><strong>GREEN</strong> · 已有</p>
+
+<p><strong>RED</strong> · <code>test_custom_css_has_overflow_wrap_anywhere</code>（<strong>r1-P1-10</strong>）</p>
+<li>断言 <code>CUSTOM_CSS</code> 含 <code>overflow-wrap: anywhere</code></li>
+
+<p><strong>RED</strong> · <code>test_custom_css_has_mobile_media_query</code>（<strong>r1-P2-3</strong>）</p>
+<li>断言 <code>CUSTOM_CSS</code> 含 <code>@media (max-width: 640px)</code></li>
+
+<h4 id="task-3api-客户端骨架含-r1-p1-8-401-计数">Task 3：API 客户端骨架（含 r1-P1-8 401 计数）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_api_client.py::test_api_client_health</code></p>
+<li>mock httpx <code>GET /api/health</code> 返 200 → 调 <code>APIClient().health()</code> → 断言 <code>status == &quot;ok&quot;</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/api_client.py</code>（骨架，10 个端点）：</p>
+<pre><code data-lang="python">class APIClient:
+    def __init__(self, base_url=None, token=None):
+        self._base = base_url or settings.ui.api_base_url
+        self._token = token
+        self._client = httpx.AsyncClient(base_url=self._base, timeout=30.0)
+        self._consecutive_401 = 0  # r1-P1-8：连续 401 计数
+
+    def set_token(self, token): self._token = token
+
+    def _headers(self):
+        h = {&quot;X-Request-Id&quot;: str(uuid.uuid4())}
+        if self._token: h[&quot;Authorization&quot;] = f&quot;Bearer {self._token}&quot;
+        return h
+
+    def _record_401(self):
+        &quot;&quot;&quot;r1-P1-8：连续 3 次 401 → gr.Info 提示 + 跳 login tab&quot;&quot;&quot;
+        self._consecutive_401 += 1
+        if self._consecutive_401 &gt;= 3:
+            raise gr.Info(&quot;Session expired, please re-login&quot;)
+
+    def _reset_401(self):
+        &quot;&quot;&quot;成功请求重置计数&quot;&quot;&quot;
+        self._consecutive_401 = 0
+
+    # 10 个方法：health / login / register / logout / list_sessions /
+    #   create_session / delete_session / post_chat / post_ingest / get_ingest_progress
+    # 内部统一 _request() → classify_response() → 业务返回 dict
+    # post_chat 返回的 trace_id 字段（M8 r2 已统一）作为 Langfuse 链接锚点</code></pre>
+
+<p><strong>RED</strong> · <code>test_api_client_includes_bearer_when_token_set</code></p>
+<li><code>APIClient(token=&quot;xxx&quot;).post_chat(...)</code> → mock httpx → 断言 header <code>Authorization == &quot;Bearer xxx&quot;</code></li>
+
+<p><strong>GREEN</strong> · 已有 <code>_headers()</code> 逻辑</p>
+
+<p><strong>RED</strong> · <code>test_api_client_counts_consecutive_401</code>（<strong>r1-P1-8</strong>）</p>
+<li>mock 3 次连续 401 → 调 <code>post_chat</code> 3 次 → 断言第 3 次抛 <code>gr.Info</code> + <code>_consecutive_401</code> 重置</li>
+
+<p><strong>GREEN</strong> · <code>_record_401</code> / <code>_reset_401</code> 逻辑</p>
+
+<p><strong>REFACTOR</strong> · 抽 <code>_request(method, path, **kw)</code> 统一重试 + 异常转换</p>
+
+<h4 id="task-4authstate-grbrowserstate-持久化">Task 4：AuthState + gr.BrowserState 持久化</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_auth_state.py::test_auth_state_persists_token</code></p>
+<li>写测试：<code>AuthState(token=&quot;t&quot;, user_id=&quot;u&quot;)</code> → 调 <code>.to_dict()</code> → 断言字段齐</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/auth_state.py</code>：</p>
+<pre><code data-lang="python">@dataclass
+class AuthState:
+    token: str | None = None
+    user_id: str | None = None
+    username: str | None = None
+
+    def to_dict(self): return asdict(self)
+    @classmethod
+    def from_dict(cls, d): return cls(**(d or {}))
+    @property
+    def is_authenticated(self): return bool(self.token and self.user_id)</code></pre>
+
+<p>绑定：<code>gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)</code>（5.0+ 新 API，刷新页面不丢）。</p>
+
+<p><strong>RED</strong> · <code>test_browser_state_binds_to_auth_state</code></p>
+<li>构造 <code>gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)</code> → 断言类型是 <code>BrowserState</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 文档化用法：</p>
+
+<pre><code data-lang="python"># gradio_app.py 装配时
+auth = gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)
+# handler 里：auth.value → dict；auth.value = AuthState(...).to_dict()</code></pre>
+
+<h4 id="task-5前端错误分类含-r1-p1-8-401-计数">Task 5：前端错误分类（含 r1-P1-8 401 计数）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_errors.py::test_401_triggers_auth_expired</code></p>
+<li>mock 401 response → 调 <code>APIClient._raise_for_status(resp)</code> → 断言抛 <code>AuthExpired</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/errors.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+
+class AuthExpired(Exception): ...        # 401 → 跳登录
+class NotFound(Exception): ...            # 404 → 静默
+class ValidationError(Exception): ...     # 422 → 表单红框
+class UpstreamError(Exception): ...       # 502/503 → 显式错误 + 渲染 GraphSettings.fallback_message
+class NetworkError(Exception): ...        # 网络断
+
+def classify_response(resp: httpx.Response) -&gt; None:
+    if resp.status_code == 401:
+        raise AuthExpired(resp.json().get(&quot;detail&quot;, &quot;未登录&quot;))
+    if resp.status_code == 404:
+        raise NotFound(resp.json().get(&quot;detail&quot;, &quot;未找到&quot;))
+    if resp.status_code == 422:
+        raise ValidationError(resp.json())
+    if resp.status_code in (502, 503):
+        # r1-P2-7/chat_tab：502/503 触发 GraphSettings.fallback_message（M7 chitchat fallback）
+        raise UpstreamError(resp.json().get(&quot;detail&quot;, &quot;上游服务异常&quot;))
+    resp.raise_for_status()
+
+def render_error(exc: Exception) -&gt; str:
+    &quot;&quot;&quot;r1-P1-2 已修：错误提示改用 Gradio 5.0+ gr.Error toast（非阻塞）&quot;&quot;&quot;
+    if isinstance(exc, AuthExpired):
+        raise gr.Error(&quot;Session expired, please re-login&quot;)
+    if isinstance(exc, ValidationError):
+        raise gr.Error(f&quot;表单校验失败：{exc.args[0]}&quot;)
+    if isinstance(exc, UpstreamError):
+        raise gr.Error(f&quot;上游异常：{exc.args[0]}&quot;)
+    # NotFound 静默不渲染</code></pre>
+
+<p><strong>RED</strong> · <code>test_404_raises_not_found_silently</code></p>
+<li>mock 404 → 断言抛 <code>NotFound</code>（<strong>不抛</strong> <code>httpx.HTTPStatusError</code> 暴露存在性）</li>
+
+<p><strong>GREEN</strong> · 已有</p>
+
+<h3 id="day-2-login-sessions-tab前置依赖-含-r1-p1-7-logout-r1-p1-9-confirm">Day 2 · login + sessions tab（前置依赖 · 含 r1-P1-7 logout + r1-P1-9 confirm）</h3>
+
+<h4 id="task-6login-tab-工厂含-r1-p1-7-logout-redirect">Task 6：login tab 工厂（含 r1-P1-7 logout redirect）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_tabs.py::test_login_tab_builds_without_error</code></p>
+<li>调 <code>build_login_tab()</code> → 断言返回 <code>gr.Tab</code> 实例或 <code>dict</code>（含 username/password/button + logout）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/tabs/login.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+
+def build_login_tab(client, auth):
+    with gr.Tab(&quot;登录&quot;) as tab:
+        gr.Markdown(&quot;# RAG V1 登录&quot;)
+        with gr.Tabs():
+            with gr.Tab(&quot;登录&quot;):
+                u = gr.Textbox(label=&quot;用户名&quot;)
+                p = gr.Textbox(label=&quot;密码&quot;, type=&quot;password&quot;)
+                msg = gr.Markdown()
+                login_btn = gr.Button(&quot;登录&quot;, variant=&quot;primary&quot;)
+                login_btn.click(_handle_login, [u, p, auth], [msg, auth], api_name=&quot;login&quot;)
+            with gr.Tab(&quot;注册&quot;):
+                u = gr.Textbox(label=&quot;用户名&quot;); e = gr.Textbox(label=&quot;邮箱&quot;)
+                p = gr.Textbox(label=&quot;密码&quot;, type=&quot;password&quot;); rmsg = gr.Markdown()
+                gr.Button(&quot;注册&quot;).click(_handle_register, [u, e, p], [rmsg, auth])
+
+        # r1-P1-7 已修：logout button（已登录时显示）+ 跳 login tab
+        logout_btn = gr.Button(&quot;登出&quot;, variant=&quot;stop&quot;, visible=False)
+        logout_btn.click(_handle_logout, [auth], [msg, auth, logout_btn, gr.Tabs(selected=0)])
+    return tab
+
+async def _handle_login(username, password, auth_state_value):
+    try:
+        result = await client.login(username, password)
+    except AuthExpired:
+        # r1-P1-2 已修：gr.Error toast 替代 Markdown
+        raise gr.Error(&quot;❌ 用户名或密码错误&quot;)
+    new_auth = AuthState(token=result[&quot;token&quot;], user_id=result[&quot;user_id&quot;], username=username)
+    return f&quot;✅ 欢迎 {username}&quot;, new_auth.to_dict()
+
+async def _handle_logout(auth_state_value):
+    &quot;&quot;&quot;r1-P1-7 已修：logout 调 M2 /api/auth/logout (返 204) + 清 BrowserState + 跳 login tab&quot;&quot;&quot;
+    try:
+        await client.logout()
+    except Exception:
+        pass  # 客户端 logout 失败也清前端 state
+    return &quot;&quot;, {}, gr.update(visible=False), gr.update(selected=0)</code></pre>
+
+<p><strong>RED</strong> · <code>test_login_handler_updates_auth_state</code></p>
+<li>mock APIClient.login → 调 handler → 断言返回的 auth_state 包含 token</li>
+
+<p><strong>GREEN</strong> · handler 内构造 new AuthState → <code>.to_dict()</code> 返回</p>
+
+<p><strong>RED</strong> · <code>test_logout_clears_auth_state</code>（<strong>r1-P1-7</strong>）</p>
+<li>mock 已登录 state → 调 <code>_handle_logout</code> → 断言返回 <code>({}, gr.update(visible=False), gr.update(selected=0))</code></li>
+
+<p><strong>GREEN</strong> · <code>_handle_logout</code> 逻辑</p>
+
+<h4 id="task-7sessions-tab-工厂含-r1-p1-9-confirm-modal">Task 7：sessions tab 工厂（含 r1-P1-9 confirm modal）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_tabs.py::test_sessions_tab_lists_sessions</code></p>
+<li>mock APIClient.list_sessions → 返 2 条 → 调 <code>build_sessions_tab</code> 渲染 → 断言 Dataframe 含 2 行 + confirm modal 存在</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/tabs/sessions.py</code>：</p>
+<pre><code data-lang="python">def build_sessions_tab(client, current_session):
+    with gr.Tab(&quot;会话&quot;) as tab:
+        df = gr.Dataframe(headers=[&quot;标题&quot;, &quot;更新时间&quot;, &quot;消息数&quot;], interactive=False)
+        refresh = gr.Button(&quot;刷新列表&quot;)
+        new_btn = gr.Button(&quot;新建会话&quot;, variant=&quot;primary&quot;)
+        del_btn = gr.Button(&quot;删除选中&quot;)
+        switch_btn = gr.Button(&quot;切换到选中&quot;)
+
+        # r1-P1-9 已修：confirm 删除模态
+        with gr.Group(visible=False) as confirm_modal:
+            gr.Markdown(&quot;⚠️ 确认删除该会话？此操作不可撤销。&quot;)
+            confirm_yes = gr.Button(&quot;确认删除&quot;, variant=&quot;stop&quot;)
+            confirm_no = gr.Button(&quot;取消&quot;)
+
+        refresh.click(_refresh_list, None, df)
+        new_btn.click(_create_new, None, [df, current_session])
+        del_btn.click(lambda: gr.update(visible=True), None, confirm_modal)
+        confirm_yes.click(_delete_selected, [df], [df, confirm_modal])
+        confirm_no.click(lambda: gr.update(visible=False), None, confirm_modal)
+        switch_btn.click(_switch, [df, current_session], current_session)
+    return tab
+
+async def _refresh_list():
+    sessions = await client.list_sessions()  # 依赖 P1-6 复合索引
+    return [[s[&quot;title&quot;], s[&quot;updated_at&quot;], s[&quot;message_count&quot;]] for s in sessions]</code></pre>
+
+<p><strong>RED</strong> · <code>test_sessions_list_uses_active_only</code>（依赖 P1-6 复合索引）</p>
+<li>mock DB → 用 M1 fixture 建 2 active + 1 inactive → 调 <code>client.list_sessions</code>（走真 M8）→ 断言返 2 条</li>
+
+<p><strong>GREEN</strong> · 已有（依赖 M8 + P1-6 索引）</p>
+
+<p><strong>RED</strong> · <code>test_delete_button_shows_confirm_modal</code>（<strong>r1-P1-9</strong>）</p>
+<li>模拟点击删除按钮 → 断言 confirm_modal visible=True</li>
+
+<p><strong>GREEN</strong> · <code>del_btn.click(lambda: gr.update(visible=True), None, confirm_modal)</code></p>
+
+<h3 id="day-3-chat-tab核心消息流-source-渲染-含-r1-p1-123410-r1-p2-8">Day 3 · chat tab（核心，消息流 + source 渲染 · 含 r1-P1-1/2/3/4/10 + r1-P2-8）</h3>
+
+<h4 id="task-8message-组件-123-regex-解析">Task 8：message 组件 + [1][2][3] regex 解析</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_message_parser.py::test_parse_simple_citations</code></p>
+<li>输入 <code>&quot;对比结果[1][2]如上&quot;</code> → 调 <code>parse_citations()</code> → 断言 <code>(text, [1, 2])</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/components/message.py</code>：</p>
+<pre><code data-lang="python">import re
+from dataclasses import dataclass
+
+CITATION_PATTERN = re.compile(r&quot;\[(\d+)\]&quot;)
+
+@dataclass
+class ParsedMessage:
+    text: str
+    citations: list[int]
+
+def parse_citations(answer: str) -&gt; ParsedMessage:
+    &quot;&quot;&quot;提取 LLM answer 中的 [1][2][3] 引用标记。返回清洗后文本 + 引用 ID 列表（去重保序）。&quot;&quot;&quot;
+    citations = [int(m.group(1)) for m in CITATION_PATTERN.finditer(answer)]
+    # 去重保序
+    seen = set()
+    unique = []
+    for c in citations:
+        if c not in seen:
+            seen.add(c)
+            unique.append(c)
+    # 文本保留原始（UI 渲染时把 [1] 变成可点击链接）
+    return ParsedMessage(text=answer, citations=unique)</code></pre>
+
+<p><strong>RED</strong> · <code>test_parse_citations_handles_5_cases</code>（参数化）</p>
+<li>case 1: <code>&quot;abc[1]&quot;</code> → <code>[1]</code></li>
+<li>case 2: <code>&quot;[1][2][3]&quot;</code> → <code>[1,2,3]</code></li>
+<li>case 3: <code>&quot;无引用&quot;</code> → <code>[]</code></li>
+<li>case 4: <code>&quot;[1][1][2]&quot;</code> → <code>[1,2]</code>（去重）</li>
+<li>case 5: <code>&quot;末尾[42]&quot;</code> → <code>[42]</code></li>
+<li>case 6: <code>&quot;嵌套[1abc2]&quot;</code> → <code>[]</code>（regex 不匹配）</li>
+<li>跑测试 → 失败（前面 5 个 case 通过，case 4 失败）</li>
+
+<p><strong>GREEN</strong> · 去重逻辑</p>
+
+<h4 id="task-9source-card-组件含-r1-p1-10-overflow-wrap-anywhere">Task 9：source_card 组件（含 r1-P1-10 overflow-wrap: anywhere）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_source_card.py::test_source_card_breaks_long_text</code></p>
+<li>输入 source text 超 200 字符 → 渲染 → 断言含 CSS class <code>word-wrap: break-word</code> + <code>overflow-wrap: anywhere</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/components/source_card.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+from app.api.schemas.chat import Source
+
+def build_source_accordions(sources: list[Source]) -&gt; list[gr.Accordion]:
+    accordions = []
+    for i, src in enumerate(sources, start=1):
+        # r1-P1-10 已修：中文长文本三件套 overflow
+        with gr.Accordion(f&quot;📄 来源 [{i}] {src.title or &#x27;未命名&#x27;}&quot;, open=False) as acc:
+            gr.Markdown(f&quot;&lt;div class=&#x27;source-card&#x27;&gt;```\n{src.content}\n```&lt;/div&gt;&quot;)
+            if src.url:
+                gr.Markdown(f&quot;[原文链接]({src.url})&quot;)
+        accordions.append(acc)
+    return accordions</code></pre>
+
+<p><strong>RED</strong> · <code>test_source_card_has_overflow_wrap_class</code>（<strong>r1-P1-10</strong>）</p>
+<li>断言生成的 HTML 含 <code>class=&quot;source-card&quot;</code></li>
+
+<p><strong>GREEN</strong> · 已有</p>
+
+<h4 id="task-10image-thumb-组件含-r1-p0-3-tryexcept-fallback">Task 10：image_thumb 组件（含 r1-P0-3 try/except fallback）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_image_thumb.py::test_image_ref_converts_to_file_url</code></p>
+<li>输入 <code>image_ref=&quot;/data/imgs/p1.png&quot;</code> + <code>api_base=&quot;http://api:8000&quot;</code> → 调 <code>image_ref_to_url</code> → 断言 <code>&quot;http://api:8000/file=/data/imgs/p1.png&quot;</code>（Gradio 5.0+ <code>/file=</code> 约定）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/components/image_thumb.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+from app.config import settings
+
+def image_ref_to_url(ref: str) -&gt; str:
+    &quot;&quot;&quot;M7 retrieve 返回的 image_ref（容器内路径）→ Gradio 可访问的 /file= URL。
+    M8 端点：GET /file/{path} 流式返文件（M12 加；M9 假设 M8 已有 /file 端点 stub）。
+    &quot;&quot;&quot;
+    if ref.startswith(&quot;data:&quot;):
+        # P1-2 决策：路径优先，data URL 兜底
+        return ref
+    base = settings.ui.api_base_url.rstrip(&quot;/&quot;)
+    return f&quot;{base}/file={ref}&quot;
+
+def render_image_thumb(url: str) -&gt; gr.Component:
+    &quot;&quot;&quot;r1-P0-3 已修：try/except 包裹 + on_error 钩子 + Markdown fallback&quot;&quot;&quot;
+    try:
+        return gr.Image(value=url, show_label=False, height=200)
+    except Exception:
+        # 缩略图加载失败：降级 Markdown 占位
+        return gr.Markdown(&quot;📎 缩略图加载失败&quot;)</code></pre>
+
+<p><strong>RED</strong> · <code>test_image_ref_handles_data_url</code>（P1-2 决策：路径优先，data URL 兜底）</p>
+<li>输入 <code>image_ref=&quot;data:image/png;base64,...&quot;</code> → 断言直接返回（不拼 URL）</li>
+
+<p><strong>GREEN</strong> · 识别 <code>data:</code> 前缀</p>
+
+<p><strong>RED</strong> · <code>test_render_image_thumb_falls_back_on_error</code>（<strong>r1-P0-3</strong>）</p>
+<li>输入非法 URL → 调 <code>render_image_thumb</code> → 断言返回 <code>gr.Markdown</code> 组件（<strong>不抛</strong>异常）</li>
+
+<p><strong>GREEN</strong> · try/except 包裹</p>
+
+<h4 id="task-11chat-tab-主体含-r1-p1-1-loading-r1-p1-3-autoscroll-r1-p1-4-keyboard-r1-p2-8-">Task 11：chat tab 主体（含 r1-P1-1 loading + r1-P1-3 autoscroll + r1-P1-4 keyboard + r1-P2-8 ChatResult dataclass + r1-漂-2 trace_id 统一）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_tabs.py::test_chat_tab_posts_query_and_renders_sources</code></p>
+<li>mock APIClient.post_chat → 返 <code>{answer: &quot;[1][2]&quot;, sources: [...], image_refs: [...]}</code> → 模拟用户发 query → 断言 Chatbot 新增消息 + Source accordion 展开</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/tabs/chat.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+from dataclasses import dataclass
+
+@dataclass  # r1-P2-8 已修：5 元返回值封装（gr.State 透传友好）
+class ChatResult:
+    chatbot_update: gr.update
+    sources_update: gr.update
+    gallery_update: gr.update
+    trace_update: gr.update
+    query_clear: str
+
+def build_chat_tab(client, current_session, auth_state):
+    with gr.Tab(&quot;对话&quot;) as tab:
+        # r1-P1-3 已修：autoscroll=True 5.0+ 内置
+        chatbot = gr.Chatbot(type=&quot;messages&quot;, label=&quot;对话&quot;, autoscroll=True)
+        # r1-P1-4 已修：submit_btn=True + placeholder 提示 Enter 发送 / Shift+Enter 换行
+        query = gr.Textbox(
+            placeholder=&quot;问点什么... (Enter 发送 / Shift+Enter 换行)&quot;,
+            label=&quot;问题&quot;,
+            submit_btn=True,
+        )
+        # r1-P1-1 已修：input 禁用 + spinner（通过 yield 增量更新）
+        gr.Button(&quot;发送&quot;, variant=&quot;primary&quot;).click(
+            _handle_chat, [query, current_session, auth_state],
+            [chatbot, gr.Column(), gr.Gallery(), gr.Markdown(), query], api_name=&quot;chat&quot;
+        )
+    return tab
+
+async def _handle_chat(query, session_id, auth_state_value):
+    &quot;&quot;&quot;r1-P1-1 已修：yield 增量更新禁用 input + spinner + 错误 toast&quot;&quot;&quot;
+    if not query.strip():
+        yield gr.update(), gr.update(), gr.update(), gr.update(), &quot;&quot;
+        return
+
+    # r1-P1-1 已修：loading 阶段 - 禁用 input + 显示 spinner
+    yield (
+        gr.update(), gr.update(), gr.update(),
+        gr.update(value=&quot;⏳ 正在检索知识库...&quot;),
+        gr.update(interactive=False),  # 禁用 input 防双击
+    )
+
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    try:
+        response = await client.post_chat(query, session_id)
+    except AuthExpired:
+        # r1-P1-2 已修：gr.Error toast 替代 Markdown
+        raise gr.Error(&quot;Session expired, please re-login&quot;)
+    except UpstreamError as e:
+        # M7 chitchat fallback：渲染 GraphSettings.fallback_message
+        raise gr.Error(f&quot;上游异常：{e}&quot;)
+    except NetworkError:
+        raise gr.Error(&quot;网络连接失败，请检查网络后重试&quot;)
+
+    parsed = parse_citations(response[&quot;answer&quot;])
+    # r1-漂-2 已修：trace_id 字段（M8 r2 已统一）替代 request_id
+    trace_id = response.get(&quot;trace_id&quot;)
+    yield (
+        [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: query}, {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: parsed.text}],
+        gr.update(visible=True, value=build_source_accordions(response.get(&quot;sources&quot;, []))),
+        gr.update(
+            visible=bool(response.get(&quot;image_refs&quot;)),
+            value=[render_image_thumb(image_ref_to_url(r)) for r in response.get(&quot;image_refs&quot;, [])],
+        ),
+        gr.update(
+            visible=True,
+            value=f&quot;🔗 [trace]({settings.langfuse_host}/trace/{trace_id})&quot; if trace_id else &quot;&quot;,
+        ),
+        gr.update(value=&quot;&quot;, interactive=True),  # 清空 input + 恢复可输入
+    )</code></pre>
+
+<p><strong>RED</strong> · <code>test_chat_handler_handles_401_by_returning_login_prompt</code>（关键 401 跳转）</p>
+<li>mock 401 → 调 handler → 断言 chat history 不变 + 显示 &quot;请重新登录&quot;</li>
+
+<p><strong>GREEN</strong> · try/except AuthExpired → 显式 <code>raise gr.Error</code></p>
+
+<p><strong>RED</strong> · <code>test_chat_uses_trace_id_field</code>（<strong>r1-漂-2</strong>）</p>
+<li>mock M8 返 <code>{trace_id: &quot;abc-123&quot;}</code> → 调 handler → 断言 Langfuse 链接含 <code>abc-123</code></li>
+
+<p><strong>GREEN</strong> · 用 <code>response[&quot;trace_id&quot;]</code> 字段</p>
+
+<p><strong>REFACTOR</strong> · 5 个 update 已封装为 <code>ChatResult</code> dataclass（<strong>r1-P2-8</strong>），handler 返回 dataclass 或 yield 序列（视 Gradio 支持度而定）</p>
+
+<h3 id="day-4-ingest-tab-进度轮询含-r1-p1-56-r1-p2-25">Day 4 · ingest tab + 进度轮询（含 r1-P1-5/6 + r1-P2-2/5）</h3>
+
+<h4 id="task-12ingest-进度组件含-r1-p2-2-404-提示-r1-p2-5-mock-track-tqdm">Task 12：ingest 进度组件（含 r1-P2-2 404 提示 + r1-P2-5 mock track_tqdm）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_progress.py::test_poll_returns_completed</code></p>
+<li>mock <code>get_ingest_progress</code> 返 <code>{status: &quot;completed&quot;, progress: 1.0}</code> → 调 <code>IngestProgress.poll(&quot;job_123&quot;)</code> → 断言 status 是 completed</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/components/progress.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+import asyncio
+from unittest.mock import MagicMock, patch
+
+class IngestProgress:
+    def __init__(self, client, job_id, gr_progress: gr.Progress):
+        self.client, self.job_id, self.gr_progress = client, job_id, gr_progress
+
+    async def poll_until_done(self, interval=1.0, max_wait=300.0):
+        elapsed = 0.0
+        while elapsed &lt; max_wait:
+            try:
+                data = await self.client.get_ingest_progress(self.job_id)
+            except NotFound:
+                # r1-P2-2 已修：404 显式提示用户 + 引导重新入库
+                raise gr.Warning(&quot;Job 不存在或已过期，请重新提交入库任务&quot;)
+            self.gr_progress(data[&quot;progress&quot;], desc=f&quot;[{data[&#x27;status&#x27;]}] {data.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;)
+            if data[&quot;status&quot;] in (&quot;completed&quot;, &quot;failed&quot;):
+                return data
+            await asyncio.sleep(interval); elapsed += interval
+        raise TimeoutError(f&quot;ingest {self.job_id} 超时&quot;)</code></pre>
+
+<p><strong>RED</strong> · <code>test_poll_uses_gr_progress_tqdm</code>（<strong>r1-P2-5</strong> 含 mock 细节）</p>
+<pre><code data-lang="python"># r1-P2-5 已修：unittest.mock.patch MagicMock 包装 gr.Progress
+@patch(&quot;gradio.Progress&quot;, MagicMock(track_tqdm=True))
+async def test_poll_uses_gr_progress_tqdm():
+    mock_progress = MagicMock(track_tqdm=True)
+    # ... 用 mock_progress 替换真实 gr.Progress 实例
+    # 断言 tqdm-style 更新被触发</code></pre>
+
+<p><strong>GREEN</strong> · <code>track_tqdm=True</code> 默认</p>
+
+<p><strong>RED</strong> · <code>test_poll_handles_404_gracefully</code></p>
+<li>mock 404 → 调 poll → 断言抛 <code>gr.Warning(&quot;Job 不存在或已过期&quot;)</code>（<strong>不</strong>静默）</li>
+
+<p><strong>GREEN</strong> · 错误分类已有</p>
+
+<h4 id="task-13file-upload-子-tab含-r1-p1-5-50mb-限制-r1-p1-6-url-regex-验证">Task 13：file upload 子 tab（含 r1-P1-5 50MB 限制 + r1-P1-6 URL regex 验证）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_ui_tabs.py::test_ingest_file_uploads_to_api</code></p>
+<li>mock APIClient.post_ingest → 模拟用户上传 1 个 .pdf → 调 handler → 断言 post_ingest 被调且 source=&quot;file&quot;</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/tabs/ingest.py</code>（3 子 tab 骨架）：</p>
+<pre><code data-lang="python">import gradio as gr
+import re
+
+# r1-P1-6 已修：URL 前端验证 regex
+URL_PATTERN = re.compile(r&quot;^https?://[^\s/$.?#].[^\s]*$&quot;)
+
+# r1-P1-5 已修：50MB 文件大小限制
+MAX_FILE_SIZE_MB = 50
+
+def build_ingest_tab(client, auth):
+    with gr.Tab(&quot;入库&quot;) as tab:
+        with gr.Tabs():
+            with gr.Tab(&quot;文件上传&quot;):
+                # r1-P1-5：file_count + file_types 不变，size 检查放 handler
+                files = gr.File(file_count=&quot;multiple&quot;, file_types=[&quot;.pdf&quot;, &quot;.docx&quot;, &quot;.md&quot;, &quot;.txt&quot;])
+                msg = gr.Markdown()
+                gr.Button(&quot;提交入库&quot;, variant=&quot;primary&quot;).click(_handle_file, [files, auth], msg)
+            with gr.Tab(&quot;URL 提交&quot;):
+                # r1-P1-6：placeholder 提示格式
+                url = gr.Textbox(label=&quot;URL&quot;, placeholder=&quot;https:// 或 http:// 开头的完整 URL&quot;)
+                auth_type = gr.Radio([&quot;none&quot;, &quot;basic&quot;, &quot;bearer&quot;, &quot;cookie&quot;], value=&quot;none&quot;, label=&quot;认证方式&quot;)
+                creds = gr.Textbox(label=&quot;凭据&quot;, visible=False)
+                msg = gr.Markdown()
+                auth_type.change(_toggle_creds, auth_type, creds)
+                gr.Button(&quot;提交入库&quot;, variant=&quot;primary&quot;).click(_handle_url, [url, auth_type, creds, auth], msg)
+            with gr.Tab(&quot;Confluence&quot;):
+                page_url = gr.Textbox(label=&quot;Page URL&quot;); space_key = gr.Textbox(label=&quot;Space Key&quot;)
+                msg = gr.Markdown()
+                gr.Button(&quot;提交入库&quot;, variant=&quot;primary&quot;).click(_handle_confluence, [page_url, space_key, auth], msg)
+    return tab
+
+def _toggle_creds(auth_type): return gr.update(visible=auth_type != &quot;none&quot;)
+
+async def _handle_file(files, auth_state_value):
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    if not files:
+        raise gr.Warning(&quot;请选择至少一个文件&quot;)
+    # r1-P1-5 已修：前端 50MB 限制
+    oversized = [f.name for f in files if f.size &gt; MAX_FILE_SIZE_MB * 1024 * 1024]
+    if oversized:
+        raise gr.Warning(f&quot;以下文件超过 {MAX_FILE_SIZE_MB}MB，已拒绝上传：{&#x27;, &#x27;.join(oversized)}&quot;)
+    paths = [f.name for f in files]
+    result = await client.post_ingest(source=&quot;file&quot;, payload={&quot;paths&quot;: paths})
+    return f&quot;✅ 已提交 {len(paths)} 个文件，job_id: {result[&#x27;job_id&#x27;]}&quot;
+
+async def _handle_url(url, auth_type, creds, auth_state_value):
+    # r1-P1-6 已修：URL 前端 regex 验证
+    if not url or not URL_PATTERN.match(url):
+        raise gr.Warning(&quot;URL 格式不正确，请输入以 http:// 或 https:// 开头的完整 URL&quot;)
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    result = await client.post_ingest(
+        source=&quot;url&quot;,
+        payload={&quot;url&quot;: url, &quot;auth_type&quot;: auth_type, &quot;creds&quot;: creds or None},
+    )
+    return f&quot;✅ URL 已提交，job_id: {result[&#x27;job_id&#x27;]}&quot;
+
+async def _handle_confluence(page_url, space_key, auth_state_value):
+    # 类似 _handle_url，含 space_key 必填校验
+    if not space_key or not space_key.strip():
+        raise gr.Warning(&quot;请填写 Space Key&quot;)
+    auth = AuthState.from_dict(auth_state_value); client.set_token(auth.token)
+    result = await client.post_ingest(
+        source=&quot;confluence&quot;,
+        payload={&quot;page_url&quot;: page_url, &quot;space_key&quot;: space_key},
+    )
+    return f&quot;✅ Confluence 已提交，job_id: {result[&#x27;job_id&#x27;]}&quot;</code></pre>
+
+<p><strong>RED</strong> · <code>test_url_auth_type_toggles_creds_visibility</code></p>
+<li>模拟 auth_type 变 → 断言 creds 可见性切换</li>
+
+<p><strong>GREEN</strong> · <code>_toggle_creds</code></p>
+
+<p><strong>RED</strong> · <code>test_confluence_requires_space_key</code></p>
+<li>空 space_key → 调 handler → 断言抛 <code>gr.Warning(&quot;请填写 Space Key&quot;)</code></li>
+
+<p><strong>GREEN</strong> · 表单验证</p>
+
+<p><strong>RED</strong> · <code>test_file_upload_rejects_oversized_files</code>（<strong>r1-P1-5</strong>）</p>
+<li>mock 60MB 文件 → 调 <code>_handle_file</code> → 断言抛 <code>gr.Warning</code></li>
+
+<p><strong>GREEN</strong> · size 检查</p>
+
+<p><strong>RED</strong> · <code>test_url_validation_rejects_malformed</code>（<strong>r1-P1-6</strong>）</p>
+<li>输入 <code>&quot;not-a-url&quot;</code> → 调 <code>_handle_url</code> → 断言抛 <code>gr.Warning</code></li>
+
+<p><strong>GREEN</strong> · <code>URL_PATTERN.match</code></p>
+
+<h3 id="day-5-装配-e2e-集成含-r1-p0-12-r1-p2-7-launch-4-参数">Day 5 · 装配 + E2E 集成（含 r1-P0-1/2 + r1-P2-7 launch 4 参数）</h3>
+
+<h4 id="task-14gradio-apppy-装配含-r1-p2-7-launch-ui-4-参数">Task 14：gradio_app.py 装配（含 r1-P2-7 launch_ui 4 参数）</h4>
+
+<p><strong>RED</strong> · <code>tests/ui/test_m9_blocks_render.py::test_blocks_renders_all_four_tabs</code></p>
+<li>调 <code>build_ui()</code> → 用 <code>GradioTestClient</code> 渲染 → 断言 4 个 tab 全部存在</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/ui/gradio_app.py</code>：</p>
+<pre><code data-lang="python">import gradio as gr
+
+def build_ui() -&gt; gr.Blocks:
+    client = APIClient()
+    auth = gr.BrowserState(default_value={}, storage_key=&quot;rag_auth&quot;)
+    current_session = gr.State(value=None)
+    with gr.Blocks(theme=build_theme(), css=CUSTOM_CSS, title=&quot;RAG V1&quot;) as demo:
+        gr.Markdown(&quot;# 🧠 RAG V1 · 知识库对话系统&quot;)
+        with gr.Tabs():
+            build_login_tab(client, auth)
+            build_sessions_tab(client, current_session)
+            build_chat_tab(client, current_session, auth)
+            build_ingest_tab(client, auth)
+    return demo
+
+def launch_ui():
+    &quot;&quot;&quot;r1-P2-7 已修：4 参数 launch_ui（M12 prod 关键）
+    - prevent_thread_lock=True: Docker 容器内避免线程锁
+    - inbrowser=False: Docker 内禁止自动开浏览器（webbrowser.open 报 FileNotFoundError）
+    - share=False: V1 不开公网链接
+    - allowed_paths=[&quot;/data&quot;]: 允许 M8 /file 端点路径
+    &quot;&quot;&quot;
+    demo = build_ui()
+    demo.launch(
+        server_name=settings.ui.gradio_server_name,
+        server_port=settings.ui.gradio_server_port,
+        prevent_thread_lock=True,    # r1-P2-7：M12 prod 关键
+        inbrowser=False,              # r1-P2-7：Docker 内禁止开浏览器
+        share=False,                  # r1-P2-7：V1 不开公网链接
+        allowed_paths=[&quot;/data&quot;],      # r1-P2-7：允许 M8 /file 端点路径
+    )
+
+if __name__ == &quot;__main__&quot;: launch_ui()</code></pre>
+
+<p><strong>RED</strong> · <code>test_tabs_do_not_share_state_across_switches</code>（P0-M9-1 避雷）</p>
+<li>模拟用户在 login tab 输入用户名 → 切到 chat tab → 断言 chat tab 的 State 没拿到 login 用户名</li>
+
+<p><strong>GREEN</strong> · 用 <code>gr.BrowserState</code>（全局） + <code>gr.State</code>（组件级）区分</p>
+
+<p><strong>RED</strong> · <code>test_auth_state_not_leaked_to_session_state</code>（<strong>r1-P2-6</strong>）</p>
+<li>模拟 user_id=&quot;u1&quot; 写入 BrowserState → 断言 <code>current_session</code> State 仍为 None</li>
+
+<p><strong>GREEN</strong> · <code>gr.State</code> 显式传 session_id</p>
+
+<h4 id="task-15docker-compose-加-gradio-service含-r1-p0-2-healthcheck">Task 15：docker-compose 加 gradio service（含 r1-P0-2 healthcheck）</h4>
+
+<p><strong>GREEN</strong> · 改 <code>infra/docker-compose.yml</code>：</p>
+<pre><code data-lang="yaml">services:
+  api:
+    build: .
+    ports: [&quot;8000:8000&quot;]
+    healthcheck:  # M0 已修
+      test: [&quot;CMD&quot;, &quot;curl&quot;, &quot;-fsSL&quot;, &quot;http://localhost:8000/api/health&quot;]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on: { postgres: { condition: service_healthy } }
+  gradio:
+    build: .
+    command: [&quot;python&quot;, &quot;-m&quot;, &quot;app.ui.gradio_app&quot;]
+    ports: [&quot;7860:7860&quot;]
+    environment:
+      - API_BASE_URL=http://api:8000
+    # r1-P0-2 已修：gradio healthcheck + depends_on fastapi service_healthy
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;curl&quot;, &quot;-fsSL&quot;, &quot;http://localhost:7860/ || exit 1&quot;]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      api:
+        condition: service_healthy</code></pre>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m9_gradio_e2e.py::test_docker_compose_has_gradio_service</code></p>
+<li>读 <code>infra/docker-compose.yml</code> → 断言含 <code>gradio</code> service + 端口 <code>7860</code> + healthcheck 块</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有</p>
+
+<h4 id="task-16e2e-真-pg-测试含-r1-p0-1-cors-跨域集成测试">Task 16：E2E 真 PG 测试（含 r1-P0-1 CORS 跨域集成测试）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m9_gradio_e2e.py::test_full_flow_login_ingest_chat</code></p>
+<li>起 docker-compose（PG + API + Gradio）→ 调真实 M8 端点：</li>
+<p>  1. <code>POST /api/auth/register</code> 建测试用户</p>
+<p>  2. <code>POST /api/auth/login</code> 拿 token</p>
+<p>  3. <code>POST /api/ingest</code> 上传 sample.pdf</p>
+<p>  4. 轮询 <code>GET /api/ingest/{id}</code> 等 completed</p>
+<p>  5. <code>POST /api/chat</code> 问 sample 相关问题</p>
+<p>  6. 断言 answer 含 <code>[1]</code> 引用 + response 含 <code>trace_id</code> 字段</p>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 用 <code>conftest.py</code> 的 <code>pg_session</code> fixture（<strong>修 P0-5</strong>，真 PG） + httpx 调真 M8</p>
+
+<p><strong>REFACTOR</strong> · 把 fixture 抽到 <code>tests/integration/conftest.py</code> 供 M10+ 复用</p>
+
+<p><strong>RED</strong> · <code>tests/integration/test_gradio_can_call_fastapi_chat.py::test_gradio_can_call_fastapi_chat</code>（<strong>r1-P0-1</strong>）</p>
+<li>mock M8 FastAPI app + CORSMiddleware（<code>allow_origins=[&quot;http://localhost:7860&quot;]</code>）</li>
+<li>httpx 调 <code>POST /api/chat</code> 加 <code>Origin: http://localhost:7860</code> header</li>
+<li>断言响应 header <code>Access-Control-Allow-Origin == &quot;http://localhost:7860&quot;</code></li>
+<li>跑测试 → 失败（无 CORS 测试）</li>
+
+<p><strong>GREEN</strong> · 集成测试已写</p>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M9 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_ui_*.py</code> —— mock 为主，CI 内 1-2s</li>
+<li><strong>M9 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m9_gradio_e2e.py --require-docker</code> —— 需 <code>docker compose -f infra/docker-compose.yml up -d postgres api gradio</code></li>
+<li><strong>M9 UI 渲染</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/ui/</code> —— 用 <code>GradioTestClient</code>（5.0+ 内置）</li>
+<li><strong>CORS 集成测试</strong>（<strong>r1-P0-1</strong>）：<code>pytest tests/integration/test_gradio_can_call_fastapi_chat.py</code> —— mock M8 CORSMiddleware + httpx Origin header</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/ui --cov-fail-under=80</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（commit 标 [GREEN]）→ REFACTOR（commit 标 [RF]）</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] <code>build_ui()</code> 渲染 4 tab 全部成功（无 Gradio 5.0+ 异常）</li>
+<li>[ ] 暗色主题生效：<code>#0d1117</code> 底 + <code>#58a6ff</code> 强调 + PingFang SC/Microsoft YaHei 字体</li>
+<li>[ ] <strong><code>@media (max-width: 640px)</code> mobile responsive CSS 生效</strong>（<strong>r1-P2-3</strong>）</li>
+<li>[ ] <strong>CUSTOM_CSS 含 <code>overflow-wrap: anywhere</code></strong>（<strong>r1-P1-10</strong>）</li>
+<li>[ ] 登录/登出走 M2 真实端点，token 存 <code>gr.BrowserState</code> 刷新不丢</li>
+<li>[ ] <strong>Logout 后跳 login tab + 清 BrowserState</strong>（<strong>r1-P1-7</strong>）</li>
+<li>[ ] <strong>连续 3 次 401 弹 <code>gr.Info</code> 提示 + 跳 login</strong>（<strong>r1-P1-8</strong>）</li>
+<li>[ ] <strong>错误提示用 <code>gr.Error</code> toast 非阻塞</strong>（<strong>r1-P1-2</strong>）</li>
+<li>[ ] Sessions 列表用真 PG（<strong>修 P0-5</strong>），依赖 P1-6 复合索引，响应 &lt; 200ms</li>
+<li>[ ] <strong>Session 删除有 confirm modal</strong>（<strong>r1-P1-9</strong>）</li>
+<li>[ ] Chat: 发送 query → answer 渲染 → [1][2][3] 解析 → Source accordion → image 缩略图</li>
+<li>[ ] <strong>Chat 加载时禁用 input + spinner</strong>（<strong>r1-P1-1</strong>）</li>
+<li>[ ] <strong>Chatbot <code>autoscroll=True</code></strong>（<strong>r1-P1-3</strong>）</li>
+<li>[ ] <strong>Textbox <code>submit_btn=True</code> Enter 发送 / Shift+Enter 换行</strong>（<strong>r1-P1-4</strong>）</li>
+<li>[ ] <strong>Chat handler 返回 5 元 yield（_handle_chat dataclass ChatResult）</strong>（<strong>r1-P2-8</strong>）</li>
+<li>[ ] <strong>Chat 503/UpstreamError 渲染 GraphSettings.fallback_message</strong>（M7 chitchat fallback）</li>
+<li>[ ] <strong>Image 缩略图失败降级 Markdown</strong>（<strong>r1-P0-3</strong>）</li>
+<li>[ ] <strong>Ingest 文件上传前端 50MB 限制</strong>（<strong>r1-P1-5</strong>）</li>
+<li>[ ] <strong>Ingest URL 前端 regex 验证</strong>（<strong>r1-P1-6</strong>）</li>
+<li>[ ] <strong>Ingest 进度 404 显式提示</strong>（<strong>r1-P2-2</strong>）</li>
+<li>[ ] <strong>Ingest 进度 mock gr.Progress track_tqdm</strong>（<strong>r1-P2-5</strong>）</li>
+<li>[ ] 401 显式跳登录 · 404 静默 · 422 表单红框 · 502 显式错误</li>
+<li>[ ] <strong>M8 <code>ChatResponse.trace_id</code> 字段渲染 Langfuse 链接</strong>（<strong>r1-漂-2</strong>）</li>
+<li>[ ] <code>tests/integration/test_m9_gradio_e2e.py</code> 在 <code>infra/docker-compose.yml up</code> 后 60s 内通过</li>
+<li>[ ] <strong><code>tests/integration/test_gradio_can_call_fastapi_chat.py</code> CORS 集成测试通过</strong>（<strong>r1-P0-1</strong>）</li>
+<li>[ ] 单元覆盖率 ≥ 80%</li>
+<li>[ ] <code>infra/docker-compose.yml</code> 含 <code>gradio</code> service（端口 7860）+ healthcheck 块（<strong>r1-P0-2</strong>）</li>
+<li>[ ] <code>.env.example</code> 含 <code>API_BASE_URL</code> / <code>GRADIO_SERVER_*</code> / <code>CORS_ORIGIN</code></li>
+<li>[ ] <strong><code>launch_ui()</code> 含 <code>prevent_thread_lock=True, inbrowser=False, share=False, allowed_paths=[&quot;/data&quot;]</code></strong>（<strong>r1-P2-7</strong>）</li>
+<li>[ ] <strong><code>cors_origin</code> 联动 <code>gradio_server_port</code>（@property）</strong>（<strong>r1-P1-11</strong>）</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M9 前完成）</th><th>下游（依赖 M9）</th></tr></thead>
+<tbody>
+<tr><td>M0 <code>infra/docker-compose.yml</code>（PG + OS + TEI 容器 + 5 service health check）</td><td>M10 Langfuse（前端透传 <code>X-Request-Id</code>，UI 显示 trace 链接）</td></tr>
+<tr><td>M1 alembic 基础（4 表 ORM + 复合索引 + <code>last_message_at</code> + <code>idempotency_key</code>）</td><td>M11 RAGAS（不直接调 M9）</td></tr>
+<tr><td>M2 auth（Bearer token + get_current_user + 204 logout + soft revocation）</td><td>M12 Hardening（限速中间件 + 监控挂 M8 + launch_ui 4 参数）</td></tr>
+<tr><td>M7 graph（answer + sources + image_ref 返回值 + <code>answer_chitchat_node</code> + <code>GraphSettings.fallback_message</code>）</td><td></td></tr>
+<tr><td>M8 FastAPI（5 路由 + CORS 配置 + <code>X-Request-Id</code> + <code>ChatResponse.trace_id</code>（r2 统一） + 30s chat_timeout + <code>/file/{path}</code> 端点 + <code>Idempotency-Key</code> 透传 + 5 service health check）</td><td></td></tr>
+</tbody></table>
+
+<p><strong>M7 chitchat fallback 依赖</strong>（<strong>r2 必改 · 与 r1 review §8-3 同步</strong>）：</p>
+<li>M7 <code>answer_chitchat_node</code> + <code>GraphSettings.fallback_message</code> 在 M9 chat tab UpstreamError 路径渲染</li>
+<li>Task 11 L524-527 <code>_handle_chat</code> 已 try/except UpstreamError + 显式 fallback 渲染</li>
+
+<p><strong>M8 30s chat_timeout + /file 端点依赖</strong>（<strong>r2 必改 · 与 r1 review §8-3 同步</strong>）：</p>
+<li>Task 11 <code>_handle_chat</code> httpx timeout 30s</li>
+<li>Task 10 <code>image_ref_to_url</code> 假设 M8 <code>/file/{path}</code> 端点 stub 已存在（M12 加完整 streaming）</li>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td>Gradio 5.0+ <code>gr.Chatbot(type=&quot;messages&quot;)</code> 强制参数</td><td>DoD 明确，RED 测试用 <code>type=&quot;messages&quot;</code> 必传</td><td>v0.3 提议用 Streamlit — 已否决（生态弱）</td></tr>
+<tr><td><code>gr.BrowserState</code> 5.0+ 才稳定（旧版 <code>gr.State</code> 不持久化）</td><td>M9 锁定 <code>gradio&gt;=5.0,&lt;6</code></td><td>—</td></tr>
+<tr><td>Source 引用 <code>[1][2][3]</code> LLM 输出不规整（空格/嵌套/emoji）</td><td>Task 8 RED 测试 6+ case 覆盖 edge case；regex 严格 <code>\d+</code></td><td>—</td></tr>
+<tr><td>Ingest 进度轮询阻塞 Gradio 主线程</td><td><code>asyncio.sleep</code> + <code>gr.Progress(track_tqdm=True)</code></td><td>—</td></tr>
+<tr><td>CORS：Gradio 7860 调 FastAPI 8000 跨域</td><td>M8 <code>CORSMiddleware(allow_origins=[settings.ui.cors_origin])</code> 配 <code>http://localhost:7860</code>（<strong>r1-P1-11：@property 联动 gradio_server_port</strong>）</td><td>—</td></tr>
+<tr><td><code>image_ref</code> 路径 vs base64</td><td>M9 决策：<strong>路径优先 + Gradio <code>/file=</code> 端点</strong>，data URL 兜底（<strong>修 P1-2</strong>）</td><td>—</td></tr>
+<tr><td>中文 chunk 在 source 卡溢出</td><td>CSS <code>word-wrap: break-word</code> + <code>white-space: pre-wrap</code> + <strong><code>overflow-wrap: anywhere</code></strong>（<strong>修 P1-3 + r1-P1-10</strong>）</td><td>—</td></tr>
+<tr><td>4 tab 切换状态串扰</td><td><code>gr.State</code>（组件级）+ <code>gr.BrowserState</code>（全局）区分（<strong>修 P0-M9-1</strong>）</td><td>—</td></tr>
+<tr><td><code>pytest.ini</code> 没锁 rootdir</td><td>M9 不改，依赖 M0 review 修订 X-2</td><td>—</td></tr>
+<tr><td><strong>r1-已修-P0-1</strong> · CORS 跨域集成测试缺失</td><td><code>tests/integration/test_gradio_can_call_fastapi_chat.py</code> mock M8 CORSMiddleware 验证 <code>Access-Control-Allow-Origin</code></td><td>替代方案（否决）：用 requests 直接测 → 缺 httpx Origin header 模拟 / 改 M8 stub → 改不动 M8 / 删 CORS 测试 → P0 阻塞</td></tr>
+<tr><td><strong>r1-已修-P0-2</strong> · docker-compose gradio 无 healthcheck</td><td>`healthcheck: curl -fsSL http://localhost:7860/ \</td><td>\</td><td>exit 1<code> + </code>depends_on: fastapi: { condition: service_healthy }`</td><td>替代方案（否决）：用 sleep 30 → race condition / 删 healthcheck → E2E 启动失败</td></tr>
+<tr><td><strong>r1-已修-P0-3</strong> · image 缩略图无 fallback</td><td><code>try: gr.Image(value=image_url) except: gr.Markdown(&quot;📎 缩略图加载失败&quot;)</code> + on_error 钩子</td><td>替代方案（否决）：裸 <code>gr.Image</code> → 404 抛 uncaught / 加 try/except 但吞错 → 用户无感知</td></tr>
+<tr><td><strong>r1-已修-P1-1</strong> · Chat 等待时无 loading 状态</td><td><code>yield</code> 增量更新 + <code>gr.update(interactive=False)</code> 禁用 input + spinner Markdown</td><td>替代方案（否决）：同步 return → 用户双击重复发送 / <code>gr.Loading()</code> → 5.0+ 不稳定</td></tr>
+<tr><td><strong>r1-已修-P1-2</strong> · 错误提示 Markdown 字符串阻塞</td><td><code>raise gr.Error(message=&quot;...&quot;)</code> toast（非阻塞）</td><td>替代方案（否决）：保留 Markdown → 用户看不到 / <code>print</code> → 无 UI 反馈</td></tr>
+<tr><td><strong>r1-已修-P1-3</strong> · Chatbot 无 auto-scroll</td><td><code>gr.Chatbot(type=&quot;messages&quot;, autoscroll=True)</code>（5.0+ 内置）</td><td>替代方案（否决）：手写 JS 监听 → Gradio 升级失效 / 改 gr.HTML → 5.0+ 弃用</td></tr>
+<tr><td><strong>r1-已修-P1-4</strong> · Textbox 无 Enter 发送</td><td><code>gr.Textbox(submit_btn=True)</code> + placeholder 提示格式</td><td>替代方案（否决）：手写 JS 监听 keydown → 5.0+ 弃用 / 强制按钮 → UX 差</td></tr>
+<tr><td><strong>r1-已修-P1-5</strong> · 文件上传无大小限制</td><td><code>if file.size &gt; 50*1024*1024: gr.Warning(&quot;文件超过 50MB&quot;)</code> + 拒绝上传</td><td>替代方案（否决）：服务端限制 → 大文件传一半失败 / 无限制 → 100MB 文件占满磁盘</td></tr>
+<tr><td><strong>r1-已修-P1-6</strong> · URL ingest 无前端验证</td><td>regex <code>^https?://[^\s/$.?#].[^\s]*$</code> + <code>gr.Textbox</code> placeholder 提示格式</td><td>替代方案（否决）：服务端 422 兜底 → 用户体验差 / 无验证 → 后端 SSRF 风险</td></tr>
+<tr><td><strong>r1-已修-P1-7</strong> · Logout 后不跳 login tab</td><td><code>gr.Tabs(selected=0)</code> + <code>gr.BrowserState</code> 清 token + <code>gr.Button(&quot;登出&quot;)</code></td><td>替代方案（否决）：仅清 state → 用户迷茫在哪个 tab / 跳回首页 → 失去 session 上下文</td></tr>
+<tr><td><strong>r1-已修-P1-8</strong> · 多次 401 无累计提示</td><td>APIClient <code>_consecutive_401</code> 字段 + 连续 3 次抛 <code>gr.Info(&quot;Session expired, please re-login&quot;)</code></td><td>替代方案（否决）：单次 401 → 弹窗烦人 / 无计数 → 用户不知何时过期</td></tr>
+<tr><td><strong>r1-已修-P1-9</strong> · Session 删除无确认</td><td><code>gr.Button(&quot;Delete&quot;).click(fn=lambda: gr.update(visible=True), outputs=confirm_modal)</code> 模态</td><td>替代方案（否决）：直接删除 → 不可撤销 / 二次确认弹窗 → 5.0+ 用 gr.Group modal 替代</td></tr>
+<tr><td><strong>r1-已修-P1-10</strong> · 中文 source 卡溢出</td><td>CSS <code>word-wrap: break-word; white-space: pre-wrap; overflow-wrap: anywhere;</code> 三件套</td><td>替代方案（否决）：仅 word-wrap → 长 URL 不折行 / 仅 white-space → 中英文混合仍溢出</td></tr>
+<tr><td><strong>r1-已修-P1-11</strong> · <code>cors_origin</code> 硬编码</td><td><code>cors_origin</code> 走 <code>settings.ui.cors_origin</code>（<code>@property</code> 联动 <code>gradio_server_port</code>，env <code>CORS_ORIGIN</code> 可覆盖）</td><td>替代方案（否决）：env 直接读 → 散落 / 硬编码 → 端口漂移 CORS 失配</td></tr>
+<tr><td><strong>r1-已修-P2-1</strong> · <code>gr.Chatbot(type=&quot;messages&quot;)</code> 5.0+ 兼容性测试缺失</td><td><code>tests/ui/test_chatbot_messages_format_renders.py</code> 测试 messages format 渲染</td><td>替代方案（否决）：仅集成测试 → 5.0+ 升级 fail 静默 / 删测试 → 兼容性风险</td></tr>
+<tr><td><strong>r1-已修-P2-2</strong> · Ingest 进度 404 静默</td><td><code>raise gr.Warning(&quot;Job 不存在或已过期&quot;)</code> + 引导重新 ingest</td><td>替代方案（否决）：静默忽略 → 用户不知道 / 抛异常 → 阻塞 UI</td></tr>
+<tr><td><strong>r1-已修-P2-3</strong> · Mobile 无 responsive</td><td>CSS <code>@media(max-width: 640px)</code> 折叠 tab + 字号缩小</td><td>替代方案（否决）：固定布局 → 手机无法用 / 手写 JS responsive → Gradio 升级失效</td></tr>
+<tr><td><strong>r1-已修-P2-4</strong> · Plan 引用编号偏移</td><td><code>gr.Markdown</code> 引用统一 <code>§X.Y</code> 而非裸 L 行号</td><td>替代方案（否决）：保留裸 L → review 编号漂移 / 用 grep 自动替换 → 维护成本高</td></tr>
+<tr><td><strong>r1-已修-P2-5</strong> · <code>test_poll_uses_gr_progress_tqdm</code> mock 缺细节</td><td><code>unittest.mock.patch(&quot;gradio.Progress&quot;, MagicMock(track_tqdm=True))</code></td><td>替代方案（否决）：真 gr.Progress → CI 渲染失败 / 不 mock → 测试不稳定</td></tr>
+<tr><td><strong>r1-已修-P2-6</strong> · test_tabs_do_not_share_state 用例不准</td><td><code>test_auth_state_not_leaked_to_session_state</code> 替代（用 <code>gr.State</code> 显式传 session_id）</td><td>替代方案（否决）：保留旧测试 → 隐式 state 依赖 / 删测试 → 状态串扰回归</td></tr>
+<tr><td><strong>r1-已修-P2-7</strong> · 启动后浏览器自动打开</td><td><code>demo.launch(prevent_thread_lock=True, inbrowser=False, share=False, allowed_paths=[&quot;/data&quot;])</code> 4 参数</td><td>替代方案（否决）：默认参数 → Docker 内 <code>webbrowser.open</code> 报 <code>FileNotFoundError</code> / 仅 inbrowser=False → 仍有线程锁问题</td></tr>
+<tr><td><strong>r1-已修-P2-8</strong> · <code>_handle_chat</code> 返回 5 元 tuple</td><td><code>dataclass ChatResult</code> 封装（gr.State 透传友好）</td><td>替代方案（否决）：保留 tuple → handler 易出错位 / dict → Gradio update 不支持 / 单一 gr.State → 类型不安全</td></tr>
+<tr><td><strong>r2-已修 · 漂-1</strong> · plan 修订记录 vs 主体严重背离（<strong>P0 阻塞</strong>）</td><td>r2 把 22 项 r1 修复<strong>全部回填到 Tasks 1-16 主体</strong>（P0-1→Task 16 / P0-2→Task 15 / P0-3→Task 10-11 / P1-1→Task 11 / P1-2→Task 5-11-13 / P1-3→Task 11 / P1-4→Task 11 / P1-5→Task 13 / P1-6→Task 13 / P1-7→Task 6 / P1-8→Task 3-5 / P1-9→Task 7 / P1-10→Task 2-9 / P1-11→Task 1 / P2-1→Files 表 / P2-2→Task 12 / P2-3→Task 2 / P2-4→引用统一 / P2-5→Task 12 / P2-6→Task 14 / P2-7→Task 14 / P2-8→Task 11）</td><td>替代方案（否决）：保留 append-only → 0/22 主体回填（M9 r1 当前状态）/ 仅修声明层 → 主体与声明继续脱节</td></tr>
+<tr><td><strong>r2-已修 · 漂-2</strong> · <code>ChatResponse</code> 字段 trace_id/request_id 三处不一致</td><td>全文统一 <code>trace_id</code>（与 M8 r2 新-1 同步）；加「Langfuse 链路字段命名规范」节（<strong>r2-漂-3 一并修</strong>）</td><td>替代方案（否决）：保留 request_id → M8 已统一 trace_id 失配 / 全文混用 → review 编号漂移</td></tr>
+<tr><td><strong>r2-已修 · 漂-3</strong> · M10 Langfuse 联动口径混乱</td><td>加「Langfuse 链路字段命名规范」节明确 <code>X-Request-Id == request_id == trace_id == Langfuse trace.id</code> 四名同串</td><td>替代方案（否决）：保留原口径 → 4 名同串但口径混乱 / 仅一处统一 → 不彻底</td></tr>
+<tr><td><strong>r2-已修 · 漂-4</strong> · 风险表未追加 22 行 r1 已修条目</td><td>风险表追加 22 行 <code>r1-已修-P0/P1/P2-X</code> 条目（含「曾被否决的替代方案」列，与 M8 r1 风格一致）</td><td>替代方案（否决）：保留 6 行原风险 → 22 项修复追溯性丢失 / 简表无替代方案 → M8 r1 最有价值部分缺失</td></tr>
+<tr><td><strong>r2-已修 · 漂-5</strong> · launch_ui 实际参数与 P2-7 声明漂移</td><td>Task 14 launch_ui 改 4 参数版本（<code>prevent_thread_lock=True, inbrowser=False, share=False, allowed_paths=[&quot;/data&quot;]</code>）</td><td>替代方案（否决）：仅 2 参数 → 仍有线程锁 + 路径限制问题 / 6 参数 → 过度配置</td></tr>
+<tr><td><strong>r2-已修 · 漂-6</strong> · P0-M9-1~4 / P1-M9-1~3 与 r1 编号冲突</td><td>保留 P0-M9-1~4 / P1-M9-1~3 作为「review 衍生」段，r1 编号用 <code>r1-已修-P0-1~3 / P1-1~11 / P2-1~8</code> 前缀区分（与 M8 r1 风格一致）</td><td>替代方案（否决）：删 P0-M9 段 → 失去原始 review 上下文 / 反向重命名 r1 → review 历史追溯断裂</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="m9-特有-p0-避雷review-报告衍生-r2-保留原命名">M9 特有 P0 避雷（review 报告衍生 · r2 保留原命名）</h2>
+
+<li><strong>P0-M9-1 · 4 tab 状态隔离</strong>：用 <code>gr.State</code> 装 session_id（组件级），<code>gr.BrowserState</code> 装 token（全局）。测试覆盖&quot;login tab 输入不污染 chat tab&quot;</li>
+<li><strong>P0-M9-2 · Source 引用 regex robustness</strong>：6+ case 覆盖（无引用 / 单个 / 多个 / 重复 / 末尾 / 嵌套不匹配）</li>
+<li><strong>P0-M9-3 · Ingest 进度非阻塞</strong>：asyncio + <code>gr.Progress(track_tqdm=True)</code>，不阻塞主线程</li>
+<li><strong>P0-M9-4 · CORS 跨域</strong>：M8 <code>CORSMiddleware(allow_origins=[settings.ui.cors_origin])</code> 必须配 <code>http://localhost:7860</code>（<strong>r2-漂-6 与 r1-已修-P0-1 CORS 集成测试合并</strong>）</li>
+
+<h2 id="m9-特有-p1-避雷">M9 特有 P1 避雷</h2>
+
+<li><strong>P1-M9-1 · Auth 持久化用 BrowserState</strong>：5.0+ 新 API 替代 localStorage hack</li>
+<li><strong>P1-M9-2 · image_ref 决策</strong>：路径优先 + <code>/file=</code> 端点，data URL 兜底（<strong>r2-漂-5 与 r1-已修-P0-3 image fallback 合并</strong>）</li>
+<li><strong>P1-M9-3 · 中文 tokenize 溢出</strong>：CSS <code>word-wrap: break-word</code> + <code>white-space: pre-wrap</code> + <code>overflow-wrap: anywhere</code>（<strong>r2-漂-5 与 r1-已修-P1-10 overflow-wrap: anywhere 合并</strong>）</li>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M9-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope §4.1 + 决策 #7/#16）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>22 项 P0/P1/P2 全部修复</strong>（详见 review <code>2026-06-11-rag-m9-ui-gradio-review.md</code> 落地）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-1 已修</strong> · CORS 跨域 E2E 集成测试 <code>test_gradio_can_call_fastapi_chat</code>（mock M8 CORSMiddleware 验证 <code>Access-Control-Allow-Origin</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-2 已修</strong> · docker-compose gradio 加 healthcheck（`curl -fsSL http://localhost:7860/</td><td></td><td>exit 1<code>）+ </code>depends_on: fastapi: { condition: service_healthy }`</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-3 已修</strong> · image 缩略图 fallback：<code>try: gr.Image(value=image_url) except: gr.Markdown(&quot;📎 缩略图加载失败&quot;)</code> + on_error 钩子</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-1 已修</strong> · Chat 等待时显示 <code>gr.Loading()</code> 状态组件 + 禁用 input + spinner</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-2 已修</strong> · 错误提示改用 Gradio 5.0+ <code>gr.Error(message=&quot;...&quot;)</code> toast（非阻塞）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-3 已修</strong> · 新消息后 auto-scroll：<code>gr.Chatbot(autoscroll=True)</code>（5.0+ 内置）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-4 已修</strong> · Enter 发送 / Shift+Enter 换行：<code>gr.Textbox(submit_btn=True)</code> + custom JS 监听</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-5 已修</strong> · 文件上传前端大小检查：M9 客户端 <code>if file.size &gt; 50*1024*1024: gr.Warning(&quot;文件超过 50MB&quot;)</code> + 拒绝上传</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-6 已修</strong> · URL ingest 前端验证：regex <code>^https?://...</code> + <code>gr.Textbox</code> placeholder 提示格式</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-7 已修</strong> · Logout 后跳 login tab：<code>gr.Tabs(selected=0)</code> + <code>gr.BrowserState</code> 清除 token</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-8 已修</strong> · 多次 401 提示：M9 检测连续 3 次 401 → 弹 <code>gr.Info(&quot;Session expired, please re-login&quot;)</code> + 跳 login</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-9 已修</strong> · Session 删除确认：<code>gr.Button(&quot;Delete&quot;).click(fn=lambda: gr.update(visible=True), outputs=confirm_modal)</code> 模态</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-10 已修</strong> · 中文 source 卡 CSS：<code>word-wrap: break-word; white-space: pre-wrap; overflow-wrap: anywhere;</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-11 已修</strong> · <code>cors_origin</code> 走 <code>settings.ui.cors_origin</code>（默认 <code>http://localhost:7860</code>，env 覆盖）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-1 已修</strong> · <code>gr.Chatbot(type=&quot;messages&quot;)</code> 5.0+ 兼容性测试：<code>test_chatbot_messages_format_renders</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-2 已修</strong> · Ingest 进度 404 提示：<code>gr.Warning(&quot;Job 不存在或已过期&quot;)</code> + 跳到新 ingest 引导</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-3 已修</strong> · Mobile responsive：CSS media query <code>@media(max-width: 640px)</code> 折叠 tab 为汉堡菜单</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-4 已修</strong> · Plan 引用编号偏移：<code>gr.Markdown</code> 引用统一 <code>§X.Y</code> 而非裸 L 行号</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-5 已修</strong> · <code>test_poll_uses_gr_progress_tqdm</code> mock：<code>unittest.mock.patch(&quot;gradio.Progress&quot;, MagicMock(track_tqdm=True))</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-6 已修</strong> · test_tabs_do_not_share_state：M9 用 <code>gr.State</code> 显式传 session_id，不依赖隐式 state</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-7 已修</strong> · 启动后浏览器自动打开抑制：<code>demo.launch(prevent_thread_lock=True, inbrowser=False)</code>（M12 prod 关键）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-8 已修</strong> · <code>_handle_chat</code> 返回 5 个值用 <code>dataclass ChatResponse</code> 封装（gr.State 透传）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>跨 M 联动落地</strong> · M0 healthcheck / M2 Authorization Header / M4 image_ref 路径规范 / M8 CORS + X-Request-Id + chat_timeout 30s + 5 service health / M10 Langfuse 用 X-Request-Id 关联 trace / M12 hardening 加 <code>prevent_thread_lock</code> + <code>inbrowser=False</code></td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-1 已修</strong>（P0 阻塞）· plan 修订记录 22 项 vs 主体严重背离 → 把 22 项 r1 修复<strong>全部回填到 Tasks 1-16 主体</strong>（P0-1→Task 16 + Files / P0-2→Task 15 YAML / P0-3→Task 10-11 / P1-1→Task 11 / P1-2→Task 5-11-13 / P1-3→Task 11 / P1-4→Task 11 / P1-5→Task 13 / P1-6→Task 13 / P1-7→Task 6 / P1-8→Task 3-5 / P1-9→Task 7 / P1-10→Task 2-9 / P1-11→Task 1 / P2-1→Files / P2-2→Task 12 / P2-3→Task 2 / P2-4→引用 / P2-5→Task 12 / P2-6→Task 14 / P2-7→Task 14 / P2-8→Task 11）</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-2 已修</strong>（P0 漂移）· <code>ChatResponse</code> 字段 <code>trace_id</code>/<code>request_id</code> 三处不一致 → plan 全文统一为 <code>trace_id</code>（与 M8 r2 新-1 同步），5 处全部更新：L7 + L85 + L105 + L531 + L800</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-3 已修</strong>（P1 漂移）· M10 Langfuse 联动口径混乱 → 新增「Langfuse 链路字段命名规范」节，明确 <code>X-Request-Id == request_id == trace_id == Langfuse trace.id</code> 四名同串同值 + 链路流转图</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-4 已修</strong>（P1 漂移）· 风险表未追加 22 行 r1 已修条目 → 风险表 L743-753 末尾追加 22 行 <code>r1-已修-P0/P1/P2-X</code> 条目（含「曾被否决的替代方案」列，与 M8 r1 风格一致）+ 6 行 r2-已修-漂-N 条目</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-5 已修</strong>（P2 衍生）· launch_ui 实际参数与 P2-7 声明漂移 → Task 14 <code>launch_ui()</code> 改 4 参数版本：<code>prevent_thread_lock=True, inbrowser=False, share=False, allowed_paths=[&quot;/data&quot;]</code></td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>r1-漂-6 已修</strong>（P2 衍生）· P0-M9-1~4 / P1-M9-1~3 与 r1 编号冲突 → 保留 P0-M9-1~4 / P1-M9-1~3 作为「review 衍生」段，r1 编号用 <code>r1-已修-P0-1~3 / P1-1~11 / P2-1~8</code> 前缀区分；风险表同步 r2-已修-漂-N 命名</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>跨 M 联动消化</strong> · M8 r2 <code>ChatResponse.trace_id</code> 字段命名同步 → M9 plan L7/L85/L105/L531 全部 trace_id；M10 obs-langfuse（待修）· M9 ↔ M10 <code>trace_id</code> 主键同值（<code>X-Request-Id</code> header 协议级 / <code>request_id</code> 内部状态 / <code>trace_id</code> M8 响应字段 / <code>Langfuse trace.id</code> M10 上报）；M11 eval-ragas（待修）· M9 ↔ M11 <code>trace_id</code> 关联；M12 hardening（待修）· M9 ↔ M12 <code>prevent_thread_lock + inbrowser=False + share=False + allowed_paths</code> launch_ui 4 参数已就位</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>M7 chitchat fallback 依赖标注</strong> · M7 <code>answer_chitchat_node</code> + <code>GraphSettings.fallback_message</code> → M9 Task 11 <code>_handle_chat</code> UpstreamError 路径渲染 fallback 文本（<strong>与 M8 r1 §8-3 同步</strong>）</td></tr>
+<tr><td><strong>r2-2026-06-12</strong></td><td>2026-06-12</td><td><strong>M8 30s chat_timeout + /file 端点依赖标注</strong> · M9 Task 11 httpx timeout 30s + Task 10 <code>image_ref_to_url</code> 假设 M8 <code>/file/{path}</code> 端点 stub 已存在（<strong>与 M8 r1 §8-3 同步</strong>）</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

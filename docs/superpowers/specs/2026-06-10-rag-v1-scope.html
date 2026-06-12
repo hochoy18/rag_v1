@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 系统 V1 Scope 实施规格</title>
+<style>
+  :root {
+    --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+    --border: #30363d; --border-soft: #21262d;
+    --text-0: #e6edf3; --text-1: #b1bac4; --text-2: #7d8590;
+    --accent: #58a6ff; --accent-2: #79c0ff;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+    --code-bg: #0b1020; --radius: 6px;
+    --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-0); color: var(--text-0); font-family: var(--sans); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; max-width: 1400px; margin: 0 auto; }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; background: var(--bg-1); border-right: 1px solid var(--border); padding: 28px 20px; font-size: 14px; }
+  nav.toc h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-2); margin: 0 0 16px 0; font-weight: 600; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: toc; }
+  nav.toc ol li { counter-increment: toc; margin: 4px 0; }
+  nav.toc a { display: block; color: var(--text-1); text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: all .15s; }
+  nav.toc a:hover { background: var(--bg-2); color: var(--accent); }
+  nav.toc a::before { content: counter(toc, decimal-leading-zero) " "; color: var(--text-2); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+  main { padding: 48px 64px 96px; max-width: 980px; }
+  header.doc-header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header.doc-header h1.title { font-size: 32px; margin: 0 0 8px 0; color: var(--text-0); font-weight: 700; }
+  header.doc-header .meta { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--text-2); flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+  .badge.version { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+  .badge.status  { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+  .badge.date    { background: var(--bg-2); color: var(--text-1); border: 1px solid var(--border); }
+  blockquote.callout { background: var(--bg-1); border-left: 3px solid var(--accent); margin: 16px 0; padding: 12px 16px; color: var(--text-1); border-radius: 0 var(--radius) var(--radius) 0; font-size: 14px; }
+  blockquote.callout.success { border-left-color: var(--green); }
+  h2 { font-size: 24px; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text-0); font-weight: 600; scroll-margin-top: 24px; }
+  h3 { font-size: 18px; margin: 32px 0 12px; color: var(--text-0); font-weight: 600; }
+  h4 { font-size: 15px; margin: 24px 0 8px; color: var(--accent-2); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  p { margin: 12px 0; color: var(--text-1); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 24px; color: var(--text-1); }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: .88em; color: var(--accent-2); }
+  pre { background: var(--code-bg); padding: 16px 20px; border-radius: var(--radius); overflow-x: auto; border: 1px solid var(--border-soft); margin: 16px 0; }
+  pre code { background: transparent; padding: 0; color: var(--text-0); font-size: 13px; line-height: 1.5; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-soft); }
+  th { background: var(--bg-1); color: var(--text-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  td { color: var(--text-1); }
+  tr:hover td { background: var(--bg-1); }
+  .arch-box { background: var(--code-bg); padding: 16px 20px; border-radius: var(--radius); border: 1px solid var(--border-soft); margin: 16px 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; color: var(--text-1); white-space: pre; overflow-x: auto; }
+  .prio-P0 { color: var(--red); font-weight: 600; }
+  .prio-P1 { color: var(--yellow); font-weight: 600; }
+  .prio-P2 { color: var(--text-2); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { position: static; height: auto; } main { padding: 24px 20px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <h1>目录</h1>
+    <ol>
+      <li><a href="#overview">决策总表</a></li>
+      <li><a href="#arch">架构总览</a></li>
+      <li><a href="#modules">模块树</a></li>
+      <li><a href="#dataflow">数据流</a></li>
+      <li><a href="#api">API & UI</a></li>
+      <li><a href="#errors">错误处理矩阵</a></li>
+      <li><a href="#test">测试策略</a></li>
+      <li><a href="#milestones">Milestones</a></li>
+      <li><a href="#deps">依赖版本清单</a></li>
+      <li><a href="#boundary">版本边界</a></li>
+      <li><a href="#plan-index">Plan 索引</a></li>
+      <li><a href="#changelog">修订记录</a></li>
+    </ol>
+  </nav>
+  <main>
+    <header class="doc-header">
+      <h1 class="title">RAG 系统 V1 Scope 实施规格</h1>
+      <div class="meta">
+        <span class="badge version">V1-SCOPE</span>
+        <span class="badge status">实施中（基线）</span>
+        <span class="badge date">2026-06-10</span>
+      </div>
+      <blockquote class="callout success">
+        关联：<a href="./2026-06-08-rag-system-design.html">v0.4 主 spec</a> · <a href="./2026-06-08-rag-v1.1-todo.html">v1.1 TODO</a> · <a href="./2026-06-10-rag-v2-todo.html">v2 TODO</a>
+      </blockquote>
+    </header>
+
+    <h2 id="overview">0. 决策总表</h2>
+    <table>
+      <thead><tr><th>#</th><th>议题</th><th>选型</th><th>备注</th><th>脑暴出处</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>三库</td><td>LlamaIndex ingest / langchain LLM 抽象 / langgraph workflow</td><td>职责清晰</td><td><code>20260608_145040_7202e5</code> msg 160-165 选 A</td></tr>
+        <tr><td>2</td><td>规模</td><td>中型 10k–1M chunk</td><td></td><td><code>20260608_145040_7202e5</code> msg 162 选 B</td></tr>
+        <tr><td>3</td><td>向量库</td><td>OpenSearch 2.19 + k-NN HNSW</td><td>dim=1024, cosine</td><td><code>20260608_145040_7202e5</code> msg 195 §2 推荐</td></tr>
+        <tr><td>4</td><td>数据源</td><td>file + url（4 auth）+ confluence（单 page + 子页 BFS + attachments）</td><td>3.3 整 space 抓取推 V1.1</td><td><code>20260608_145040_7202e5</code> msg 200 选 C 折中</td></tr>
+        <tr><td>5</td><td>workflow</td><td>load_memory → classify → rewrite → retrieve → rerank → answer</td><td>7 节点</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>6</td><td>部署</td><td>Docker Compose 4 service</td><td></td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>7</td><td>API + UI</td><td>FastAPI + Gradio Web UI（4 tab）</td><td></td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>8</td><td>LLM 抽象</td><td>langchain <code>ChatAnthropic</code> 工厂 + Langfuse callback</td><td>langchain==1.0.8</td><td><code>20260608_145040_7202e5</code> msg 195 §6（保留 langchain）</td></tr>
+        <tr><td>9</td><td>Embedding</td><td>TEI + bge-m3 自部署, dim=1024</td><td>CPU 模式起步</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>10</td><td>观测</td><td>Langfuse 在线 trace</td><td>langfuse&gt;=2.50</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>11</td><td>评估</td><td>RAGAS 离线 CLI</td><td>CI 门禁 faithfulness ≥ 0.7</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>12</td><td>Memory</td><td>PostgresCheckpointer + SQLite 降级</td><td>langgraph-checkpoint-postgres==2.0.10</td><td><code>20260608_145040_7202e5</code> msg 195 §2（否决 OpenSearch checkpointer）</td></tr>
+        <tr><td>13</td><td>用户系统</td><td>Postgres users + chat_sessions</td><td></td><td><code>20260608_145040_7202e5</code> msg 193 §1.7</td></tr>
+        <tr><td>14</td><td>鉴权</td><td>随机 token + SHA-256 哈希 + DB 查表</td><td>argon2id, 7d 滑/30d 硬上限</td><td><code>20260608_145040_7202e5</code> msg 195 §5（7d/30d 数值见 msg 196）</td></tr>
+        <tr><td>15</td><td>URL auth</td><td>bearer / basic / cookie / header</td><td></td><td><code>20260608_145040_7202e5</code> msg 193 §1.6</td></tr>
+        <tr><td>16</td><td>多模态</td><td>V1 仅元数据 + UI 缩略图</td><td>VLM 推 V2</td><td><code>20260608_145040_7202e5</code> msg 193 §1.3/1.5</td></tr>
+        <tr><td>17</td><td>LangGraph</td><td>StateGraph + PostgresCheckpointer</td><td>langgraph==1.0.5</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>18</td><td>文档解析</td><td>LlamaIndex Reader + Splitter</td><td>llama-index==0.14.8</td><td><code>20260608_145040_7202e5</code> msg 195 §6</td></tr>
+        <tr><td>19</td><td>Confluence</td><td>reader v2 REST + 子页 BFS, Cloud Basic auth</td><td>llama-index-readers-confluence==0.4.4</td><td><code>20260608_145040_7202e5</code> msg 196（Cloud Basic）</td></tr>
+        <tr><td>20</td><td>测试模型</td><td>MiniMax-M3</td><td>评估也走 M3</td><td><code>20260608_145040_7202e5</code> msg 193 §1.8</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="arch">1. 架构总览</h2>
+    <div class="arch-box">┌──────────────────────────────────────────────────────────────────┐
+│                      客户端 (Browser)                            │
+│   Gradio Web UI · login · sessions · chat · ingest              │
+└───────────────────────────┬──────────────────────────────────────┘
+            Authorization: Bearer ***                │
+┌───────────────────────────┴──────────┐  ┌────────────────────────┐
+│   FastAPI (app/api)                  │  │   Ingest Worker        │
+│   /api/auth · /api/sessions          │  │   异步 BackgroundTask   │
+│   /api/chat · /api/ingest · /health  │  │   file / url / conf    │
+└───────────────────┬──────────────────┘  └───────────┬────────────┘
+                    │                                  │
+                    ▼                                  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│              LangGraph Workflow (app/graph)                       │
+│                                                                  │
+│   load_memory → classify ─┬─→ query_rewrite → retrieve          │
+│                           │                      │               │
+│                           │               (OpenSearch kNN)       │
+│                           │         ← TEI/bge-m3 embedding       │
+│                           │                      │               │
+│                           │               rerank (LLM 0-10)      │
+│                           │                      │               │
+│                           └─→ answer ←──────────┘               │
+│                                  │                                │
+│                             save_memory                          │
+│                                                                  │
+│   ▲ PostgresCheckpointer (thread_id)  ↔  SQLite fallback        │
+└──────────────────────────────────────────────────────────────────┘
+    │                    │                    │                 │
+    ▼                    ▼                    ▼                 ▼
+┌────────┐  ┌────────────────┐  ┌──────────────┐  ┌──────────────────┐
+│LlamaIdx│  │   OpenSearch   │  │  TEI/bge-m3  │  │  LLM (MiniMax-M3)│
+│ Reader │  │   2.19 + HNSW  │  │  dim=1024    │  │  ChatAnthropic   │
+│Splitter│  │   cosine       │  │  batch=32    │  │  + Langfuse cb   │
+└────────┘  └────────────────┘  └──────────────┘  └──────────────────┘
+                                                           │
+                                              ┌────────────┴─────────┐
+                                              │  Postgres (1 service) │
+                                              │  users/auth/chat      │
+                                              │  checkpoints/jobs    │
+                                              │  Langfuse · RAGAS    │
+                                              └───────────────────────┘</div>
+    <p><strong>关键架构决策</strong>：</p>
+    <ul>
+      <li><strong>三库职责清晰</strong>：LlamaIndex（ingest 阶段 Reader + Splitter）/ langchain（LLM 客户端抽象层）/ langgraph（query 阶段 workflow 编排）</li>
+      <li><strong>Ingest / query 解耦</strong>：客户端上传 → <code>/api/ingest</code> → BackgroundTasks 入队 → 异步 worker</li>
+      <li><strong>7 节点 RAG workflow</strong>：load_memory → classify（启发式+LLM 兜底）→ rewrite(1-3 句) → retrieve(kNN top_k=10) → rerank(LLM 0-10 top-5) → answer([1][2][3] 引用) → save_memory</li>
+      <li><strong>PG 不可达降级 SQLite</strong>：<code>make_checkpointer()</code> 自动 fallback</li>
+      <li><strong>可观测双轨</strong>：Langfuse（在线 trace）+ RAGAS（离线 golden set）</li>
+    </ul>
+
+    <h2 id="modules">2. 模块树</h2>
+    <pre><code>app/
+├── api/              FastAPI 路由 (auth, sessions, chat, ingest, health)
+├── auth/             用户系统 (service, tokens, deps)
+├── db/               数据层 (models, session, migrations/)
+├── graph/            LangGraph 工作流
+│   ├── state.py      TypedDict RagState
+│   ├── nodes.py      7 节点函数
+│   ├── edges.py      条件边（classify → 检索/闲聊）
+│   ├── workflow.py   compile + checkpointer 注入
+│   ├── checkpointer.py  Postgres/SQLite 降级
+│   └── errors.py     自定义异常 + fallback_answer
+├── ingest/           数据源 + 管线 (file, url, confluence + auth, pipeline, splitter)
+├── retrieval/        OpenSearch 封装 (client, index, store, retriever)
+├── memory/           Postgres checkpointer + thread 解析
+├── llm/              LLM 工厂 (factory, prompts)
+├── embedding/        TEI 客户端
+├── observability/    Langfuse callback 工厂
+├── eval/             RAGAS CLI 入口
+└── ui/               Gradio 4 tab</code></pre>
+    <p><strong>隔离原则</strong>：每个模块一个 <code>__init__.py</code> 暴露<strong>最少</strong>公共 API；跨模块仅通过显式接口（函数签名 / Pydantic schema）；LangGraph state 用 TypedDict 集中定义，节点不私自扩展。</p>
+
+    <h2 id="dataflow">3. 数据流</h2>
+
+    <h3>3.1 Ingest</h3>
+    <pre><code>POST /api/ingest {source, payload, auth?}
+  → 鉴权 → INSERT ingest_jobs (status=pending) → BackgroundTask
+      ├─ file:    LlamaIndex SimpleDirectoryReader
+      ├─ url:     httpx + auth → TrafilaturaWebReader
+      └─ confluence: v2 REST → BFS 子页 → attachments
+  → 元素分类 (NarrativeText/Table/Image)
+  → 图片元素 → artifacts/ + image_ref 元数据（V1 不做内容问答）
+  → SentenceSplitter (chunk=512, overlap=64)
+  → TEI /embed (bge-m3, batch=32)
+  → OpenSearch upsert {id, text, vector[1024], metadata}
+  → UPDATE ingest_jobs (status=indexed|failed)</code></pre>
+
+    <h3>3.2 Auth</h3>
+    <pre><code>POST /api/auth/register → argon2id hash → INSERT users + auth_sessions
+POST /api/auth/login    → verify password → INSERT auth_sessions
+                          → token 7d 滑动 / 30d 硬上限
+POST /api/auth/logout   → DELETE auth_sessions WHERE token_hash=?
+GET  /api/sessions      → SELECT chat_sessions ORDER BY updated_at DESC
+GET  /api/sessions/{id} → PostgresCheckpointer.get_state(thread_id)
+                          → 越权 404（不暴露存在性）</code></pre>
+
+    <h3>3.3 Query</h3>
+    <pre><code>POST /api/chat {query, session_id?}
+  → 鉴权 → resolve thread_id → LangGraph invoke
+    1. load_memory   → get_state(thread_id) → 历史消息
+    2. classify      → 启发式("刚才/上面/它") → chitchat
+                      → LLM 兜底 → retrieve/chitchat
+    3a. chitchat     → answer 直出
+    3b. retrieve     → rewrite(1-3) → kNN top_k=10 → dedupe
+                     → rerank(LLM 0-10 top-5) → answer([1][2][3])
+    4. save_memory   → 自动 persist
+  → return {answer, sources, session_id}</code></pre>
+
+    <h2 id="api">4. API & UI</h2>
+    <table>
+      <thead><tr><th>方法</th><th>路径</th><th>鉴权</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td><code>/api/auth/register</code></td><td>无</td><td>注册</td></tr>
+        <tr><td>POST</td><td><code>/api/auth/login</code></td><td>无</td><td>登录</td></tr>
+        <tr><td>POST</td><td><code>/api/auth/logout</code></td><td>有</td><td>登出</td></tr>
+        <tr><td>GET</td><td><code>/api/sessions</code></td><td>有</td><td>session 列表</td></tr>
+        <tr><td>GET</td><td><code>/api/sessions/{id}</code></td><td>有</td><td>session 详情</td></tr>
+        <tr><td>POST</td><td><code>/api/chat</code></td><td>有</td><td>会话（新建/续接）</td></tr>
+        <tr><td>POST</td><td><code>/api/ingest</code></td><td>有</td><td>文档入库</td></tr>
+        <tr><td>GET</td><td><code>/api/ingest/{job_id}</code></td><td>有</td><td>进度查询</td></tr>
+        <tr><td>GET</td><td><code>/api/health</code></td><td>无</td><td>健康检查</td></tr>
+      </tbody>
+    </table>
+    <p>Gradio Web UI 4 tab：<strong>Login</strong> / <strong>Sessions</strong> / <strong>Chat</strong>（source 卡 + image 缩略图）/ <strong>Ingest</strong></p>
+    <p>主题：暗色 <code>#0d1117</code> 底，<code>#58a6ff</code> 强调色，中文友好字体 (PingFang SC, Microsoft YaHei)</p>
+
+    <h2 id="errors">5. 错误处理矩阵</h2>
+    <table>
+      <thead><tr><th>失败点</th><th>策略</th></tr></thead>
+      <tbody>
+        <tr><td>OpenSearch 不可达</td><td>503 + LLM 兜底（无源引用"未检索"）</td></tr>
+        <tr><td>TEI embedding 超时</td><td>指数退避 3 次 → 标 failed</td></tr>
+        <tr><td>LLM 4xx/5xx</td><td>Langfuse trace → 前端 502</td></tr>
+        <tr><td>检索 top-k 全 0</td><td>"未找到相关文档"，不编造</td></tr>
+        <tr><td>Postgres 不可达</td><td>SQLite 降级（checkpointer）</td></tr>
+        <tr><td>Confluence 401/403</td><td>跳过 page，记日志</td></tr>
+        <tr><td>Confluence 429</td><td>token bucket + 退避 3 次</td></tr>
+        <tr><td>文档解析失败</td><td>单文件不阻塞批次</td></tr>
+        <tr><td>附件 >50MB</td><td>跳过，不进 RAG</td></tr>
+        <tr><td>session_id 越权</td><td>404，不暴露存在性</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="test">6. 测试策略</h2>
+    <ul>
+      <li><strong>模型</strong>：MiniMax-M3（langchain <code>ChatAnthropic</code>）</li>
+      <li><strong>单元</strong>：pytest + pytest-asyncio（graph 节点、retrieval、auth、checkpointer roundtrip）</li>
+      <li><strong>集成</strong>：docker compose up → 真 OpenSearch/TEI/PG/Langfuse → 端到端</li>
+      <li><strong>断言</strong>：answer 含 <code>[1][2][3]</code> 源标记 / retrieve chunk ≥ 0 / chitchat 不调 retrieve</li>
+      <li><strong>RAGAS</strong>：golden set 20-50 题（3 源 × 3 类问题），CI 门禁 faithfulness ≥ 0.7</li>
+      <li><strong>TDD</strong>：superpowers 红绿循环</li>
+      <li><strong>不测</strong>：LLM 输出文本本身、Confluence API（mock）</li>
+    </ul>
+
+    <h2 id="milestones">7. V1 Milestones（M0–M12）</h2>
+    <table>
+      <thead><tr><th>M</th><th>内容</th><th>估时</th></tr></thead>
+      <tbody>
+        <tr><td>M0</td><td>Infra: docker-compose (PG, OS, TEI, Langfuse)</td><td>2d</td></tr>
+        <tr><td>M1</td><td>Schema: Alembic (users, auth_sessions, chat_sessions, ingest_jobs)</td><td>3d</td></tr>
+        <tr><td>M2</td><td>Auth: /api/auth/* 闭环</td><td>5d</td></tr>
+        <tr><td>M3</td><td>LLM/Embed: 工厂 + TEI 客户端 + Langfuse</td><td>2d</td></tr>
+        <tr><td>M4</td><td>Ingest: file reader + pipeline</td><td>3d</td></tr>
+        <tr><td>M5</td><td>Ingest: url reader (4 auth)</td><td>3d</td></tr>
+        <tr><td>M6</td><td>Ingest: confluence reader (subtree + attachments)</td><td>5d</td></tr>
+        <tr><td>M7</td><td>Graph: state + 7 节点 + PostgresCheckpointer</td><td>5d</td></tr>
+        <tr><td>M8</td><td>API: /api/chat + /api/sessions</td><td>3d</td></tr>
+        <tr><td>M9</td><td>UI: Gradio 4 tab</td><td>5d</td></tr>
+        <tr><td>M10</td><td>Obs: Langfuse 集成</td><td>2d</td></tr>
+        <tr><td>M11</td><td>Eval: RAGAS golden set + CLI</td><td>3d</td></tr>
+        <tr><td>M12</td><td>Hardening: 错误处理 + 限速 + 备份</td><td>5d</td></tr>
+        <tr><td colspan="2"><strong>合计</strong></td><td><strong>~7 周</strong></td></tr>
+      </tbody>
+    </table>
+    <p><strong>发布节奏</strong>：0.1.0 (M0–M3) → 0.2.0 (M4–M6) → 0.3.0 (M7–M8) → 0.4.0 (M9–M12)</p>
+
+    <h2 id="deps">8. 依赖版本清单</h2>
+    <p>Python 3.11 · 锁定 2026-06-10 · <strong>36 个直接依赖</strong>，<code>==</code> 精确 pin 7 个，<code>&gt;=&lt;</code> 区间 29 个。</p>
+
+    <h3>8.1 核心 LLM 编排栈（9 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><code>langchain</code></td><td><code>==1.0.8</code></td><td>顶层 agent 抽象</td></tr>
+        <tr><td><code>langchain-core</code></td><td><code>&gt;=1.0.8,&lt;1.1</code></td><td>BaseChatModel 协议</td></tr>
+        <tr><td><code>langchain-anthropic</code></td><td><code>&gt;=0.3,&lt;1.0</code></td><td>ChatAnthropic 工厂</td></tr>
+        <tr><td><code>langgraph</code></td><td><code>==1.0.5</code></td><td>StateGraph 编排</td></tr>
+        <tr><td><code>langgraph-checkpoint</code></td><td><code>==2.0.10</code></td><td>checkpointer 基类</td></tr>
+        <tr><td><code>langgraph-checkpoint-postgres</code></td><td><code>==2.0.10</code></td><td>AsyncPostgresSaver</td></tr>
+        <tr><td><code>langgraph-checkpoint-sqlite</code></td><td><code>==2.0.10</code></td><td>AsyncSqliteSaver（降级）</td></tr>
+        <tr><td><code>pydantic</code></td><td><code>&gt;=2.7,&lt;3</code></td><td>validation</td></tr>
+        <tr><td><code>pydantic-settings</code></td><td><code>&gt;=2.3,&lt;3</code></td><td>env loading</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.2 Embedding & 文档解析栈（7 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><code>llama-index</code></td><td><code>==0.14.8</code></td><td>Reader / Splitter 主框架</td></tr>
+        <tr><td><code>llama-index-readers-file</code></td><td><code>==0.4.0</code></td><td>SimpleDirectoryReader</td></tr>
+        <tr><td><code>llama-index-readers-confluence</code></td><td><code>==0.4.4</code></td><td>Confluence reader</td></tr>
+        <tr><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code></td><td>async HTTP client</td></tr>
+        <tr><td><code>tenacity</code></td><td><code>&gt;=8.3,&lt;10</code></td><td>retry / 退避</td></tr>
+        <tr><td><code>opensearch-py</code></td><td><code>&gt;=2.6,&lt;3</code></td><td>OpenSearch kNN</td></tr>
+        <tr><td><code>trafilatura</code></td><td><code>&gt;=1.12,&lt;2</code></td><td>URL 正文抽取</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.3 鉴权 & 安全（3 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>argon2-cffi</code></td><td><code>&gt;=23.1,&lt;24</code></td></tr>
+        <tr><td><code>cryptography</code></td><td><code>&gt;=42,&lt;46</code></td></tr>
+        <tr><td><code>pyjwt</code></td><td><code>&gt;=2.9,&lt;3</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.4 Web 框架栈（5 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>fastapi</code></td><td><code>&gt;=0.115,&lt;1</code></td></tr>
+        <tr><td><code>uvicorn[standard]</code></td><td><code>&gt;=0.32,&lt;1</code></td></tr>
+        <tr><td><code>python-multipart</code></td><td><code>&gt;=0.0.9,&lt;1</code></td></tr>
+        <tr><td><code>gradio</code></td><td><code>&gt;=5.0,&lt;6</code></td></tr>
+        <tr><td><code>slowapi</code></td><td><code>&gt;=0.1.9,&lt;1</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.5 数据库栈（6 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>sqlalchemy[asyncio]</code></td><td><code>&gt;=2.0.30,&lt;3</code></td></tr>
+        <tr><td><code>alembic</code></td><td><code>&gt;=1.13,&lt;2</code></td></tr>
+        <tr><td><code>asyncpg</code></td><td><code>&gt;=0.29,&lt;1</code></td></tr>
+        <tr><td><code>psycopg2-binary</code></td><td><code>&gt;=2.9,&lt;3</code></td></tr>
+        <tr><td><code>aiosqlite</code></td><td><code>&gt;=0.20,&lt;1</code></td></tr>
+        <tr><td><code>redis</code></td><td><code>&gt;=5.0,&lt;6</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.6 观测 & 评估（5 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>langfuse</code></td><td><code>&gt;=2.50,&lt;3</code></td></tr>
+        <tr><td><code>opentelemetry-api</code></td><td><code>&gt;=1.27,&lt;2</code></td></tr>
+        <tr><td><code>opentelemetry-sdk</code></td><td><code>&gt;=1.27,&lt;2</code></td></tr>
+        <tr><td><code>ragas</code></td><td><code>&gt;=0.2,&lt;1</code></td></tr>
+        <tr><td><code>datasets</code></td><td><code>&gt;=2.20,&lt;4</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.7 测试栈（6 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>pytest</code></td><td><code>&gt;=8.3,&lt;9</code></td></tr>
+        <tr><td><code>pytest-asyncio</code></td><td><code>&gt;=0.24,&lt;1</code></td></tr>
+        <tr><td><code>pytest-httpx</code></td><td><code>&gt;=0.30,&lt;1</code></td></tr>
+        <tr><td><code>pytest-mock</code></td><td><code>&gt;=3.14,&lt;4</code></td></tr>
+        <tr><td><code>pytest-cov</code></td><td><code>&gt;=5.0,&lt;7</code></td></tr>
+        <tr><td><code>freezegun</code></td><td><code>&gt;=1.5,&lt;2</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.8 工具栈（4 包）</h3>
+    <table>
+      <thead><tr><th>包</th><th>版本</th></tr></thead>
+      <tbody>
+        <tr><td><code>python-dotenv</code></td><td><code>&gt;=1.0,&lt;2</code></td></tr>
+        <tr><td><code>structlog</code></td><td><code>&gt;=24.1,&lt;26</code></td></tr>
+        <tr><td><code>click</code></td><td><code>&gt;=8.1,&lt;9</code></td></tr>
+        <tr><td><code>rich</code></td><td><code>&gt;=13.7,&lt;14</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="boundary">9. 与后续版本边界</h2>
+    <table>
+      <thead><tr><th>维度</th><th>V1（本档）</th><th>V1.1</th><th>V2</th></tr></thead>
+      <tbody>
+        <tr><td>ingest</td><td>file/url/confluence（单 page + 子页）</td><td>整 space / 评论 / 增量 / 版本 / Playwright</td><td>多模态 VLM / Snowball</td></tr>
+        <tr><td>graph</td><td>7 节点 + classify 启发式优先</td><td>classify 双轨 telemetry</td><td>A/B / hybrid / SSE / 专用 reranker</td></tr>
+        <tr><td>鉴权</td><td>用户名密码 + token</td><td>—</td><td>SSO / MFA / 设备指纹</td></tr>
+        <tr><td>租户</td><td>单租户</td><td>—</td><td>多租户 + doc ACL</td></tr>
+        <tr><td>观测</td><td>Langfuse</td><td>—</td><td>Prometheus + Sentry</td></tr>
+        <tr><td>评估</td><td>RAGAS CLI</td><td>—</td><td>fine-tune 闭环</td></tr>
+      </tbody>
+    </table>
+    <p><strong>V1 不做</strong>：整 space CQL / 增量同步 / 评论 / 版本 / JS 渲染 / 流式 / 多模态 VLM / hybrid search / SSO / MFA / doc ACL / 多租户 / 专用 reranker / A/B / 飞轮 / Prometheus / Sentry</p>
+
+    <h2 id="plan-index">10. 实施 Plan 索引</h2>
+    <table>
+      <thead><tr><th>M</th><th>Plan</th><th>Task</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>M0</td><td><code>plans/2026-06-08-rag-m0-infra.md</code></td><td>~6</td><td>待写</td></tr>
+        <tr><td>M1</td><td><code>plans/2026-06-08-rag-m1-schema.md</code></td><td>~8</td><td>待写</td></tr>
+        <tr><td>M2</td><td><code>plans/2026-06-08-rag-m2-auth.md</code></td><td>~10</td><td>待写</td></tr>
+        <tr><td>M3</td><td><a href="../plans/2026-06-08-rag-m3-llm-embed.html"><code>plans/2026-06-08-rag-m3-llm-embed.md</code></a></td><td>5</td><td>✅ 范本</td></tr>
+        <tr><td>M4</td><td><code>plans/2026-06-08-rag-m4-ingest-file.md</code></td><td>~8</td><td>待写</td></tr>
+        <tr><td>M5</td><td><code>plans/2026-06-08-rag-m5-ingest-url.md</code></td><td>~7</td><td>待写</td></tr>
+        <tr><td>M6</td><td><code>plans/2026-06-08-rag-m6-ingest-confluence.md</code></td><td>~9</td><td>待写</td></tr>
+        <tr><td>M7</td><td><a href="../plans/2026-06-08-rag-m7-graph.html"><code>plans/2026-06-08-rag-m7-graph.md</code></a></td><td>11</td><td>✅ 范本</td></tr>
+        <tr><td>M8</td><td><code>plans/2026-06-08-rag-m8-api-chat.md</code></td><td>~6</td><td>待写</td></tr>
+        <tr><td>M9</td><td><code>plans/2026-06-08-rag-m9-ui-gradio.md</code></td><td>~8</td><td>待写</td></tr>
+        <tr><td>M10</td><td><code>plans/2026-06-08-rag-m10-obs-langfuse.md</code></td><td>~5</td><td>待写</td></tr>
+        <tr><td>M11</td><td><code>plans/2026-06-08-rag-m11-eval-ragas.md</code></td><td>~6</td><td>待写</td></tr>
+        <tr><td>M12</td><td><code>plans/2026-06-08-rag-m12-hardening.md</code></td><td>~10</td><td>待写</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="changelog">11. 修订记录</h2>
+    <table>
+      <thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+      <tbody>
+        <tr><td>v1-scope-draft</td><td>2026-06-08</td><td>初稿，从 v0.4 §1-§6 汇总 11 项功能</td></tr>
+        <tr><td>v1-scope-2026-06-10</td><td>2026-06-10</td><td>更新决策总表 + 36 包版本清单 + 架构图 + 数据流 + 实施 plan 索引</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+</body>
+</html>

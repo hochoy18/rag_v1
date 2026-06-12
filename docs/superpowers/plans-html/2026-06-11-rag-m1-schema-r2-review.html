@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1 Plan r2 Review · r1 修复验证</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M1 Plan r2 Review · r1 修复验证</h1>
+  <div class="meta">
+    <span>356 行</span>
+<span>10 P0</span>
+<span>37 P1</span>
+<span>10 P2</span>
+<span class="badge-r1">1 r1 标记</span>
+    <span>2026-06-11-rag-m1-schema-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证35-项逐项">1. r1 修复验证（35 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#np-1-m2-强依赖的-auth_sessionsis_revoked-字段在-ddl-中彻底缺失最严重">NP-1 · M2 强依赖的 auth_sessions.is_revoked 字段在 DDL 中彻底缺失（最严重）</a></li>
+<li><a href="#np-2-partial-unique-index-在-ddl-描述段未显式落-sqlp1-5-部分修的真实缺口">NP-2 · partial unique index 在 DDL 描述段未显式落 SQL（P1-5 部分修的真实缺口）</a></li>
+<li><a href="#np-3-auth_sessionsexpires_at_hard-索引未在-p1-7-索引清单中p1-7-部分修的真实">NP-3 · auth_sessions.expires_at_hard 索引未在 P1-7 索引清单中（P1-7 部分修的真实缺口）</a></li>
+<li><a href="#np-4-ddl-描述段与-orm-代码段-server_default-表达不一致p1-15-部分修的口径未统一">NP-4 · DDL 描述段与 ORM 代码段 server_default 表达不一致（P1-15 部分修的口径未统一）</a></li>
+<li><a href="#np-5-alembic-file_template-模板字符串前后矛盾p0-1-部分修的细节遗漏">NP-5 · alembic file_template 模板字符串前后矛盾（P0-1 部分修的细节遗漏）</a></li>
+<li><a href="#3-跨-m-一致性检查">3. 跨 M 一致性检查</a></li>
+<li><a href="#31-m1-m0基础设施层">3.1 M1 ↔ M0（基础设施层）</a></li>
+<li><a href="#32-m1-m2auth-业务层-发现-1-个严重遗漏">3.2 M1 ↔ M2（auth 业务层）🔴 发现 1 个严重遗漏</a></li>
+<li><a href="#33-m1-m4ingest-pipeline">3.3 M1 ↔ M4（ingest pipeline）</a></li>
+<li><a href="#34-m1-m7graph-checkpointer">3.4 M1 ↔ M7（graph checkpointer）</a></li>
+<li><a href="#35-m1-m8api-层">3.5 M1 ↔ M8（API 层）</a></li>
+<li><a href="#36-m1-m11evaluator-ragas">3.6 M1 ↔ M11（evaluator RAGAS）</a></li>
+<li><a href="#37-m1-m12hardening">3.7 M1 ↔ M12（hardening）</a></li>
+<li><a href="#38-跨-m-一致性总结">3.8 跨 M 一致性总结</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#41-风险表行数核对">4.1 风险表行数核对</a></li>
+<li><a href="#42-风险段是否保留原风险行">4.2 风险段是否保留原风险行</a></li>
+<li><a href="#43-ddl-复杂度-字段膨胀风险是否量化">4.3 DDL 复杂度 / 字段膨胀风险是否量化</a></li>
+<li><a href="#44-风险表新发现缺口">4.4 风险表新发现缺口</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#51-r2-必须修5-项-p0p1r2-落定后再动手-m1">5.1 r2 必须修（5 项 P0/P1，r2 落定后再动手 M1）</a></li>
+<li><a href="#52-落地流程">5.2 落地流程</a></li>
+<li><a href="#53-跨-m-通知m1-改完后">5.3 跨 M 通知（M1 改完后）</a></li>
+<li><a href="#54-等待决策">5.4 等待决策</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m1-plan-r2-review-r1-修复验证">M1 Plan r2 Review · r1 修复验证</h1>
+<blockquote>评审对象：<a href="../2026-06-10-rag-m1-schema.md">2026-06-10-rag-m1-schema.md</a>（650 行，r1 已修 35 项 P0/P1/P2）</blockquote>
+<blockquote>评审基线：<a href="./2026-06-11-rag-m1-schema-review.md">2026-06-11-rag-m1-schema-review.md</a>（r1 review，本 review 的对比基线）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（r2 独立审查）</blockquote>
+<blockquote>范围：<strong>验 r1 修复是否到位 + 发现 r1 修复过程中是否引入新问题 + 跨 M 一致性</strong></blockquote>
+<blockquote>输出策略：35 项逐项验证 + 5 项 r1 引入新问题 + 7 个 M 联动 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐⭐⭐</td><td>35 项中 31 项<strong>已修到位</strong>（含 4 项落实方式有瑕疵）；4 项<strong>未修 / 修错位</strong></td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐⭐</td><td>M0/M4/M7/M8/M11/M12 联动基本落地；<strong>M2 强依赖的 <code>auth_sessions.is_revoked</code> 字段在 DDL 中彻底缺失</strong></td></tr>
+<tr><td>DDL 完整性</td><td>⭐⭐⭐</td><td>4 张表主体字段齐，复合索引 + 状态/时间索引齐；但 <code>expires_at_hard</code> 索引缺 / <code>partial unique index</code> 未显式落 / 表 DDL 描述段与 ORM 代码段 server_default 表达不一致</td></tr>
+<tr><td>风险表补全</td><td>⭐⭐⭐⭐</td><td>6 行原风险 + 30 行 r1 已修（r1 修了 30 行新增风险项），但<strong> DDL 复杂度量化行未补</strong></td></tr>
+<tr><td>实施就绪度</td><td>⭐⭐⭐⭐</td><td>r1 后 P0-1 ~ P0-7 全修；alembic 工程化、连接池、pgbouncer 兼容、enum 决策、pytest config 全到位</td></tr>
+</table>
+<p><strong>一句话</strong>：r1 修复整体到位（31/35 项 100% 修，4 项部分修），<strong>最大遗漏是 M2 强依赖的 <code>auth_sessions.is_revoked</code> 字段</strong>（M2 plan L125/L824 显式声明依赖此字段，M1 修订记录 L650 跨 M 联动行也提到，但 §4 表结构 DDL 段没写），M1 落地后 M2 会缺字段；外加 <code>expires_at_hard</code> 索引 / <code>partial unique index</code> / <code>file_template</code> 模板前后矛盾 / DDL 描述段 server_default 未统一 4 项小瑕疵，r2 后小修 1 轮即可动手。</p>
+<hr>
+<h2 id="1-r1-修复验证35-项逐项">1. r1 修复验证（35 项逐项）</h2>
+<table>
+<tr><th>#</th><th>r1 标记</th><th>修复内容（r1 claim）</th><th>实际验证（plan 文本位置）</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>1</td><td>P0-1</td><td>alembic.ini <code>sqlalchemy.url</code> 留空 + env.py 注入 DSN + <code>file_template</code></td><td>L396-400（env.py 模板 L419-425 注入）+ L397/L464 提 <code>file_template</code>；<strong>但 L397 与 L615 模板字符串不一致</strong>（L397 用 <code>%(slug)s</code> 结尾，L615 r1 修订记录用 <code>%(rev)s_%(slug)s</code> 结尾）</td><td>⚠️ 部分修</td></tr>
+<tr><td>2</td><td>P0-2</td><td>单测改 <code>pytest-postgresql</code> 临时 PG</td><td>L307/L509/L533 显式&quot;不用 sqlite，走 <code>pytest-postgresql</code> 临时 PG&quot;</td><td>✅ 已修</td></tr>
+<tr><td>3</td><td>P0-3</td><td>dev 依赖加 <code>pytest-postgresql</code> + <code>testcontainers[postgresql]</code></td><td>L510-511 pyproject.toml dev 段已加</td><td>✅ 已修</td></tr>
+<tr><td>4</td><td>P0-4</td><td>删 <code>test_migration_has_all_tables</code> 脆测 + 改走 <code>test_migrate_up_creates_tables</code></td><td>L461-464 显式删除原 RED 测试 + 改走 Task 5 集成测试</td><td>✅ 已修</td></tr>
+<tr><td>5</td><td>P0-5</td><td>统一 <code>app/db/__init__.py</code> 暴露 engine/async_session/async_session_factory/get_session/AsyncSession</td><td>L258 Files 表 + L380-386 REFACTOR 代码块 <code>__all__</code> 一致</td><td>✅ 已修</td></tr>
+<tr><td>6</td><td>P0-6</td><td>env.py 完整 <code>run_async_migrations</code> 模板（asyncio.run + connection.run_sync）</td><td>L408-458 完整 env.py 模板包含 <code>do_run_migrations</code> + <code>run_async_migrations</code> + <code>run_migrations_online</code></td><td>✅ 已修</td></tr>
+<tr><td>7</td><td>P0-7</td><td>TimestampMixin docstring 显式 onupdate 限制 + M4 bulk update caveat</td><td>L311-330 docstring 三段 + 注释 <code># 仅 ORM dirty 时触发，bulk update 无效</code></td><td>✅ 已修</td></tr>
+<tr><td>8</td><td>P1-1</td><td><code>ingest_jobs.payload_hash</code> 加 UNIQUE + <code>idempotency_key</code> UNIQUE</td><td>L166 <code>UNIQUE INDEX uq_ingest_jobs_payload_hash</code> + L170 <code>idempotency_key</code> UNIQUE</td><td>✅ 已修</td></tr>
+<tr><td>9</td><td>P1-2</td><td><code>chat_sessions</code> 索引改 <code>(user_id, is_active, updated_at DESC)</code> 复合索引</td><td>L156 Indexes 段 + L196 ORM <code>__table_args__</code> 复合索引</td><td>✅ 已修</td></tr>
+<tr><td>10</td><td>P1-3</td><td>4 表全加 <code>created_by</code> / <code>updated_by</code> UUID FK→users.id</td><td>L119-120（users）/ L136-137（auth_sessions）/ L153-154（chat_sessions）/ L178-179（ingest_jobs）4 表全加</td><td>✅ 已修</td></tr>
+<tr><td>11</td><td>P1-4</td><td>users 加 <code>email VARCHAR(255) UNIQUE NULLABLE</code> + <code>email_verified_at</code></td><td>L108 <code>email</code> UNIQUE NULLABLE + L109 <code>email_verified_at</code></td><td>✅ 已修</td></tr>
+<tr><td>12</td><td>P1-5</td><td>users 加 <code>deleted_at TIMESTAMPTZ NULLABLE INDEX</code> + partial unique index（username 复用）</td><td>L116 <code>deleted_at NULLABLE, INDEX</code> 列 + L626 r1 行写&quot;partial unique index&quot;；<strong>但 §4 表结构段 L116 只列 INDEX，partial unique index 没显式 SQL 描述</strong></td><td>⚠️ 部分修</td></tr>
+<tr><td>13</td><td>P1-6</td><td>chat_sessions 加 <code>last_message_at TIMESTAMPTZ NULLABLE INDEX</code></td><td>L149 <code>last_message_at</code> + 单独 INDEX</td><td>✅ 已修</td></tr>
+<tr><td>14</td><td>P1-7</td><td>FK 列 + 状态/时间列全加索引</td><td>L181-186 列了 5 个索引（auth_sessions.user_id / chat_sessions.user_id / ingest_jobs.user_id_created_at + status_created_at + completed_at）；<strong><code>auth_sessions.expires_at_hard</code> 索引未列</strong>（M2 cleanup job 强依赖）</td><td>⚠️ 部分修</td></tr>
+<tr><td>15</td><td>P1-8</td><td>新建 <code>app/auth/password_validator.py</code> + 单测</td><td>L77 <code>password_validator.py</code> + L263 Files 表新增 + L273 单测文件 + L385-403 草稿代码</td><td>✅ 已修</td></tr>
+<tr><td>16</td><td>P1-9</td><td>手写 <code>downgrade()</code> + RED 测试 <code>test_migration_downgrade_works</code></td><td>L406 显式&quot;手写 <code>downgrade()</code>&quot; + L466-468 RED 测试</td><td>✅ 已修</td></tr>
+<tr><td>17</td><td>P1-10</td><td>风险表补 enum vs VARCHAR+CHECK 决策</td><td>L226-228 &quot;不引入 <code>sqlalchemy Enum</code> 类型，<code>source</code> / <code>status</code> 用 <code>String + CheckConstraint</code>&quot; + L576 风险表 1 行</td><td>✅ 已修</td></tr>
+<tr><td>18</td><td>P1-11</td><td><code>pool_recycle=1800</code> + <code>pool_pre_ping=True</code></td><td>L367 <code>create_async_engine(... pool_recycle=1800, pool_pre_ping=True, ...)</code></td><td>✅ 已修</td></tr>
+<tr><td>19</td><td>P1-12</td><td><code>connect_args={&quot;statement_cache_size&quot;: 0, &quot;prepared_statement_cache_size&quot;: 0}</code> 兼容 pgbouncer</td><td>L367 connect_args 显式 + L577 风险表 1 行</td><td>✅ 已修</td></tr>
+<tr><td>20</td><td>P1-13</td><td>env.py 加 <code>pg_advisory_lock(0x5241475631)</code> 并发锁</td><td>L434-444 <code>do_run_migrations</code> 前后 advisory lock + unlock</td><td>✅ 已修</td></tr>
+<tr><td>21</td><td>P1-14</td><td><code>__table_args__</code> 集中声明索引 + UNIQUE</td><td>L190-200 显式 ORM 示例 <code>__table_args__</code> 集中声明</td><td>✅ 已修</td></tr>
+<tr><td>22</td><td>P1-15</td><td>server-side default 显式声明约定（<code>server_default=func.now()</code>，不用 <code>default=datetime.now</code>）</td><td>L334 &quot;P1-15 约定&quot;段 + L322-330 ORM 代码；<strong>但 §4 表 DDL 描述段 L117/L131/L135 等仍写 <code>DEFAULT now()</code>，没显式 <code>server_default=func.now()</code></strong></td><td>⚠️ 部分修</td></tr>
+<tr><td>23</td><td>P1-16</td><td>pyproject.toml <code>[tool.pytest.ini_options]</code> 加 <code>asyncio_mode = &quot;auto&quot;</code></td><td>L514-520 pyproject.toml pytest 配置段</td><td>✅ 已修</td></tr>
+<tr><td>24</td><td>P1-17</td><td><code>app/config.py</code> 末尾 <code>settings = Settings()</code> 全局单例</td><td>L296-299 &quot;P1-17 文件末尾追加全局单例&quot; + 代码块</td><td>✅ 已修</td></tr>
+<tr><td>25</td><td>P1-18</td><td><code>op.create_index</code> 加 <code>postgresql_concurrently=True</code></td><td>L188 &quot;所有 <code>op.create_index(...)</code> 用 <code>postgresql_concurrently=True</code>&quot; + L439 <code>render_as_batch=False</code> 显式</td><td>✅ 已修</td></tr>
+<tr><td>26</td><td>P1-19</td><td>users.username 走 M2 业务层 <code>.lower().strip()</code> 方案（不装 citext 扩展）</td><td>L106 列定义&quot;用户名（P1-19：M2 业务层 <code>username = username.lower().strip()</code> 后入库，UNIQUE 索引等效 case-insensitive；不装 citext 扩展）&quot;</td><td>✅ 已修</td></tr>
+<tr><td>27</td><td>P2-1</td><td><code>app/config.py</code> 等待 X-1 决议切到 <code>app/configs/db.py</code></td><td>L276 Files 表&quot;修改&quot;段&quot;P2-1 等待 X-1 决议&quot;显式标记</td><td>✅ 已修</td></tr>
+<tr><td>28</td><td>P2-2</td><td>头部加&quot;范本目的&quot;段</td><td>L4 &quot;<code>&gt; 范本目的：M1 是 RAG V1 路线第二个 plan，给 M2/M4-M12 提供&quot;数据层&quot;前置定义</code>&quot;</td><td>✅ 已修</td></tr>
+<tr><td>29</td><td>P2-3</td><td><code>.env.example</code> 加密码一致性注释</td><td>L526-527 注释行 <code># 注意：rag_app / rag_app_password 必须与 infra/init.sql 的 POSTGRES_USER / POSTGRES_PASSWORD 一致</code></td><td>✅ 已修</td></tr>
+<tr><td>30</td><td>P2-4</td><td>users 加 <code>failed_login_attempts</code> + <code>locked_until</code></td><td>L114-115 <code>failed_login_attempts INTEGER NOT NULL DEFAULT 0</code> + <code>locked_until TIMESTAMPTZ NULLABLE</code></td><td>✅ 已修</td></tr>
+<tr><td>31</td><td>P2-5</td><td>ingest_jobs 加 <code>retry_count</code> + <code>max_retries</code> + <code>next_retry_at</code></td><td>L171-173 三个字段齐</td><td>✅ 已修</td></tr>
+<tr><td>32</td><td>P2-6</td><td>auth_sessions 加 <code>ip_address INET</code> + <code>user_agent VARCHAR(512)</code></td><td>L133-134 <code>ip_address INET NULLABLE</code> + <code>user_agent VARCHAR(512) NULLABLE</code></td><td>✅ 已修</td></tr>
+<tr><td>33</td><td>P2-7</td><td>chat_sessions 加 <code>session_metadata JSONB DEFAULT &#x27;{}&#x27;</code></td><td>L150 <code>session_metadata JSONB NULLABLE, DEFAULT &#x27;{}&#x27;</code></td><td>✅ 已修</td></tr>
+<tr><td>34</td><td>P2-8</td><td>4 表加 <code>idempotency_key VARCHAR(64) UNIQUE NULLABLE</code></td><td>L113 users / L132 auth_sessions / L148 chat_sessions / L170 ingest_jobs 全加</td><td>✅ 已修</td></tr>
+<tr><td>35</td><td>P2-9</td><td>推荐 <code>MappedAsDataclass</code> 模式</td><td>L335-347 推荐 <code>class Base(DeclarativeBase, MappedAsDataclass)</code> 模式</td><td>✅ 已修</td></tr>
+</table>
+<p><strong>统计</strong>：✅ 已修 30 项 + ⚠️ 部分修 5 项（#1 file_template 前后矛盾 / #12 partial unique index 未显式 SQL / #14 expires_at_hard 索引缺 / #15 / #22 DDL 描述段与 ORM 代码段 server_default 表达不一致）。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="np-1-m2-强依赖的-auth_sessionsis_revoked-字段在-ddl-中彻底缺失最严重">NP-1 · M2 强依赖的 <code>auth_sessions.is_revoked</code> 字段在 DDL 中彻底缺失（最严重）</h3>
+<p><strong>位置</strong>：M1 §4 auth_sessions 表 L122-137</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M2 plan L125 显式声明：&quot;M1 字段: <code>users.email</code> / <code>users.failed_login_attempts</code> / <code>users.locked_until</code> / <strong><code>auth_sessions.is_revoked</code></strong> / <code>auth_sessions.ip_address</code> / <code>auth_sessions.user_agent</code>&quot;</li>
+<li>M2 plan L824 重申：&quot;M1 schema 字段：<code>users.email</code> / <code>users.failed_login_attempts</code> / <code>users.locked_until</code> / <strong><code>auth_sessions.is_revoked</code></strong> / <code>auth_sessions.ip_address</code> / <code>auth_sessions.user_agent</code>&quot;</li>
+<li>M1 plan L650 r1 跨 M 联动行也写：&quot;M2 依赖 <strong><code>is_revoked</code></strong> / failed_login_attempts / locked_until&quot;</li>
+<li><strong>但 §4 auth_sessions 表 DDL 段 L122-137 完全没有 <code>is_revoked</code> 字段</strong>——只有 <code>id</code> / <code>user_id</code> / <code>token_hash</code> / <code>expires_at_sliding</code> / <code>expires_at_hard</code> / <code>last_used_at</code> / <code>idempotency_key</code> / <code>ip_address</code> / <code>user_agent</code> / <code>created_at</code> / <code>created_by</code> / <code>updated_by</code> 12 个列</li>
+<li><code>grep is_revoked</code> 在 M1 plan 只有 L650 1 处出现，全部是&quot;跨 M 联动&quot;行的引用，<strong>表 DDL 段无任何定义</strong></li>
+<li>M2 业务做&quot;主动撤销 token&quot;（如改密码 / admin 强制下线）100% 需要此字段</li>
+</ul>
+<p><strong>修复</strong>：</p>
+<pre><code class="language-python">
+is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+# 或
+is_revoked: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+# 语义：NULL=未撤销 / NOW()=撤销时间（审计更友好，推荐后者）
+</code></pre>
+<p>同步在 <code>__table_args__</code> 加 <code>Index(&quot;ix_auth_sessions_is_revoked&quot;, &quot;is_revoked&quot;)</code>（M2 查 <code>WHERE is_revoked IS NULL</code> 走 index scan）。</p>
+<p><strong>r2 评级</strong>：🔴 <strong>P0</strong>（r1 修复遗漏跨 M 强依赖字段，必须在 r2 补，否则 M2 实施时缺字段需新增 migration）。</p>
+<h3 id="np-2-partial-unique-index-在-ddl-描述段未显式落-sqlp1-5-部分修的真实缺口">NP-2 · <code>partial unique index</code> 在 DDL 描述段未显式落 SQL（P1-5 部分修的真实缺口）</h3>
+<p><strong>位置</strong>：M1 §4 users 表 L116 + L626 r1 修订记录</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>r1 修订记录 L626 写&quot;users 加 <code>deleted_at TIMESTAMPTZ NULLABLE INDEX</code> + <strong>partial unique index（username 复用）</strong>&quot;</li>
+<li>§4 表 DDL 描述段 L116 只写 <code>deleted_at TIMESTAMPTZ NULLABLE, INDEX</code>（普通 INDEX）</li>
+<li>plan 全文未显式 <code>CREATE UNIQUE INDEX uq_users_username_active ON users(username) WHERE deleted_at IS NULL</code> 或对应 ORM <code>Index(&quot;uq_users_username_active&quot;, &quot;username&quot;, postgresql_where=text(&quot;deleted_at IS NULL&quot;), unique=True)</code></li>
+<li>r1 修复&quot;打了勾但没落地&quot;</li>
+</ul>
+<p><strong>修复</strong>：补显式 SQL / ORM 代码：</p>
+<pre><code class="language-python">
+# app/db/models.py
+class User(Base, TimestampMixin):
+    __tablename__ = &quot;users&quot;
+    __table_args__ = (
+        Index(&quot;uq_users_username_active&quot;, &quot;username&quot;,
+              postgresql_where=text(&quot;deleted_at IS NULL&quot;), unique=True),
+    )
+</code></pre>
+<p>或风险表补&quot;软删除 username 复用&quot;决策行（说明 alias 删除后 username 释放语义）。</p>
+<p><strong>r2 评级</strong>：🟡 <strong>P1</strong>（语义正确但实施时易漏；用户表 1M+ rows 后 ALTER 加 partial index 会锁表，应在初始 migration 一起建好）。</p>
+<h3 id="np-3-auth_sessionsexpires_at_hard-索引未在-p1-7-索引清单中p1-7-部分修的真实">NP-3 · <code>auth_sessions.expires_at_hard</code> 索引未在 P1-7 索引清单中（P1-7 部分修的真实缺口）</h3>
+<p><strong>位置</strong>：M1 §4 Indexes 段 L181-186</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L181-186 列了 5 个索引：auth_sessions.user_id / chat_sessions.user_id / ingest_jobs.user_id_created_at + status_created_at + completed_at</li>
+<li><strong>没有 <code>ix_auth_sessions_expires_at_hard</code></strong></li>
+<li>M2 cleanup job 强依赖：<code>DELETE FROM auth_sessions WHERE expires_at_hard &lt; NOW()</code>（r1 review P1-7 后半段已点出，M4 plan L549 集成测试也会跑）</li>
+<li>1M+ token 表上无索引会全表扫</li>
+</ul>
+<p><strong>修复</strong>：Indexes 段补一行：</p>
+<pre><code class="language-">
+- `ix_auth_sessions_expires_at_hard` ON `auth_sessions(expires_at_hard)` — M2 cleanup job 删过期 token
+</code></pre>
+<p>对应 ORM <code>Index(&quot;ix_auth_sessions_expires_at_hard&quot;, &quot;expires_at_hard&quot;)</code>。</p>
+<p><strong>r2 评级</strong>：🟡 <strong>P1</strong>（P1-7 自称&quot;FK 列 + 状态/时间列全加索引&quot;，但漏 1 个时间列；M2 落地时需补 migration）。</p>
+<h3 id="np-4-ddl-描述段与-orm-代码段-server_default-表达不一致p1-15-部分修的口径未统一">NP-4 · DDL 描述段与 ORM 代码段 <code>server_default</code> 表达不一致（P1-15 部分修的口径未统一）</h3>
+<p><strong>位置</strong>：M1 §4 表 DDL 描述段 vs Task 2 GREEN ORM 代码段</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>§4 表 DDL 描述段（L117 / L131 / L135 / L165 等）全部写 <code>DEFAULT now()</code> 或 <code>DEFAULT TRUE</code> 等<strong>自然语言</strong>形式，<strong>未标注</strong> <code>server_default=func.now()</code> 还是 <code>default=datetime.now</code></li>
+<li>Task 2 GREEN ORM 代码段（L322-330）显式 <code>server_default=func.now()</code> 注释 <code># P1-15 显式 server-side</code></li>
+<li>M4 plan L576 引用&quot;P1-4 updated_at 触发口径&quot;专门提醒 bulk update 行为</li>
+<li><strong>DDL 描述段与 ORM 代码段对同一概念表达口径不一致</strong>——实施时若有人按 §4 表写 <code>default=datetime.now</code>，M4 写代码会踩坑</li>
+</ul>
+<p><strong>修复</strong>：§4 表 DDL 描述段统一口径：</p>
+<pre><code class="language-">
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, **`server_default=func.now()`** | 创建时间 |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, **`server_default=func.now() + onupdate=func.now()`** | 更新时间 |
+</code></pre>
+<p>并加 1 句脚注：&quot;P1-15 约定：本表所有时间字段均 <code>server_default=func.now()</code>，禁 <code>default=datetime.now</code>（client-side 多进程时区漂移）&quot;。</p>
+<p><strong>r2 评级</strong>：🟢 <strong>P2</strong>（语义正确，文档化口径补齐即可）。</p>
+<h3 id="np-5-alembic-file_template-模板字符串前后矛盾p0-1-部分修的细节遗漏">NP-5 · alembic <code>file_template</code> 模板字符串前后矛盾（P0-1 部分修的细节遗漏）</h3>
+<p><strong>位置</strong>：L397 vs L615 vs L464</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L397（Task 4 GREEN 段）：<code>file_template = %%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(slug)s</code></li>
+<li>L615（r1 修订记录行）：<code>file_template=%(year)d%(month)d%(day)d%(hour)d%(minute)d_%%(rev)s_%%(slug)s</code>（注意：单 <code>%</code> 漏写 / <code>%(rev)s_%(slug)s</code> 与 L397 不同）</li>
+<li>L464（RED 测段）：与 L397 一致 <code>%%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(slug)s</code></li>
+<li><strong>L397 与 L615 模板字符串不一致</strong>——一处用 <code>%(slug)s</code> 结尾，一处用 <code>%(rev)s_%(slug)s</code> 结尾；M0 修订记录里 P1-2 init.sql 也修过类似&quot;<code>${POSTGRES_PASSWORD}</code> 占位 vs 明文&quot;问题</li>
+</ul>
+<p><strong>修复</strong>：修订记录行 L615 改正（与 L397/L464 对齐）：</p>
+<pre><code class="language-">
+file_template = %%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(slug)s
+</code></pre>
+<p>或 L397/L464 改成 <code>%(rev)s_%(slug)s</code>（保留 alembic hex revision id 作前缀）。<strong>两处选 1 个统一</strong>。</p>
+<p><strong>r2 评级</strong>：🟢 <strong>P2</strong>（小瑕疵但 alembic 实际会跑 1 个模板，动手时一致即可）。</p>
+<hr>
+<h2 id="3-跨-m-一致性检查">3. 跨 M 一致性检查</h2>
+<h3 id="31-m1-m0基础设施层">3.1 M1 ↔ M0（基础设施层）</h3>
+<table>
+<tr><th>项</th><th>M0 plan 描述</th><th>M1 plan 描述</th><th>一致性</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>Postgres 凭据</td><td>M0 L201 <code>POSTGRES_USER=rag_app</code> / <code>POSTGRES_PASSWORD=rag_app_password</code> / <code>POSTGRES_DB=rag</code></td><td>M1 L525 <code>DATABASE_URL=postgresql+asyncpg://rag_app:rag_app_password@postgres:5432/rag</code></td><td>✅ 凭据一致</td></tr>
+<tr><td>init.sql 联动</td><td>M0 L615 修订记录&quot;init.sql 注释密码为 <code>${POSTGRES_PASSWORD}</code> 变量插值&quot;</td><td>M1 L526 注释&quot;必须与 infra/init.sql 的 POSTGRES_USER / POSTGRES_PASSWORD 一致&quot;</td><td>✅ 联动</td></tr>
+<tr><td>env.py DSN 注入</td><td>M0 config.py 含 <code>db: DBSettings</code></td><td>M1 env.py <code>from app.config import settings</code> + <code>config.set_main_option(&quot;sqlalchemy.url&quot;, settings.db.database_url)</code></td><td>✅ 一致</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M0 联动完整，无新增 gap。</p>
+<h3 id="32-m1-m2auth-业务层-发现-1-个严重遗漏">3.2 M1 ↔ M2（auth 业务层）🔴 <strong>发现 1 个严重遗漏</strong></h3>
+<table>
+<tr><th>M2 依赖字段</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>users.email</code></td><td>✅ L108 UNIQUE NULLABLE</td><td>r1 已补</td></tr>
+<tr><td><code>users.email_verified_at</code></td><td>✅ L109</td><td>r1 已补</td></tr>
+<tr><td><code>users.failed_login_attempts</code></td><td>✅ L114 NOT NULL DEFAULT 0</td><td>r1 已补</td></tr>
+<tr><td><code>users.locked_until</code></td><td>✅ L115 NULLABLE</td><td>r1 已补</td></tr>
+<tr><td><code>users.deleted_at</code></td><td>✅ L116 + partial unique index（partial 部分修）</td><td>r1 已补</td></tr>
+<tr><td><code>auth_sessions.ip_address</code></td><td>✅ L133 INET NULLABLE</td><td>r1 已补</td></tr>
+<tr><td><code>auth_sessions.user_agent</code></td><td>✅ L134 VARCHAR(512) NULLABLE</td><td>r1 已补</td></tr>
+<tr><td><strong><code>auth_sessions.is_revoked</code></strong></td><td>❌ <strong>DDL 段无定义</strong></td><td><strong>r1 漏修（NP-1）</strong></td></tr>
+<tr><td><code>auth_sessions.expires_at_hard</code> 索引</td><td>❌ §4 Indexes 段 L181-186 未列</td><td><strong>r1 漏修（NP-3）</strong></td></tr>
+<tr><td><code>app/auth/password_validator.py</code></td><td>✅ L77/L263 Files 表新增</td><td>r1 已补</td></tr>
+<tr><td><code>username = .lower().strip()</code> 业务口径</td><td>✅ L106 列说明 P1-19</td><td>r1 已补</td></tr>
+</table>
+<p><strong>结论</strong>：🔴 <strong>2 个未补</strong>——<code>is_revoked</code> 字段缺失 / <code>expires_at_hard</code> 索引缺失。M2 强依赖。</p>
+<h3 id="33-m1-m4ingest-pipeline">3.3 M1 ↔ M4（ingest pipeline）</h3>
+<table>
+<tr><th>M4 依赖字段</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>ingest_jobs.payload_hash</code> UNIQUE</td><td>✅ L166 UNIQUE INDEX uq_ingest_jobs_payload_hash</td><td>r1 已补</td></tr>
+<tr><td><code>ingest_jobs.retry_count</code> / <code>max_retries</code> / <code>next_retry_at</code></td><td>✅ L171-173</td><td>r1 已补</td></tr>
+<tr><td><code>ingest_jobs.idempotency_key</code></td><td>✅ L170</td><td>r1 已补</td></tr>
+<tr><td><code>ingest_jobs</code> UNIQUE 约束（M4 ON CONFLICT 用）</td><td>✅ P1-5 修订记录</td><td>r1 已补</td></tr>
+<tr><td><code>ingest_jobs.completed_at</code> 索引（M11 RAGAS 用）</td><td>✅ L186 ix_ingest_jobs_completed_at</td><td>r1 已补</td></tr>
+<tr><td>bulk update <code>updated_at=func.now()</code> 注释</td><td>✅ L317 docstring + L581 风险表</td><td>r1 已补</td></tr>
+<tr><td>M4 状态机 `pending → running → indexed</td><td>failed<code>，</code>failed → running`</td><td>✅ L625 P1-5 r1 修订记录（与 M4 L625 P1-5 同源）</td><td>一致</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M4 联动完整，无新增 gap。</p>
+<h3 id="34-m1-m7graph-checkpointer">3.4 M1 ↔ M7（graph checkpointer）</h3>
+<table>
+<tr><th>M7 依赖字段</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>chat_sessions.thread_id</code> UNIQUE</td><td>✅ L145 UNIQUE + L195 UniqueConstraint(&quot;thread_id&quot;, name=&quot;uq_chat_sessions_thread_id&quot;)</td><td>r1 已补</td></tr>
+<tr><td><code>chat_sessions.session_metadata</code> JSONB</td><td>✅ L150 DEFAULT &#x27;{}&#x27;</td><td>r1 已补</td></tr>
+<tr><td><code>chat_sessions.last_message_at</code></td><td>✅ L149</td><td>r1 已补（M7 graph save_memory 时显式更新）</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M7 联动完整，M7 plan L884 &quot;已落&quot; 验证通过。</p>
+<h3 id="35-m1-m8api-层">3.5 M1 ↔ M8（API 层）</h3>
+<table>
+<tr><th>M8 依赖</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>chat_sessions</code> 复合索引 <code>(user_id, is_active, updated_at DESC)</code></td><td>✅ L156 + L196</td><td>r1 已补（M8 API <code>GET /api/sessions</code> 走 index scan）</td></tr>
+<tr><td><code>chat_sessions.last_message_at</code> 索引</td><td>✅ L149</td><td>r1 已补（M8 列表按此排序）</td></tr>
+<tr><td><code>chat_sessions.idempotency_key</code></td><td>✅ L148</td><td>r1 已补（M8 API 重试幂等）</td></tr>
+<tr><td>4 表 <code>idempotency_key</code> UNIQUE</td><td>✅ L113/L132/L148/L170</td><td>r1 已补</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M8 联动完整。</p>
+<h3 id="36-m1-m11evaluator-ragas">3.6 M1 ↔ M11（evaluator RAGAS）</h3>
+<table>
+<tr><th>M11 依赖</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>ingest_jobs.completed_at</code> 索引（&quot;最近 7 天 ingest 成功率&quot;）</td><td>✅ L186</td><td>r1 已补</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M11 联动完整。</p>
+<h3 id="37-m1-m12hardening">3.7 M1 ↔ M12（hardening）</h3>
+<table>
+<tr><th>M12 依赖</th><th>M1 DDL 状态</th><th>备注</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td><code>auth_sessions.ip_address</code> INET（&quot;陌生 IP 登录&quot;告警）</td><td>✅ L133</td><td>r1 已补</td></tr>
+<tr><td><code>auth_sessions.user_agent</code></td><td>✅ L134</td><td>r1 已补</td></tr>
+<tr><td><code>users.email</code> + <code>email_verified_at</code>（密码重置）</td><td>✅ L108-109</td><td>r1 已补</td></tr>
+<tr><td>connection pool <code>statement_cache_size=0</code>（pgbouncer transaction pool 兼容）</td><td>✅ L367 + L577 风险表</td><td>r1 已补（M12 加 pgbouncer 后零改动）</td></tr>
+</table>
+<p><strong>结论</strong>：M1 ↔ M12 联动完整。</p>
+<h3 id="38-跨-m-一致性总结">3.8 跨 M 一致性总结</h3>
+<table>
+<tr><th>联动</th><th>状态</th><th>缺口</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>M1 ↔ M0</td><td>✅ 完整</td><td>无</td></tr>
+<tr><td>M1 ↔ M2</td><td>🔴 <strong>2 项未补</strong></td><td><code>auth_sessions.is_revoked</code> 字段缺 / <code>auth_sessions.expires_at_hard</code> 索引缺</td></tr>
+<tr><td>M1 ↔ M4</td><td>✅ 完整</td><td>无</td></tr>
+<tr><td>M1 ↔ M7</td><td>✅ 完整</td><td>无</td></tr>
+<tr><td>M1 ↔ M8</td><td>✅ 完整</td><td>无</td></tr>
+<tr><td>M1 ↔ M11</td><td>✅ 完整</td><td>无</td></tr>
+<tr><td>M1 ↔ M12</td><td>✅ 完整</td><td>无</td></tr>
+</table>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<h3 id="41-风险表行数核对">4.1 风险表行数核对</h3>
+<ul>
+<li><strong>6 行原风险</strong>（r0） + <strong>30 行 r1 已修新增</strong> = <strong>36 行风险段</strong>（r1 后）</li>
+<li>r1 修订记录行（L613-650）共 38 行（&quot;M1-plan-r0&quot; + &quot;r1-2026-06-11&quot; 36 行 + &quot;跨 M 联动落地&quot; 1 行）</li>
+</ul>
+<h3 id="42-风险段是否保留原风险行">4.2 风险段是否保留原风险行</h3>
+<ul>
+<li>L567-606 §风险段保留了原 6 行（Alembic autogenerate / asyncpg + psycopg2 兼容 / UUID PK 性能 / DeclarativeBase 命名 / PG 连接池泄漏 / alembic.ini 硬编码 URL）+ r1 修复新增 24 行风险段 + 1 行&quot;app/db/__init__.py 暴露面矛盾&quot; + 1 行&quot;downgrade() 不写&quot; + 1 行&quot;4 表缺 created_by&quot; + 1 行&quot;users 缺 email&quot; + 1 行&quot;users 缺 deleted_at&quot; + 1 行&quot;chat_sessions 缺 last_message_at&quot; + 1 行&quot;ingest_jobs 缺 retry_count&quot; + 1 行&quot;auth_sessions 缺 ip_address&quot; + 1 行&quot;4 表缺 idempotency_key&quot; + 1 行&quot;MappedAsDataclass&quot; + 1 行&quot;alembic env.py 缺 run_async&quot; + 1 行&quot;test_migration_has_all_tables 脆&quot; + 1 行&quot;server-side default 缺显式&quot; + 1 行&quot;pyproject 缺 pytest config&quot; + 1 行&quot;DDL 复杂度膨胀&quot; + 1 行&quot;session.py 缺 connect_args&quot; + 1 行&quot;thread_id 缺 UNIQUE&quot; + 1 行&quot;app/auth 子包 M1 是否要建&quot;</li>
+<li><strong>原 6 行风险全保留</strong> ✅</li>
+</ul>
+<h3 id="43-ddl-复杂度-字段膨胀风险是否量化">4.3 DDL 复杂度 / 字段膨胀风险是否量化</h3>
+<ul>
+<li>L602 &quot;4 表新增审计/幂等/重试字段导致 DDL 复杂度 | 集中在 <code>__table_args__</code> 声明；DDL 总行数 ~20% 增长但 autogenerate 可预测&quot;</li>
+<li>✅ <strong>有量化行</strong>（&quot;~20% 增长&quot;），可接受</li>
+<li><strong>小缺口</strong>：未量化新增索引数量（r1 后约 12 个索引），未量化 4 表新加字段数（r1 后约 20 个新字段）</li>
+</ul>
+<h3 id="44-风险表新发现缺口">4.4 风险表新发现缺口</h3>
+<table>
+<tr><th>缺口</th><th>建议补行</th></tr>
+<tr><td>---</td><td>---</td></tr>
+<tr><td>M1 ↔ M2 <code>auth_sessions.is_revoked</code> 字段缺失</td><td>补 1 行：&quot;auth_sessions 缺 is_revoked 字段（M2 主动撤销 token 强依赖）&quot; + 风险：M2 实施需新增 migration；缓解：M1 r2 补 DDL</td></tr>
+<tr><td><code>auth_sessions.expires_at_hard</code> 索引缺</td><td>补 1 行：&quot;M2 cleanup job 缺 expires_at_hard 索引（1M+ token 表全表扫）&quot; + 缓解：M1 r2 补 Index</td></tr>
+<tr><td><code>partial unique index</code> 在 DDL 段未显式</td><td>补 1 行：&quot;users deleted_at 软删除后 username 复用语义&quot; + 风险：partial index 漏建则 username 永久占位；缓解：M1 r2 ORM <code>__table_args__</code> 显式</td></tr>
+<tr><td><code>MappedAsDataclass</code> 启用后的 relationship 兼容性</td><td>补 1 行：&quot;MappedAsDataclass 模式下 relationship back_populates 仍需手写&quot; + 缓解：4 个 ORM 类手写 relationship</td></tr>
+<tr><td>4 表 <code>created_by</code> / <code>updated_by</code> FK 循环引用（users 表的 created_by 指向 users.id）</td><td>补 1 行：&quot;users.created_by FK→users.id 自引用 + bootstrap 用户 created_by=NULL&quot; + 缓解：M2 注册第一个 admin 时 created_by=NULL</td></tr>
+</table>
+<p><strong>r2 评级</strong>：风险表补全质量 ⭐⭐⭐⭐（原 6 行保留 / 30 行 r1 修复全落地 / 有 DDL 复杂度量化行；缺 2 个跨 M 联动风险行 + 2 个实施细节风险行）。</p>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="51-r2-必须修5-项-p0p1r2-落定后再动手-m1">5.1 r2 必须修（5 项 P0/P1，r2 落定后再动手 M1）</h3>
+<table>
+<tr><th>优先级</th><th>项</th><th>改动量</th><th>风险</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>🔴 P0</td><td>NP-1 <code>auth_sessions.is_revoked</code> 字段补 DDL</td><td>1 行（§4 表） + 1 行（修订记录）</td><td>M2 强依赖，漏则 M2 需新增 migration</td></tr>
+<tr><td>🟡 P1</td><td>NP-3 <code>auth_sessions.expires_at_hard</code> 索引补 Indexes 段</td><td>1 行（§4 Indexes）</td><td>M2 cleanup job 性能</td></tr>
+<tr><td>🟡 P1</td><td>NP-2 <code>partial unique index</code> 显式 ORM <code>__table_args__</code> 代码块</td><td>1 个 ORM 段</td><td>用户表 1M+ rows 后 ALTER 加 partial index 锁表</td></tr>
+<tr><td>🟢 P2</td><td>NP-4 DDL 描述段与 ORM 代码段 <code>server_default</code> 口径统一</td><td>§4 表 4 处全表扫一遍</td><td>文档化口径</td></tr>
+<tr><td>🟢 P2</td><td>NP-5 alembic <code>file_template</code> 模板字符串前后对齐</td><td>L615 一行改正</td><td>小瑕疵</td></tr>
+</table>
+<h3 id="52-落地流程">5.2 落地流程</h3>
+<ol>
+<li>r2 修 M1 plan：</li>
+</ol>
+<ul>
+<li>改 §4 auth_sessions 表 L122-137：加 <code>is_revoked</code> 列（建议 <code>TIMESTAMPTZ NULLABLE</code> 语义，NULL=未撤销 / NOW()=撤销时间）+ <code>Index(&quot;ix_auth_sessions_is_revoked&quot;, &quot;is_revoked&quot;)</code></li>
+<li>改 §4 Indexes 段 L181-186：加 <code>ix_auth_sessions_expires_at_hard</code> 索引</li>
+<li>改 §4 users 表 L116 附近：补 <code>__table_args__</code> partial unique index ORM 段</li>
+<li>改 §4 表 DDL 描述段：4 张表所有 <code>DEFAULT now()</code> 改 <code>server_default=func.now()</code> 统一口径</li>
+<li>改 L615 r1 修订记录行：<code>file_template</code> 模板字符串与 L397/L464 对齐</li>
+</ul>
+<ol>
+<li>r2 后 review 通过 → 通知 M2（<code>is_revoked</code> / <code>expires_at_hard</code> 索引已补）</li>
+<li>估时维持 <strong>5d</strong>（r2 修补 ~0.5d + P0 实施 1d + P1 实施 1d + 集成测试 1d + buffer 1d）</li>
+</ol>
+<h3 id="53-跨-m-通知m1-改完后">5.3 跨 M 通知（M1 改完后）</h3>
+<table>
+<tr><th>M</th><th>通知内容</th></tr>
+<tr><td>---</td><td>---</td></tr>
+<tr><td>M2</td><td>users 表已有 <code>email</code> / <code>email_verified_at</code> / <code>failed_login_attempts</code> / <code>locked_until</code> / <code>deleted_at</code> + partial unique index；<strong>auth_sessions 表新增 <code>is_revoked</code> 字段（r2 补）+ <code>expires_at_hard</code> 索引（r2 补）</strong>；<code>app/auth/password_validator.py</code> 已存在</td></tr>
+<tr><td>M4</td><td>ingest_jobs 表已有 <code>payload_hash</code> UNIQUE / <code>retry_count</code> / <code>max_retries</code> / <code>next_retry_at</code> / <code>idempotency_key</code>；bulk update 时显式传 <code>updated_at=func.now()</code></td></tr>
+<tr><td>M7</td><td>chat_sessions 表已有 <code>thread_id</code> UNIQUE + <code>session_metadata</code> JSONB + <code>last_message_at</code>；M7 graph save_memory 时显式更新 <code>last_message_at</code></td></tr>
+<tr><td>M8</td><td>chat_sessions 索引已是 <code>(user_id, is_active, updated_at DESC)</code> + <code>last_message_at</code> 索引；4 表 <code>idempotency_key</code> UNIQUE</td></tr>
+<tr><td>M11</td><td>ingest_jobs.completed_at 索引已建</td></tr>
+<tr><td>M12</td><td>auth_sessions 表已有 <code>ip_address</code> INET / <code>user_agent</code> VARCHAR(512)；session.py <code>connect_args={&quot;statement_cache_size&quot;: 0, &quot;prepared_statement_cache_size&quot;: 0}</code> 兼容 pgbouncer</td></tr>
+</table>
+<h3 id="54-等待决策">5.4 等待决策</h3>
+<ul>
+<li>X-1 <code>app/config.py</code> 拆分 <code>configs/</code> 子目录是否在 M1 阶段动手（推荐是，alembic env.py 引用 <code>app.configs.db</code> 比 <code>app.config.db</code> 更清晰）</li>
+<li>P1-10 enum vs VARCHAR+CHECK 是否要在 M1 阶段换 enum（推荐不换，autogenerate 对 enum 支持不完善）</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>r1 修复完成度</strong>：30/35 项 100% 修（✅）+ 5 项部分修（⚠️）</li>
+<li><strong>r1 修复引入新问题</strong>：5 项（🔴 P0 × 1 / 🟡 P1 × 2 / 🟢 P2 × 2）</li>
+<li><strong>跨 M 一致性</strong>：6/7 M 联动完整；M2 联动漏 2 项（<code>is_revoked</code> 字段 / <code>expires_at_hard</code> 索引）</li>
+<li><strong>风险表补全</strong>：原 6 行保留 ✅ + r1 30 行新增 ✅ + DDL 复杂度量化 ✅；缺 2 个跨 M 联动风险行 + 2 个实施细节风险行</li>
+<li><strong>落地建议</strong>：r2 修 5 项（0.5d）→ r2 后 review 通过 → 通知 M2 / M4 / M7 / M8 / M11 / M12 → 动手 M1 实施（5d 估时维持）</li>
+</ul>
+<p>M1 plan r1 修复质量整体到位（90%+），<strong>最大遗留是 M2 强依赖的 <code>auth_sessions.is_revoked</code> 字段缺失</strong>，r2 必须修；其余 4 项为 P1/P2 小瑕疵，r2 一并修齐后即可动手 M1 实施。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

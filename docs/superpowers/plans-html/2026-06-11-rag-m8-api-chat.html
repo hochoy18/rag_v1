@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M8 Plan · FastAPI 路由层（/api/chat + /api/sessions + 进度查询 + health）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M8 Plan · FastAPI 路由层（/api/chat + /api/sessions + 进度查询 + health）</h1>
+<div class="meta"><span class="badge">M8 Plan · FastAPI 路由层（/api/chat + /api/sessions + 进度查询 + health）</span><span class="badge r1">⏱ 3 个工作日</span><span class="badge r2">r2 修复 10 处</span><span class="badge r1">r1 修复 39 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局m8-增量">仓库布局（M8 增量）</a></li><li class="h3-item"><a href="#请求响应流程post-apichat">请求响应流程（`POST /api/chat`）</a></li><li class="h3-item"><a href="#lifespan-单例">lifespan 单例</a></li><li class="h3-item"><a href="#pydantic-schema-边界">Pydantic schema 边界</a></li><li class="h3-item"><a href="#m8-与其他-m-的契约边界">M8 与其他 M 的契约边界</a></li><li class="h3-item"><a href="#跨-m-关键依赖m7-review-交叉验证">跨 M 关键依赖（M7 review 交叉验证）</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#day-1-health-sessions-路由无-graph-依赖先把简单端点跑通">Day 1 · health + sessions 路由（无 graph 依赖，先把简单端点跑通）</a></li><li class="h3-item"><a href="#day-2-chat-路由-lifespan-orchestrator核心路径">Day 2 · chat 路由 + lifespan orchestrator（核心路径）</a></li><li class="h3-item"><a href="#day-3-ingest-集成测试-mainpy-收尾">Day 3 · ingest + 集成测试 + main.py 收尾</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m8-plan-fastapi-路由层apichat-apisessions-进度查询-health">M8 Plan · FastAPI 路由层（/api/chat + /api/sessions + 进度查询 + health）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 8 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#3-数据流">V1 Scope §3.3 Query 数据流</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#4-api-列表">§4 API 列表</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#5-错误矩阵">§5 错误矩阵</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策 #7</a></div>
+<div class="callout">上游：<a href="./2026-06-10-rag-m2-auth.md">M2 auth 鉴权</a> · <a href="./2026-06-10-rag-m7-graph.md">M7 LangGraph 7 节点 + checkpointer</a></div>
+<div class="callout ok">下游：M9 Gradio UI（调 M8 全部端点）· M10 Langfuse 业务级 trace（挂在 graph 节点上，M8 路由透传 trace_id）· M11 RAGAS（直接调 <code>graph.invoke</code> 不走 M8）· M12 Hardening（限速中间件挂在 M8 app 实例上）</div>
+<div class="callout crit">避雷基线：<a href="./2026-06-11-rag-plans-review.md">P0/P1 review 报告</a>（P0-1 端口冲突 / P0-5 真 PG 集成测试 / P0-10 checkpointer 单一来源 / P1-4 updated_at 走 ORM / P1-6 chat_sessions 复合索引 / P1-11 protected endpoint 鉴权完整 / P1-16 M8 只 import M7 不动 retrieval / P2-6 <code>app/api/__init__.py</code> 聚合补完整 / X-3 全局 settings 单例）</div>
+<div class="callout">估时：3 个工作日</div>
+<div class="callout">范本目的：M8 是 RAG 系统的对外门面——把 M7 graph + M2 auth 包成可被 Gradio / 评测 / 第三方调用的 HTTP 端点</div>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v0.4 V1 Scope §3.3 Query 数据流 + §4 API 列表 + §5 错误矩阵落成 FastAPI 路由层：</p>
+
+<li><strong><code>POST /api/chat</code></strong>：鉴权 → session_id 解析（缺则建 / 有则越权 404） → 调 <code>graph.ainvoke()</code> 拿 answer+sources → 返回</li>
+<li><strong><code>GET /api/sessions</code> / <code>GET /api/sessions/{id}</code></strong>：列当前用户活跃会话 / 取单个会话详情（越权 404）</li>
+<li><strong><code>GET /api/ingest/{job_id}</code></strong>：查 ingest 进度（POST <code>/api/ingest</code> 由 M4-M6 实现，M8 写 stub + 委派约定）</li>
+<li><strong><code>GET /api/health</code></strong>：无鉴权，返 5 service（PG / OpenSearch / TEI / Langfuse / 业务）健康状态</li>
+<li><strong><code>app/main.py</code> FastAPI 入口</strong> + <strong><code>app/api/__init__.py</code> 路由聚合</strong> + <strong>5 套 Pydantic schema</strong> + <strong>统一 exception handler（401/404/422/500/502/503）</strong></li>
+<li><strong><code>compile_workflow()</code> lifespan 单例</strong>：启动时建 graph + checkpointer + async context，关闭时 cleanup（<strong>修 P0-2</strong>：lifespan 关闭时 <code>await engine.dispose()</code> 归还 asyncpg 连接池）</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：</p>
+<li>M4-M6 ingest pipeline 写 chunk（POST <code>/api/ingest</code> 由它们实现，M8 写 stub 委派，<strong>修 P1-7</strong> 加 <code># TODO(m8→m4)</code> 标记）</li>
+<li>M9 Gradio UI（M8 只产 JSON API）</li>
+<li>M10 Langfuse 业务级 trace（M8 路由透传 <code>X-Request-Id</code>，M10 节点上挂 trace）</li>
+<li>M11 RAGAS eval（直接 <code>graph.ainvoke()</code>，不走 M8 路由层）</li>
+<li>M12 限速 / 鉴权重启（挂在 M8 已有 app 实例上）</li>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局m8-增量">仓库布局（M8 增量）</h3>
+
+<pre><code >apps/rag_v1/
+├── app/
+│   ├── api/                              # M8 主力
+│   │   ├── __init__.py                   # APIRouter 聚合（修 P2-6）
+│   │   ├── auth.py                       # M2 已建 · re-export
+│   │   ├── chat.py                       # M8 新建 · POST /api/chat（修 P0-1 加 asyncio.wait_for 包装）
+│   │   ├── sessions.py                   # M8 新建 · GET /api/sessions
+│   │   ├── ingest.py                     # M8 新建 · GET /api/ingest/{job_id} + POST stub 委派 M4-M6（修 P1-7）
+│   │   ├── health.py                     # M8 新建 · GET /api/health 路由
+│   │   ├── health_checks.py              # M8 新建 · 5 service 探测函数（修 P2-2：直接放独立文件，不内联）
+│   │   ├── deps.py                       # M8 新建 · 共享 Depends（get_db / get_orchestrator / get_request_id）（修 P1-5）
+│   │   ├── errors.py                     # M8 新建 · 自定义异常 + handler 注册
+│   │   ├── middleware.py                 # M8 新建 · RequestIdMiddleware（修 P2-5：拆出 main.py）
+│   │   └── schemas/                      # M8 新建 · Pydantic 请求/响应（修 P2-1：字段定义完整）
+│   │       ├── __init__.py
+│   │       ├── chat.py                   # ChatRequest / ChatResponse / Source
+│   │       ├── sessions.py               # SessionListItem / SessionListResponse / SessionDetailResponse
+│   │       ├── ingest.py                 # IngestProgressResponse / IngestRequest / IngestAcceptedResponse
+│   │       └── health.py                 # HealthResponse / ServiceHealth
+│   ├── graph/                            # M7 已建 · M8 import
+│   │   ├── workflow.py                   # compile_workflow(checkpointer) 同步
+│   │   ├── checkpointer.py               # make_checkpointer() -&gt; BaseCheckpointSaver（M7 r1 P0-3 已修：返回实例，非 contextmanager）
+│   │   └── errors.py                     # GraphError / RetrievalError（503 转换用）
+│   ├── auth/                             # M2 已建 · M8 直接 import
+│   │   ├── deps.py                       # get_current_user
+│   │   └── service.py
+│   ├── db/                               # M1 已建 · 4 表 ORM
+│   │   ├── models.py                     # User / ChatSession / AuthSession / IngestJob
+│   │   └── session.py                    # async_session / get_session + engine（lifespan 用）
+│   ├── memory/                           # M7 已建
+│   │   └── thread.py                     # resolve_thread_id（404 越权）
+│   ├── config.py                         # M0+M1+M2+M3+M7 累计 · 追加 APISettings（修 P1-1 / P2-4 / P2-8）
+│   │                                    # · APISettings.chat_timeout_seconds=30
+│   │                                    # · APISettings.default_session_page_size=50
+│   │                                    # · APISettings.env=dev/staging/prod（修 P2-8）
+│   │                                    # · APISettings.cors_origins / expose_docs
+│   │                                    # · HealthSettings.opensearch_url / tei_url / langfuse_url / health_check_timeout
+│   │                                    # · GraphSettings.fallback_message（与 M7 P1-2 共用）
+│   └── main.py                           # M8 新建 · FastAPI 实例 + lifespan + middleware（修 P0-2 / P2-3 / P2-7 / P2-8）
+│
+└── tests/
+    ├── unit/
+    │   ├── test_api_health.py            # M8 · 5 service health 探测（修 P0-3 URL/timeout 具体）
+    │   ├── test_api_sessions.py          # M8 · list + detail + 越权 404
+    │   ├── test_api_chat.py              # M8 · session_id 缺/有/越权/401/异常 502/超时 502
+    │   └── test_api_ingest_progress.py   # M8 · job_id 进度 + 委派 stub
+    ├── integration/
+    │   └── test_m8_e2e_api.py            # 端到端：login → chat 多轮 → sessions → logout
+    └── conftest.py                       # M8 增补 · 真 PG fixture（修 P0-5）+ pg_dsn 注入</code></pre>
+
+<h3 id="请求响应流程post-apichat">请求响应流程（<code>POST /api/chat</code>）</h3>
+
+<pre><code >client POST /api/chat
+  body: { query: &quot;Q3 vs Q4 对比&quot;, session_id?: &quot;uuid&quot; }
+  header: Authorization: Bearer ***
+  │
+  ▼
+middleware: request_id 注入 X-Request-Id
+  │
+  ▼
+api_router → /api/chat endpoint
+  │
+  ├─ 1) Depends(get_current_user)          # M2 · 401 if 无效
+  │
+  ├─ 2) Depends(get_db)                    # M8 · AsyncSession
+  │
+  ├─ 3) session_id 处理
+  │     ├─ None  → INSERT chat_sessions(user_id, thread_id=uuid4())
+  │     │         → commit → 用新 thread_id（title 走 safe_truncate 修 P2-6）
+  │     └─ str   → 查 chat_sessions(id, user_id)  # 越权 404（不暴露存在性）
+  │              → 用 row.thread_id
+  │
+  ├─ 4) graph_orchestrator.ainvoke(        # lifespan 单例
+  │       {&quot;query&quot;: ..., &quot;user_id&quot;: ..., &quot;thread_id&quot;: ...},
+  │       config={&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id},
+  │                &quot;callbacks&quot;: [&lt;langfuse&gt;],  # M3 工厂已注
+  │                &quot;metadata&quot;: {&quot;trace_id&quot;: X-Request-Id, &quot;request_id&quot;: X-Request-Id}}  # 双键：M8→M11 trace_id 关联 + M10 Langfuse request_id 透传（同值）
+  │     )                                  # ── 修 P0-1 ──
+  │     # ↑ 用 asyncio.wait_for(..., timeout=settings.api.chat_timeout_seconds) 包装
+  │     # ↑ TimeoutError → HTTPException(502, &quot;服务超时，请稍后重试。&quot;)
+  │
+  ├─ 5) 异常映射:
+  │     - asyncio.TimeoutError → 502（修 P0-1）
+  │     - GraphError(llm_4xx/5xx) → 502 Bad Gateway
+  │     - RetrievalError(OS 不可达) → 503 + answer 兜底（修 P1-1：fallback_message 走 settings）
+  │     - ValueError(schema) → 422 FastAPI 默认
+  │     - HTTPException → 透传
+  │
+  └─ 6) return ChatResponse(answer, sources, session_id, trace_id, degraded)  # 修 r2-新-1：trace_id 字段 = X-Request-Id = Langfuse trace.id 三者同字符串</code></pre>
+
+<h3 id="lifespan-单例">lifespan 单例</h3>
+
+<pre><code data-lang="python"># app/main.py · 草图（修 P0-2 / P2-7 后）
+import asyncio
+from contextlib import asynccontextmanager
+from app.db.session import engine
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 修 P2-7：启动时建 shutdown_event，health check 端点可感知
+    app.state.shutdown_event = asyncio.Event()
+    # 启动：建 checkpointer + 编译 graph
+    # 注：M7 r1 P0-3 已修 make_checkpointer 为 async def 返回 BaseCheckpointSaver 实例（非 ctx mgr）
+    #     M8 调用方负责 lifecycle 关闭（lifespan 末尾 dispose）
+    checkpointer = await make_checkpointer()
+    app.state.checkpointer = checkpointer
+    app.state.graph = compile_workflow(checkpointer=checkpointer)
+    try:
+        yield
+    finally:
+        # 修 P2-7：通知 health check 开始返 503，给 in-flight 请求 500ms 缓冲
+        app.state.shutdown_event.set()
+        await asyncio.sleep(0.5)
+        # 修 P0-2：归还 asyncpg 连接池
+        await engine.dispose()
+        # checkpointer 若有 close() 也调（M7 工厂保证幂等）
+        close = getattr(checkpointer, &quot;close&quot;, None)
+        if close is not None:
+            res = close()
+            if asyncio.iscoroutine(res):
+                await res</code></pre>
+
+<p><strong>M8 特有避雷</strong>（M7 P0-10 修订后 + M7 r1 P0-3 修订后）：</p>
+<li>M7 修 P0-10 后，<strong>唯一</strong> checkpointer 工厂在 <code>app/graph/checkpointer.py</code></li>
+<li>M7 r1 P0-3 修后，<code>make_checkpointer()</code> 是普通 <code>async def</code> 返回 <code>BaseCheckpointSaver</code> <strong>实例</strong>（<strong>不是</strong> <code>@asynccontextmanager</code>）</li>
+<li>M8 lifespan 改为 <code>await make_checkpointer()</code> + 手动 <code>dispose</code>，<strong>不再</strong>用 <code>async with</code></li>
+<li><code>app/memory/checkpointer.py</code> 删了或只放 thread</li>
+<li>M8 严格只 <code>from app.graph.checkpointer import make_checkpointer</code></li>
+
+<h3 id="pydantic-schema-边界">Pydantic schema 边界</h3>
+
+<table>
+<thead><tr><th>端点</th><th>Request schema</th><th>Response schema</th><th>错误码</th></tr></thead>
+<tbody>
+<tr><td>POST /api/auth/register</td><td><code>RegisterRequest</code>（M2）</td><td><code>RegisterResponse</code>（M2）</td><td>409 / 422</td></tr>
+<tr><td>POST /api/auth/login</td><td><code>LoginRequest</code>（M2）</td><td><code>LoginResponse</code>（M2）</td><td>401</td></tr>
+<tr><td>POST /api/auth/logout</td><td>—</td><td>—</td><td>204</td></tr>
+<tr><td>GET /api/sessions</td><td>—</td><td><code>SessionListResponse</code></td><td>401</td></tr>
+<tr><td>GET /api/sessions/{id}</td><td>—</td><td><code>SessionDetailResponse</code></td><td>401 / 404</td></tr>
+<tr><td>POST /api/chat</td><td><code>ChatRequest</code></td><td><code>ChatResponse</code></td><td>401 / 404 / 422 / 502 / 503</td></tr>
+<tr><td>POST /api/ingest</td><td><code>IngestRequest</code>（M8 stub）</td><td><code>IngestAcceptedResponse</code></td><td>501 → 委派 M4-M6（修 P1-7）</td></tr>
+<tr><td>GET /api/ingest/{job_id}</td><td>—</td><td><code>IngestProgressResponse</code></td><td>404</td></tr>
+<tr><td>GET /api/health</td><td>—</td><td><code>HealthResponse</code></td><td>503</td></tr>
+</tbody></table>
+
+<h3 id="m8-与其他-m-的契约边界">M8 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M9 Gradio Chat tab</td><td><code>POST /api/chat</code> / <code>GET /api/sessions</code></td><td>走 HTTP JSON</td></tr>
+<tr><td>M9 Gradio Ingest tab</td><td><code>POST /api/ingest</code>（M4-M6 真接）/ <code>GET /api/ingest/{id}</code></td><td>M8 路由只透传 POST</td></tr>
+<tr><td>M10 Langfuse 业务 trace</td><td><code>X-Request-Id</code> header 透传</td><td>节点上挂 trace，M8 不直接注入</td></tr>
+<tr><td>M11 RAGAS eval</td><td><code>graph.ainvoke()</code> 直接调</td><td><strong>不走</strong> M8 路由</td></tr>
+<tr><td>M12 Hardening</td><td>M8 <code>app/main.py</code> 加 <code>app.add_middleware(RateLimitMiddleware, ...)</code></td><td>改 main.py 不动 api/</td></tr>
+<tr><td>M12 监控</td><td><code>GET /api/health</code> 5 service 状态</td><td>Prometheus scrape 友好</td></tr>
+</tbody></table>
+
+<h3 id="跨-m-关键依赖m7-review-交叉验证">跨 M 关键依赖（M7 review 交叉验证）</h3>
+
+<table>
+<thead><tr><th>M7 review ID</th><th>影响 M8 的点</th><th>M8 plan 处理</th></tr></thead>
+<tbody>
+<tr><td><strong>M7 P0-3</strong></td><td><code>make_checkpointer</code> 是 <code>@asynccontextmanager</code> vs 实例</td><td><strong>M7 r1 已修</strong>：改为 <code>async def make_checkpointer() -&gt; BaseCheckpointSaver</code>；M8 lifespan 改为 <code>await make_checkpointer()</code> + 手动 dispose（见上 lifespan 段）</td></tr>
+<tr><td><strong>M7 P0-4</strong></td><td>graph invoke 缺超时</td><td><strong>M8 P0-1 已修</strong>：<code>asyncio.wait_for(graph.ainvoke, timeout=30)</code> 在 Task 7 GREEN 段</td></tr>
+<tr><td><strong>M7 P0-6</strong></td><td><code>answer_chitchat_node</code> 无实现</td><td><strong>M7 r1 已修</strong>：补节点实现 + prompt；M8 假设 chitchat 分支可用</td></tr>
+<tr><td><strong>M7 P0-8</strong></td><td>节点级异常传播</td><td>M8 假设 <code>GraphError</code> / <code>RetrievalError</code> 异常类已统一（<code>safe_node</code> 装饰器已加）；M8 路由 catch 这两类做 502/503 映射</td></tr>
+<tr><td><strong>M7 P1-2</strong></td><td>fallback_message 硬编码</td><td><strong>M8 P1-1 已修</strong>：M8 路由读 <code>settings.graph.fallback_message</code>（与 M7 共用）</td></tr>
+<tr><td><strong>M7 r2 新-3 <code>RagState.trace_id</code></strong></td><td>M7 graph 状态应含 <code>trace_id</code> 字段供 M8 提取</td><td><strong>M8 r2 已对齐</strong>：M8 chat 端点从 <code>result[&quot;trace_id&quot;]</code>（若存在）取；<code>graph.ainvoke</code> 额外传 <code>metadata.trace_id</code> 兜底（双键）；M7 RagState 与 M8 ChatResponse 字段同名</td></tr>
+<tr><td><strong>M1 r2 4 表 <code>idempotency_key</code></strong></td><td>M8 chat/ingest 端点应消费 Idempotency-Key Header</td><td><strong>M8 r2 已修新-4</strong>：<code>POST /api/chat</code> + <code>POST /api/ingest</code> stub 都接收 `Idempotency-Key: str \</td><td>None = Header(None, alias=&quot;Idempotency-Key&quot;)`；chat 缺 session_id + 有 idempotency_key 时查重同 user_id + 同 idempotency_key 已有 session 复用</td></tr>
+<tr><td><strong>M9/M10/M11 <code>trace_id</code> 字段名统一</strong></td><td>M8 输出 schema 字段名应与跨 M 一致</td><td><strong>M8 r2 已修新-1</strong>：<code>ChatResponse</code> / <code>HealthResponse</code> / exception handler response 字段统一 <code>trace_id</code>；<code>RequestIdMiddleware</code> 内部 <code>request.state.request_id</code> 与 <code>X-Request-Id</code> Header 名协议级保留；graph.ainvoke metadata 双键（<code>trace_id</code> + <code>request_id</code>）同字符串不同语义</td></tr>
+<tr><td><strong>M12 r1 P0-1 LIFO middleware 顺序</strong></td><td>M8 add_middleware 注释需 LIFO 警示</td><td><strong>M8 r2 已修新-5</strong>：Task 13 <code>create_app</code> middleware 注释加 LIFO 警示（&quot;后添加的先执行 / 最外层&quot; + &quot;调用顺序 CORS → RequestId → M12 RateLimit&quot; + &quot;执行顺序 M12 RateLimit → RequestId → CORS → endpoint&quot;）</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td>Web 框架</td><td><code>fastapi</code></td><td><code>&gt;=0.115,&lt;1</code></td><td>V1 Scope §8.4</td></tr>
+<tr><td>ASGI</td><td><code>uvicorn[standard]</code></td><td><code>&gt;=0.32,&lt;1</code></td><td>V1 Scope §8.4</td></tr>
+<tr><td>表单 / 上传</td><td><code>python-multipart</code></td><td><code>&gt;=0.0.9</code></td><td>V1 Scope §8.4</td></tr>
+<tr><td>配置</td><td><code>pydantic-settings</code></td><td><code>&gt;=2.3,&lt;3</code></td><td>M0 沿用</td></tr>
+<tr><td>状态</td><td><code>pydantic</code></td><td><code>&gt;=2.7,&lt;3</code></td><td>M1 沿用</td></tr>
+<tr><td>异步驱动</td><td><code>asyncpg</code></td><td><code>&gt;=0.29,&lt;1</code></td><td>M1 沿用</td></tr>
+<tr><td>LangGraph</td><td><code>langgraph</code></td><td><code>==1.0.5</code></td><td>M7</td></tr>
+<tr><td>LLM</td><td><code>langchain</code></td><td><code>==1.0.8</code></td><td>M3</td></tr>
+<tr><td>HTTP 客户端（health 探测）</td><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code></td><td>M3 沿用</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code></td><td>见 §测试</td><td>修 P1-18</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>：</p>
+
+<pre><code data-lang="python"># FastAPI
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
+# 中间件（修 P2-5：从 main.py 拆出）
+from app.api.middleware import RequestIdMiddleware
+
+# Pydantic
+from pydantic import BaseModel, Field, ConfigDict
+
+# Pydantic v2 配置
+model_config = ConfigDict(extra=&quot;forbid&quot;, str_strip_whitespace=True)
+
+# M8 全局单例
+from app.config import settings
+
+# M2 鉴权
+from app.auth.deps import get_current_user
+
+# M7 graph（修 M7 r1 P0-3：make_checkpointer 返回实例非 ctx mgr）
+from app.graph.workflow import compile_workflow
+from app.graph.checkpointer import make_checkpointer  # async def -&gt; BaseCheckpointSaver
+from app.graph.errors import GraphError, RetrievalError
+
+# M1 ORM + 引擎（修 P0-2：lifespan 用 engine.dispose()）
+from app.db.models import ChatSession
+from app.db.session import async_session, get_session, engine
+
+# M7 thread 解析
+from app.memory.thread import resolve_thread_id, ThreadNotFound</code></pre>
+
+<p><strong>Python 导入规则</strong>（从 <code>apps/rag_v1/</code> 内部）：</p>
+<li><code>app.api.chat</code> —— <code>app</code> 是 <code>apps/rag_v1/app/</code></li>
+<li><code>tests.unit.test_api_chat</code> —— 跑测试时 <code>cd apps/rag_v1 &amp;&amp; pytest</code></li>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（16 个源文件 + 5 个测试文件）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/api/__init__.py</code></td><td>APIRouter 聚合（修 P2-6）</td></tr>
+<tr><td><code>app/api/chat.py</code></td><td><code>POST /api/chat</code> 路由 + lifespan orchestrator 包装（<strong>修 P0-1</strong>：<code>asyncio.wait_for</code> 包装 graph.ainvoke）</td></tr>
+<tr><td><code>app/api/sessions.py</code></td><td><code>GET /api/sessions</code> + <code>GET /api/sessions/{id}</code>（<strong>修 P1-2</strong>：含 <code>_count_messages</code> 实现）</td></tr>
+<tr><td><code>app/api/ingest.py</code></td><td><code>GET /api/ingest/{job_id}</code> + <code>POST /api/ingest</code> stub 委派 M4-M6（<strong>修 P1-7</strong>：<code># TODO(m8→m4)</code> 标记 / <strong>修 r2-新-4</strong>：stub 也接受 Idempotency-Key Header 透传）</td></tr>
+<tr><td><code>app/api/health.py</code></td><td><code>GET /api/health</code> 路由 + 503 判断（调用 health_checks）</td></tr>
+<tr><td><code>app/api/health_checks.py</code></td><td>5 个 <code>_check_*</code> 探测函数（<strong>修 P0-3</strong> + <strong>P2-2</strong>：直接放独立文件，URL/timeout 具体）</td></tr>
+<tr><td><code>app/api/deps.py</code></td><td><code>get_db</code> / <code>get_orchestrator</code> / <code>get_request_id</code>（<strong>修 P1-3 / P1-4 / P1-5</strong>：get_db 类型注解 / get_orchestrator 删 fallback / 接受 lifespan override 测试）</td></tr>
+<tr><td><code>app/api/errors.py</code></td><td><code>APIError</code> 体系 + exception handler 注册</td></tr>
+<tr><td><code>app/api/middleware.py</code></td><td><code>RequestIdMiddleware</code>（<strong>修 P2-5</strong>：从 main.py 拆出）</td></tr>
+<tr><td><code>app/api/schemas/__init__.py</code></td><td>schema 暴露</td></tr>
+<tr><td><code>app/api/schemas/chat.py</code></td><td><code>ChatRequest</code> / <code>ChatResponse</code> / <code>Source</code></td></tr>
+<tr><td><code>app/api/schemas/sessions.py</code></td><td><code>SessionListItem</code> / <code>SessionListResponse</code> / <code>SessionDetailResponse</code>（<strong>修 P2-1</strong>：完整字段）</td></tr>
+<tr><td><code>app/api/schemas/ingest.py</code></td><td><code>IngestProgressResponse</code> / <code>IngestRequest</code>（stub） / <code>IngestAcceptedResponse</code>（<strong>修 P2-1</strong>：完整字段）</td></tr>
+<tr><td><code>app/api/schemas/health.py</code></td><td><code>HealthResponse</code> / <code>ServiceHealth</code></td></tr>
+<tr><td><code>app/utils/text.py</code></td><td><code>safe_truncate</code> UTF-8 byte-aware 工具（<strong>修 P2-6</strong>：session 标题截取）</td></tr>
+<tr><td><code>app/main.py</code></td><td>FastAPI 实例 + lifespan（<strong>修 P0-2 / P2-3 / P2-7 / P2-8</strong>）+ middleware + exception handler 注册</td></tr>
+<tr><td><code>tests/unit/test_api_health.py</code></td><td>5 service health 探测单测（修 P0-3 URL mock）</td></tr>
+<tr><td><code>tests/unit/test_api_sessions.py</code></td><td>sessions list/detail + 越权 404</td></tr>
+<tr><td><code>tests/unit/test_api_chat.py</code></td><td>chat 鉴权 + session 解析 + 异常 502/503 + <strong>超时 502</strong>（P0-1）</td></tr>
+<tr><td><code>tests/unit/test_api_ingest_progress.py</code></td><td>进度查询 + 委派 stub</td></tr>
+<tr><td><code>tests/integration/test_m8_e2e_api.py</code></td><td>login → chat 多轮 → sessions → logout（真 PG，<strong>修 P0-5</strong>）</td></tr>
+<tr><td><code>tests/conftest.py</code></td><td>增补 <code>pg_session</code> fixture（真 PG，<strong>修 P0-5</strong>）</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 <code>fastapi&gt;=0.115,&lt;1</code> / <code>uvicorn[standard]&gt;=0.32,&lt;1</code> / <code>python-multipart&gt;=0.0.9</code> 3 个直接依赖（<strong>修 P0-8</strong>，M0 阶段不装）</li>
+<li><code>app/config.py</code>（M0+M1+M2+M3+M7 累计）：</li>
+<p>  - 追加 <code>APISettings</code>（<strong>修 P0-1</strong>：<code>chat_timeout_seconds: int = 30</code>）</p>
+<p>  - 追加 <code>APISettings.default_session_page_size: int = 50</code>（<strong>修 P2-4</strong>）</p>
+<p>  - 追加 <code>APISettings.env: Literal[&quot;dev&quot;,&quot;staging&quot;,&quot;prod&quot;] = &quot;dev&quot;</code>（<strong>修 P2-8</strong>）</p>
+<p>  - 追加 <code>APISettings.cors_origins: list[str]</code>（<strong>修 P2-8</strong>：dev=[&quot;*&quot;]，prod 受限）</p>
+<p>  - 追加 <code>APISettings.expose_docs: bool</code>（<strong>修 P2-8</strong>：dev=True，prod=False）</p>
+<p>  - 追加 <code>HealthSettings.opensearch_url / tei_url / langfuse_url / health_check_timeout</code>（<strong>修 P0-3</strong>）</p>
+<p>  - <code>GraphSettings.fallback_message: str = &quot;检索服务暂不可用，已切换到直答模式。&quot;</code>（<strong>修 P1-1</strong>：与 M7 P1-2 共用）</p>
+<li><code>app/db/models.py</code>（M1）：确认 <code>ChatSession</code> 有 <code>is_active</code> / <code>thread_id</code> / <code>updated_at</code> 字段（M8 走 ORM 更新，<strong>修 P1-4</strong>）；复合索引 <code>(user_id, is_active, updated_at DESC)</code> 已在 M1 加（<strong>修 P1-6</strong>）</li>
+<li><code>app/db/session.py</code>（M1）：暴露 <code>engine</code> 给 lifespan 用（<strong>修 P0-2</strong>：<code>engine.dispose()</code>）</li>
+<li><code>app/auth/deps.py</code>（M2）：<code>get_current_user</code> 直接 import，不改 M2 代码</li>
+
+<p><strong>不修改</strong>：</p>
+<li><code>app/graph/workflow.py</code>（M7）：M8 只 import <code>compile_workflow</code></li>
+<li><code>app/graph/checkpointer.py</code>（M7 修订后唯一来源，<strong>修 P0-10</strong> + <strong>M7 r1 P0-3</strong>：实例非 contextmanager）</li>
+<li><code>app/retrieval/</code>（M7）：M8 不直接动 retrieval（<strong>修 P1-16</strong>）</li>
+<li><code>infra/docker-compose.yml</code>（M0）：FastAPI 默认 8000 与 TEI 18080 不冲突（<strong>修 P0-1</strong>）</li>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="day-1-health-sessions-路由无-graph-依赖先把简单端点跑通">Day 1 · health + sessions 路由（无 graph 依赖，先把简单端点跑通）</h3>
+
+<h4 id="task-1pydantic-schema-文件">Task 1：Pydantic schema 文件</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_health.py::test_service_health_schema_validates</code></p>
+<li>写测试：构造 <code>ServiceHealth(name=&quot;postgres&quot;, status=&quot;up&quot;, latency_ms=12.3, error=None)</code> → 断言 model_dump() 字段齐</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/schemas/health.py</code>（修 r2-新-2：ServiceHealth/HealthResponse 加 <code>starting</code> 字面量；修 r2-新-1：HealthResponse 字段统一 <code>trace_id</code>）：</p>
+<pre><code data-lang="python">from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
+
+class ServiceHealth(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    name: str
+    # 修 r2-新-2：加 starting 状态——lifespan 未启动时 business 服务的中间态
+    status: Literal[&quot;up&quot;, &quot;down&quot;, &quot;degraded&quot;, &quot;starting&quot;]
+    latency_ms: float | None = None
+    error: str | None = None
+
+class HealthResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    # 修 r2-新-2：加 starting 状态——lifespan 启动期 / 启动失败时 health 端点返 starting
+    status: Literal[&quot;ok&quot;, &quot;degraded&quot;, &quot;down&quot;, &quot;starting&quot;]
+    services: list[ServiceHealth]
+    # 修 r2-新-1：与 M9/M10/M11 跨 M 统一用 trace_id（X-Request-Id = Langfuse trace.id = M11 trace_id 三者同字符串）
+    trace_id: str</code></pre>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_sessions.py::test_session_list_item_schema</code></p>
+<li>构造 <code>SessionListItem(id=&quot;uuid&quot;, title=&quot;Q3 收入对比&quot;, updated_at=datetime.now(timezone.utc), message_count=4)</code> → 断言序列化</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/schemas/sessions.py</code> + <code>app/api/schemas/chat.py</code> + <code>app/api/schemas/ingest.py</code> 全部 schema（<strong>修 P2-1</strong>：所有 Response schema 字段完整定义）</p>
+
+<pre><code data-lang="python"># app/api/schemas/sessions.py（修 P2-1：完整字段）
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
+
+class SessionListItem(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    id: str
+    title: str
+    updated_at: datetime
+    message_count: int
+
+class SessionListResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    sessions: list[SessionListItem]
+    total: int
+
+class SessionDetailResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    id: str
+    title: str
+    thread_id: str
+    messages: list = []  # M10 后从 checkpoint 读 history 填充
+    created_at: datetime
+    updated_at: datetime
+
+# app/api/schemas/ingest.py（修 P2-1：完整字段）
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
+
+class IngestProgressResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    job_id: str
+    status: str
+    progress: float | None = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+class IngestRequest(BaseModel):
+    &quot;&quot;&quot;M8 stub：实际 ingest 入参 schema 由 M4-M6 定义&quot;&quot;&quot;
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    source: str  # file path / URL / confluence page id
+
+class IngestAcceptedResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    job_id: str
+    status: str = &quot;accepted&quot;</code></pre>
+
+<p><strong>REFACTOR</strong> · 抽出 schema 共享 mixin（<code>TimestampMixin</code> / <code>RequestIdMixin</code>）</p>
+
+<h4 id="task-2get-apihealth-端点无鉴权-5-service-探测修-p0-3-p2-2">Task 2：<code>GET /api/health</code> 端点（无鉴权）+ 5 service 探测（<strong>修 P0-3 + P2-2</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_health.py::test_health_returns_200_when_all_up</code></p>
+<li>mock httpx（mock 5 个具体 URL：PG session / OS <code>/_cluster/health</code> / TEI <code>/health</code> / Langfuse <code>/api/public/health</code> / 业务检查）→ 全部 up → <code>GET /api/health</code> → 200 + <code>status=&quot;ok&quot;</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/health_checks.py</code>（<strong>修 P2-2</strong>：5 个 <code>_check_*</code> 函数直接放独立文件，URL/timeout 具体化）：</p>
+
+<pre><code data-lang="python"># app/api/health_checks.py（修 P0-3 + P2-2：URL/timeout/auth 具体）
+import asyncio
+import time
+import httpx
+from sqlalchemy import text
+from app.config import settings
+from app.db.session import async_session
+from app.api.schemas.health import ServiceHealth
+
+
+async def _check_postgres() -&gt; ServiceHealth:
+    &quot;&quot;&quot;PG 业务 DB：SELECT 1 探活&quot;&quot;&quot;
+    t0 = time.perf_counter()
+    try:
+        async with async_session() as s:
+            await s.execute(text(&quot;SELECT 1&quot;))
+        return ServiceHealth(
+            name=&quot;postgres&quot;,
+            status=&quot;up&quot;,
+            latency_ms=(time.perf_counter() - t0) * 1000,
+        )
+    except Exception as e:
+        return ServiceHealth(name=&quot;postgres&quot;, status=&quot;down&quot;, error=str(e))
+
+
+async def _check_opensearch() -&gt; ServiceHealth:
+    &quot;&quot;&quot;OpenSearch cluster health：GET /_cluster/health?wait_for_status=yellow&amp;timeout=2s&quot;&quot;&quot;
+    t0 = time.perf_counter()
+    url = settings.health.opensearch_url.rstrip(&quot;/&quot;)
+    try:
+        async with httpx.AsyncClient(timeout=settings.health.health_check_timeout) as client:
+            resp = await client.get(
+                f&quot;{url}/_cluster/health?wait_for_status=yellow&amp;timeout=2s&quot;
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            # cluster_status: green/yellow/red → yellow 以上视为 up
+            cluster_status = data.get(&quot;status&quot;, &quot;red&quot;)
+            if cluster_status in (&quot;green&quot;, &quot;yellow&quot;):
+                return ServiceHealth(
+                    name=&quot;opensearch&quot;,
+                    status=&quot;up&quot;,
+                    latency_ms=(time.perf_counter() - t0) * 1000,
+                )
+            return ServiceHealth(
+                name=&quot;opensearch&quot;,
+                status=&quot;degraded&quot;,
+                latency_ms=(time.perf_counter() - t0) * 1000,
+                error=f&quot;cluster_status={cluster_status}&quot;,
+            )
+    except Exception as e:
+        return ServiceHealth(name=&quot;opensearch&quot;, status=&quot;down&quot;, error=str(e))
+
+
+async def _check_tei() -&gt; ServiceHealth:
+    &quot;&quot;&quot;TEI embedding service：GET /health（M0 端口 18080）&quot;&quot;&quot;
+    t0 = time.perf_counter()
+    url = settings.health.tei_url.rstrip(&quot;/&quot;)
+    try:
+        async with httpx.AsyncClient(timeout=settings.health.health_check_timeout) as client:
+            resp = await client.get(f&quot;{url}/health&quot;)
+            resp.raise_for_status()
+        return ServiceHealth(
+            name=&quot;tei&quot;,
+            status=&quot;up&quot;,
+            latency_ms=(time.perf_counter() - t0) * 1000,
+        )
+    except Exception as e:
+        return ServiceHealth(name=&quot;tei&quot;, status=&quot;down&quot;, error=str(e))
+
+
+async def _check_langfuse() -&gt; ServiceHealth:
+    &quot;&quot;&quot;Langfuse public health：GET /api/public/health（无需 auth）&quot;&quot;&quot;
+    t0 = time.perf_counter()
+    url = settings.health.langfuse_url.rstrip(&quot;/&quot;)
+    try:
+        async with httpx.AsyncClient(timeout=settings.health.health_check_timeout) as client:
+            resp = await client.get(f&quot;{url}/api/public/health&quot;)
+            resp.raise_for_status()
+        return ServiceHealth(
+            name=&quot;langfuse&quot;,
+            status=&quot;up&quot;,
+            latency_ms=(time.perf_counter() - t0) * 1000,
+        )
+    except Exception as e:
+        return ServiceHealth(name=&quot;langfuse&quot;, status=&quot;down&quot;, error=str(e))
+
+
+async def _check_business(app) -&gt; ServiceHealth:
+    &quot;&quot;&quot;业务健康：graph 编译过 + checkpointer 活着（M8 lifespan 已建）
+
+    修 r2-新-2：直接读 app.state（startup 期间 / 启动失败时返 starting 而非 down）
+    &quot;&quot;&quot;
+    t0 = time.perf_counter()
+    try:
+        graph = getattr(app.state, &quot;graph&quot;, None)
+        cp = getattr(app.state, &quot;checkpointer&quot;, None)
+        if graph is None or cp is None:
+            # 修 r2-新-2：lifespan 未启动期 = starting（中间态，不算 down）
+            return ServiceHealth(
+                name=&quot;business&quot;,
+                status=&quot;starting&quot;,
+                latency_ms=0.0,
+                error=&quot;lifespan initializing&quot; if graph is None else &quot;checkpointer initializing&quot;,
+            )
+        return ServiceHealth(
+            name=&quot;business&quot;,
+            status=&quot;up&quot;,
+            latency_ms=(time.perf_counter() - t0) * 1000,
+        )
+    except Exception as e:
+        return ServiceHealth(name=&quot;business&quot;, status=&quot;down&quot;, error=str(e))
+
+
+async def check_all(app) -&gt; list[ServiceHealth]:
+    &quot;&quot;&quot;5 service 并行探测；business 检查依赖 app.state（lifespan 状态）
+
+    修 r2-新-2：5 service 并行 gather + business 探针内部直接读 app.state，
+    统一在 _check_business 内做 starting/up/down 判定；外层不再做脏数据二次判定。
+    &quot;&quot;&quot;
+    pg, os_, tei, lf, business = await asyncio.gather(
+        _check_postgres(),
+        _check_opensearch(),
+        _check_tei(),
+        _check_langfuse(),
+        _check_business(app),  # 修 r2-新-2：app 注入 business 探针
+        return_exceptions=False,
+    )
+    return [pg, os_, tei, lf, business]</code></pre>
+
+<p><strong>GREEN</strong> · <code>app/api/health.py</code> 路由（修 r2-新-2：starting 状态判定；修 r2-新-1：trace_id 字段统一）：</p>
+<pre><code data-lang="python">from fastapi import APIRouter, Request
+from app.api.schemas.health import HealthResponse, ServiceHealth
+from app.api.health_checks import check_all
+
+router = APIRouter(prefix=&quot;/api&quot;, tags=[&quot;health&quot;])
+
+
+@router.get(&quot;/health&quot;, response_model=HealthResponse)
+async def health(request: Request) -&gt; HealthResponse:
+    # 修 r2-新-1：response 字段 trace_id（与 M9/M10/M11 跨 M 统一）
+    trace_id = getattr(request.state, &quot;request_id&quot;, &quot;&quot;)
+    # 修 P2-7：lifespan 关闭中 → health 返 503
+    shutdown_event = getattr(request.app.state, &quot;shutdown_event&quot;, None)
+    if shutdown_event is not None and shutdown_event.is_set():
+        return _degraded_response(trace_id, error=&quot;shutting_down&quot;)
+    services = await check_all(request.app)
+    up_count = sum(1 for s in services if s.status == &quot;up&quot;)
+    starting_count = sum(1 for s in services if s.status == &quot;starting&quot;)
+    # 修 r2-新-2：starting 优先级最高（lifespan 未完成 → 503 starting）
+    if starting_count &gt; 0:
+        overall = &quot;starting&quot;
+    elif up_count == len(services):
+        overall = &quot;ok&quot;
+    elif up_count &gt; 0:
+        overall = &quot;degraded&quot;
+    else:
+        overall = &quot;down&quot;
+    resp = HealthResponse(status=overall, services=services, trace_id=trace_id)  # 修 r2-新-1
+    if overall != &quot;ok&quot;:
+        from fastapi.responses import JSONResponse
+        # 修 r2-新-2：starting / down 都返 503（启动未完成 ≠ ok）
+        return JSONResponse(status_code=503, content=resp.model_dump(mode=&quot;json&quot;))
+    return resp
+
+
+def _degraded_response(trace_id: str, error: str):  # 修 r2-新-1：参数名 trace_id
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=503,
+        content={
+            &quot;status&quot;: &quot;down&quot;,
+            &quot;services&quot;: [
+                ServiceHealth(name=s, status=&quot;down&quot;, error=error)
+                for s in [&quot;postgres&quot;, &quot;opensearch&quot;, &quot;tei&quot;, &quot;langfuse&quot;, &quot;business&quot;]
+            ],
+            &quot;trace_id&quot;: trace_id,  # 修 r2-新-1
+        },
+    )</code></pre>
+
+<p><strong>RED</strong> · <code>test_health_returns_503_when_pg_down</code>（任一 down）</p>
+<li>mock DB 抛异常 → 调 → 断言 HTTP 503 + <code>status=&quot;degraded&quot;</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 上面 health.py 已用 <code>JSONResponse(status_code=503, ...)</code> 在 <code>overall != &quot;ok&quot;</code> 时返 503</p>
+
+<h4 id="task-3requestidmiddleware-拆到独立文件修-p2-5">Task 3：<code>RequestIdMiddleware</code> 拆到独立文件（<strong>修 P2-5</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_health.py::test_request_id_generated_when_absent</code></p>
+<li><code>GET /api/health</code> 不带 header → 响应 header <code>X-Request-Id</code> 非空（uuid4）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/middleware.py</code>（<strong>修 P2-5</strong>：从 main.py 拆出）：</p>
+<pre><code data-lang="python"># app/api/middleware.py（修 P2-5 + r2-新-1 注释补充）
+from starlette.middleware.base import BaseHTTPMiddleware
+import uuid
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    &quot;&quot;&quot;注入 / 透传 X-Request-Id，用于 M10 Langfuse 业务 trace 关联
+
+    修 r2-新-1 注释：request.state.request_id 内部名 = X-Request-Id Header = Langfuse trace.id
+    = M8 ChatResponse.trace_id 字段 = M11 eval trace_id，五者同字符串，仅展示层命名差异。
+    &quot;&quot;&quot;
+    async def dispatch(self, request, call_next):
+        rid = request.headers.get(&quot;X-Request-Id&quot;) or str(uuid.uuid4())
+        request.state.request_id = rid  # 协议级内部名：保留 request_id（与 X-Request-Id Header 对称）
+        response = await call_next(request)
+        response.headers[&quot;X-Request-Id&quot;] = rid
+        return response</code></pre>
+
+<p><code>app/main.py</code> 改为 <code>from app.api.middleware import RequestIdMiddleware</code>（L809）。</p>
+
+<p><strong>RED</strong> · <code>test_request_id_echoed_when_present</code></p>
+<li>client 送 <code>X-Request-Id: foo-123</code> → 响应 header 同值</li>
+<li>跑测试 → 失败</li>
+<p><strong>GREEN</strong> · 读 header 优先级（已有）</p>
+
+<h4 id="task-4get-apisessions-列表修-p1-2-p2-4">Task 4：<code>GET /api/sessions</code> 列表（<strong>修 P1-2 + P2-4</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_sessions.py::test_list_returns_only_current_user_sessions</code></p>
+<li>mock DB：用户 A 2 条 + 用户 B 1 条 → 用 A 鉴权调 <code>GET /api/sessions</code> → 断言返 2 条</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/sessions.py</code>（<strong>修 P1-2</strong>：含 <code>_count_messages</code> 实现 / <strong>修 P2-4</strong>：<code>limit(settings.api.default_session_page_size)</code>）：</p>
+<pre><code data-lang="python">from fastapi import APIRouter, Depends
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth.deps import get_current_user
+from app.db.models import User, ChatSession, Message
+from app.db.session import get_session
+from app.api.schemas.sessions import SessionListItem, SessionListResponse
+from app.config import settings
+
+router = APIRouter(prefix=&quot;/api/sessions&quot;, tags=[&quot;sessions&quot;])
+
+
+async def _count_messages(db: AsyncSession, session_id: str) -&gt; int:
+    &quot;&quot;&quot;单条 session 的消息数（修 P1-2：补实现）&quot;&quot;&quot;
+    stmt = select(func.count()).select_from(Message).where(Message.session_id == session_id)
+    result = await db.execute(stmt)
+    return result.scalar() or 0
+
+
+@router.get(&quot;&quot;, response_model=SessionListResponse)
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -&gt; SessionListResponse:
+    # 依赖 P1-6 复合索引 (user_id, is_active, updated_at DESC)
+    # 修 P1-6：加 deleted_at IS NULL 软删除过滤（M1 schema 若有 deleted_at 列）
+    stmt = (
+        select(ChatSession)
+        .where(
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_active == True,
+            ChatSession.deleted_at.is_(None),  # 修 P1-6 软删除过滤
+        )
+        .order_by(ChatSession.updated_at.desc())
+        .limit(settings.api.default_session_page_size)  # 修 P2-4：可配置
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    items = [
+        SessionListItem(
+            id=str(r.id),
+            title=r.title or &quot;新对话&quot;,
+            updated_at=r.updated_at,
+            message_count=await _count_messages(db, r.id),
+        )
+        for r in rows
+    ]
+    return SessionListResponse(sessions=items, total=len(items))</code></pre>
+
+<p><strong>RED</strong> · <code>test_list_returns_401_when_unauthenticated</code></p>
+<li>无 token → 调 → 401</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · M2 <code>get_current_user</code> 已处理 401</p>
+
+<p><strong>RED</strong> · <code>test_list_excludes_inactive_sessions</code></p>
+<li>1 active + 1 inactive → 调 → 断言返 1 条</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 加 <code>is_active == True</code> 过滤</p>
+
+<p><strong>REFACTOR</strong> · 把 N+1 的 <code>_count_messages</code> 改为单 SQL <code>select(ChatSession, func.count(Message.id))</code> + <code>outerjoin</code> + <code>group_by(ChatSession.id)</code> 一次出数</p>
+
+<h4 id="task-5get-apisessionsid-详情-越权-404">Task 5：<code>GET /api/sessions/{id}</code> 详情 + 越权 404</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_sessions.py::test_detail_returns_session_for_owner</code></p>
+<li>session 属于 current_user → 调 → 200 + 详情</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/sessions.py</code> 加 <code>@router.get(&quot;/{session_id}&quot;)</code>：</p>
+<pre><code data-lang="python">@router.get(&quot;/{session_id}&quot;, response_model=SessionDetailResponse)
+async def get_session_detail(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -&gt; SessionDetailResponse:
+    # 关键：user_id 一起查，越权 404 不暴露存在性（V1 Scope §5）
+    stmt = select(ChatSession).where(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id,
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=&quot;session not found&quot;)
+    return SessionDetailResponse(
+        id=str(row.id),
+        title=row.title or &quot;新对话&quot;,
+        thread_id=row.thread_id,
+        messages=[],  # M10 后从 checkpoint 读
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )</code></pre>
+
+<p><strong>RED</strong> · <code>test_detail_returns_404_for_other_user_session</code>（P1-11 关键）</p>
+<li>session 属于用户 B → 用 A 鉴权调 → 404（<strong>不是</strong> 403，避免暴露存在性）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 上面 SQL 已含 <code>user_id == current_user.id</code>，自然 404</p>
+
+<p><strong>RED</strong> · <code>test_detail_returns_404_for_nonexistent_session</code></p>
+<li>不存在 id → 404</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<h3 id="day-2-chat-路由-lifespan-orchestrator核心路径">Day 2 · chat 路由 + lifespan orchestrator（核心路径）</h3>
+
+<h4 id="task-6compile-workflow-异步-lifespan-包装修-p1-3-p1-4-p1-5">Task 6：<code>compile_workflow</code> 异步 lifespan 包装（<strong>修 P1-3 / P1-4 / P1-5</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_chat.py::test_orchestrator_returns_lifespan_graph</code></p>
+<li>用 <code>app.state.graph</code> fixture → 断言 <code>isinstance(graph, CompiledStateGraph)</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/deps.py</code>（<strong>修 P1-3</strong>：删 fallback 路径，未初始化时显式 503；<strong>修 P1-5</strong>：<code>get_db</code> 显式 <code>AsyncSession</code> 类型注解）：</p>
+<pre><code data-lang="python"># app/api/deps.py（修 P1-3 / P1-5）
+from fastapi import Request, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from langgraph.graph import CompiledStateGraph
+from app.db.session import get_session as _get_session
+
+
+async def get_db() -&gt; AsyncSession:
+    &quot;&quot;&quot;FastAPI Depends：每个请求一个 AsyncSession（修 P1-5 显式类型注解）&quot;&quot;&quot;
+    async with _get_session() as session:
+        yield session
+
+
+async def get_orchestrator(request: Request) -&gt; CompiledStateGraph:
+    &quot;&quot;&quot;lifespan 单例 graph；未初始化时显式 503（修 P1-3：删 fallback 避免连接泄漏）&quot;&quot;&quot;
+    graph = getattr(request.app.state, &quot;graph&quot;, None)
+    if graph is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=&quot;服务尚未就绪，请稍后重试。&quot;,
+        )
+    return graph
+
+
+async def get_request_id(request: Request) -&gt; str:
+    &quot;&quot;&quot;X-Request-Id 由 RequestIdMiddleware 注入&quot;&quot;&quot;
+    return getattr(request.state, &quot;request_id&quot;, &quot;&quot;)
+
+
+def get_app(request: Request):
+    &quot;&quot;&quot;测试 / 中间件用：取 app 实例（lifespan override 测试需要）&quot;&quot;&quot;
+    return request.app</code></pre>
+
+<p><strong>RED</strong> · <code>test_orchestrator_returns_503_when_app_state_missing</code>（<strong>修 P1-4</strong>：可测试 fallback）</p>
+<li>用 <code>create_app(lifespan_override=noop_lifespan)</code> 启动 → 调 <code>get_orchestrator</code> → 断言 503</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 上面 <code>get_orchestrator</code> 已显式 raise 503</p>
+
+<p><strong>REFACTOR</strong> · 把 <code>get_orchestrator</code> 显式 raise 503 的逻辑抽到 <code>app/api/errors.py</code> 的 <code>ServiceNotReadyError</code></p>
+
+<h4 id="task-7post-apichat-主体修-p0-1-p1-1-p1-6">Task 7：<code>POST /api/chat</code> 主体（<strong>修 P0-1 / P1-1 / P1-6</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_chat.py::test_chat_returns_401_when_unauthenticated</code>（P1-11 关键）</p>
+<li>无 token → 调 → 401</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · M2 <code>get_current_user</code> 已处理；先建 <code>app/api/chat.py</code> 空 router + endpoint stub</p>
+
+<p><strong>RED</strong> · <code>test_chat_creates_new_session_when_session_id_absent</code></p>
+<li>不传 session_id + mock graph.ainvoke → 调 → 断言 <code>db</code> 新增 1 条 <code>ChatSession</code>（user_id=current_user, thread_id=uuid4）+ response.session_id 非空</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>RED</strong> · <code>test_chat_returns_502_on_timeout</code>（<strong>修 P0-1 关键测试</strong>）</p>
+<li>mock graph.ainvoke <code>await asyncio.sleep(60)</code> → 调 → 断言 502 + <code>detail=&quot;服务超时，请稍后重试。&quot;</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/chat.py</code>（<strong>修 P0-1</strong>：<code>asyncio.wait_for</code> 包装 graph.ainvoke / <strong>修 P1-1</strong>：<code>fallback_message</code> 走 settings / <strong>修 P2-6</strong>：<code>safe_truncate</code> UTF-8 byte-aware / <strong>修 r2-新-1</strong>：<code>ChatResponse.trace_id</code> 字段名 / <strong>修 r2-新-4</strong>：<code>Idempotency-Key</code> Header 透传 + 同 user_id + 同 idempotency_key 复用 session）：</p>
+
+<pre><code data-lang="python">import asyncio
+import uuid
+from fastapi import APIRouter, Depends, Header, HTTPException, Request  # 修 r2-新-4
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth.deps import get_current_user
+from app.db.models import User, ChatSession
+from app.db.session import get_session
+from app.api.deps import get_orchestrator
+from app.api.schemas.chat import ChatRequest, ChatResponse, Source
+from app.utils.text import safe_truncate  # 修 P2-6
+from app.config import settings
+from app.graph.errors import GraphError, RetrievalError
+import logging
+
+log = logging.getLogger(__name__)
+router = APIRouter(prefix=&quot;/api&quot;, tags=[&quot;chat&quot;])
+
+
+@router.post(&quot;/chat&quot;, response_model=ChatResponse)
+async def chat(
+    req: ChatRequest,
+    request: Request,
+    # 修 r2-新-4：M8 端显式接受 Idempotency-Key Header 透传到业务层（M1 r2 4 表 idempotency_key 联动）
+    idempotency_key: str | None = Header(None, alias=&quot;Idempotency-Key&quot;),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+    graph = Depends(get_orchestrator),
+) -&gt; ChatResponse:
+    # 修 r2-新-1：内部变量名 trace_id（与 ChatResponse 字段名一致）
+    trace_id = getattr(request.state, &quot;request_id&quot;, &quot;&quot;)
+    thread_id: str | None = None
+    session_id: str | None = None
+
+    if req.session_id is None:
+        # 修 r2-新-4：缺 session_id + 有 idempotency_key → 查重同 user_id + 同 idempotency_key 的已有 session
+        if idempotency_key is not None:
+            dup_stmt = select(ChatSession).where(
+                ChatSession.user_id == current_user.id,
+                ChatSession.idempotency_key == idempotency_key,  # M1 r2 已建 idempotency_key 列
+            )
+            existing = (await db.execute(dup_stmt)).scalar_one_or_none()
+            if existing is not None:
+                # 命中：复用已有 session（防止 M9 Gradio UI 双击产生重复 session）
+                thread_id = existing.thread_id
+                session_id = str(existing.id)
+        if thread_id is None:
+            # 新会话（修 P2-6：safe_truncate UTF-8 byte-aware）
+            new_session = ChatSession(
+                user_id=current_user.id,
+                thread_id=str(uuid.uuid4()),
+                title=safe_truncate(req.query.strip().replace(&quot;\n&quot;, &quot; &quot;), 50),
+                # 修 r2-新-4：写 idempotency_key 到 DB（NULL = 无幂等保护）
+                idempotency_key=idempotency_key,
+            )
+            db.add(new_session)
+            await db.commit()
+            await db.refresh(new_session)
+            thread_id = new_session.thread_id
+            session_id = str(new_session.id)
+    else:
+        # 已有会话 + 越权 404（不暴露存在性）
+        stmt = select(ChatSession).where(
+            ChatSession.id == req.session_id,
+            ChatSession.user_id == current_user.id,
+        )
+        row = (await db.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail=&quot;session not found&quot;)
+        thread_id = row.thread_id
+        session_id = str(row.id)
+
+    # 调 graph ── 修 P0-1 ── asyncio.wait_for 包装 + settings.chat_timeout_seconds
+    try:
+        result = await asyncio.wait_for(
+            graph.ainvoke(
+                {&quot;query&quot;: req.query, &quot;user_id&quot;: str(current_user.id), &quot;thread_id&quot;: thread_id},
+                config={
+                    &quot;configurable&quot;: {&quot;thread_id&quot;: thread_id},
+                    # 修 r2-新-1：双键 metadata（trace_id 供 M11 eval / request_id 供 M10 Langfuse）—— 同字符串不同语义
+                    &quot;metadata&quot;: {
+                        &quot;trace_id&quot;: trace_id,  # M8→M11 跨 M 关联
+                        &quot;request_id&quot;: trace_id,  # M8→M10 Langfuse 关联（与 X-Request-Id 同值）
+                        &quot;user_id&quot;: str(current_user.id),
+                    },
+                },
+            ),
+            timeout=settings.api.chat_timeout_seconds,  # 默认 30s
+        )
+    except asyncio.TimeoutError:
+        # 修 P0-1：超时返 502
+        log.warning(&quot;graph.ainvoke timeout&quot;, trace_id=trace_id, timeout=settings.api.chat_timeout_seconds)
+        raise HTTPException(status_code=502, detail=&quot;服务超时，请稍后重试。&quot;)
+    except GraphError as e:
+        raise HTTPException(status_code=502, detail=f&quot;upstream LLM error: {e}&quot;)
+    except RetrievalError as e:
+        # 503 + 兜底（V1 Scope §5 OS 不可达 → query 走纯 LLM）—— 修 P1-1：fallback_message 走 settings
+        log.warning(&quot;retrieval degraded&quot;, error=str(e), trace_id=trace_id)
+        return ChatResponse(
+            answer=settings.graph.fallback_message,
+            sources=[],
+            session_id=session_id,
+            # 修 r2-新-1：ChatResponse 字段 trace_id（与 M9/M10/M11 跨 M 统一）
+            trace_id=trace_id,
+            degraded=True,
+        )
+
+    return ChatResponse(
+        answer=result[&quot;answer&quot;],
+        sources=[Source(**s) for s in result.get(&quot;sources&quot;, [])],
+        session_id=session_id,
+        # 修 r2-新-1 + r2 跨 M 联动：ChatResponse 字段 trace_id 优先从 M7 RagState.trace_id 取（result.get(&quot;trace_id&quot;)），fallback 到内部变量（与 X-Request-Id 同值）
+        trace_id=result.get(&quot;trace_id&quot;) or trace_id,
+        degraded=False,
+    )</code></pre>
+
+<p><strong>GREEN</strong> · <code>app/utils/text.py</code>（<strong>修 P2-6</strong>：UTF-8 byte-aware 截取）：</p>
+<pre><code data-lang="python"># app/utils/text.py（修 P2-6）
+def safe_truncate(text: str, max_bytes: int = 100) -&gt; str:
+    &quot;&quot;&quot;按 UTF-8 byte length 截取，不截断在 multi-byte 中间（emoji / surrogate safe）&quot;&quot;&quot;
+    encoded = text.encode(&quot;utf-8&quot;)[:max_bytes]
+    return encoded.decode(&quot;utf-8&quot;, errors=&quot;ignore&quot;)</code></pre>
+
+<p><strong>RED</strong> · <code>test_chat_reuses_existing_thread_on_second_call</code>（多轮 thread 复用）</p>
+<li>第 1 次 chat（无 session_id）→ 拿 session_id</li>
+<li>第 2 次 chat 带 session_id + mock graph.ainvoke → 断言<strong>同 thread_id</strong> 传入 config</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径；mock graph 断言 <code>config[&quot;configurable&quot;][&quot;thread_id&quot;] == row.thread_id</code></p>
+
+<p><strong>RED</strong> · <code>test_chat_returns_404_for_other_user_session</code>（越权不暴露）</p>
+<li>拿 B 的 session_id + A 鉴权 → 调 → 404</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<p><strong>RED</strong> · <code>test_chat_returns_502_on_graph_error</code></p>
+<li>mock graph.ainvoke 抛 <code>GraphError(&quot;anthropic 503&quot;)</code> → 调 → 502 + body 含 &quot;upstream&quot;</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · try/except GraphError → HTTPException 502</p>
+
+<p><strong>RED</strong> · <code>test_chat_returns_503_with_fallback_on_retrieval_error</code></p>
+<li>mock graph.ainvoke 抛 <code>RetrievalError</code> → 调 → 200 + <code>degraded=True</code> + 兜底文案</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<p><strong>RED</strong> · <code>test_chat_validates_query_length</code>（422 边界）</p>
+<li>传 <code>query=&quot;&quot;</code> → 422（FastAPI 默认 schema 校验）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>ChatRequest</code> schema 已有 <code>Field(min_length=1, max_length=2000)</code></p>
+
+<h4 id="task-8chatrequest-chatresponse-pydantic-schema">Task 8：ChatRequest / ChatResponse Pydantic schema</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_chat.py::test_chat_request_rejects_empty_query</code></p>
+<li>构造 <code>ChatRequest(query=&quot;&quot;)</code> → 抛 ValidationError</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/schemas/chat.py</code>：</p>
+<pre><code data-lang="python">from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+from uuid import UUID
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;, str_strip_whitespace=True)
+    query: str = Field(min_length=1, max_length=2000)
+    session_id: str | None = Field(default=None, description=&quot;缺则新建会话&quot;)
+
+class Source(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    chunk_id: str
+    doc_id: str
+    image_ref: str | None = None
+    score: float
+
+class ChatResponse(BaseModel):
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    answer: str
+    sources: list[Source]
+    session_id: str
+    # 修 r2-新-1：trace_id 字段统一（与 M9/M10/M11 跨 M 一致；X-Request-Id = Langfuse trace.id = M11 trace_id 三者同字符串）
+    trace_id: str
+    degraded: bool = False</code></pre>
+
+<p><strong>RED</strong> · <code>test_chat_request_rejects_extra_fields</code></p>
+<li>构造 <code>ChatRequest(query=&quot;hi&quot;, evil=&quot;x&quot;)</code> → ValidationError</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>extra=&quot;forbid&quot;</code> 已有</p>
+
+<h4 id="task-9统一-exception-handler">Task 9：统一 exception handler</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_chat.py::test_validation_error_returns_422_with_field_detail</code></p>
+<li>POST body <code>{&quot;query&quot;: &quot;&quot;}</code> → 422 + body <code>{&quot;detail&quot;: [{&quot;loc&quot;: [&quot;body&quot;, &quot;query&quot;], &quot;msg&quot;: &quot;...&quot;}], &quot;trace_id&quot;: &quot;...&quot;}</code>  # 修 r2-新-1</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/main.py</code> 注册（修 r2-新-1：response 字段统一 trace_id）：</p>
+<pre><code data-lang="python">from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={&quot;detail&quot;: exc.errors(), &quot;trace_id&quot;: getattr(request.state, &quot;request_id&quot;, &quot;&quot;)},  # 修 r2-新-1
+    )</code></pre>
+
+<p><strong>RED</strong> · <code>test_generic_exception_returns_500_without_stacktrace</code></p>
+<li>endpoint 抛 <code>RuntimeError(&quot;boom&quot;)</code> → 调 → 500 + body <code>{&quot;detail&quot;: &quot;internal error&quot;, &quot;trace_id&quot;: &quot;...&quot;}</code>（<strong>不暴露</strong> stacktrace）  # 修 r2-新-1</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>@app.exception_handler(Exception)</code> 兜底 + log.error</p>
+
+<p><strong>REFACTOR</strong> · 抽 <code>app/api/errors.py</code> 集中定义 <code>APIError</code> 类 + handler 注册函数 <code>register_exception_handlers(app)</code></p>
+
+<h3 id="day-3-ingest-集成测试-mainpy-收尾">Day 3 · ingest + 集成测试 + main.py 收尾</h3>
+
+<h4 id="task-10get-apiingestjob-id-进度查询">Task 10：<code>GET /api/ingest/{job_id}</code> 进度查询</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_ingest_progress.py::test_progress_returns_status_for_owner</code></p>
+<li>mock <code>ingest_jobs</code> 表 → 调 <code>GET /api/ingest/{job_id}</code> → 200 + <code>status=&quot;processing&quot;</code> + <code>progress=0.45</code></li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/ingest.py</code>：</p>
+<pre><code data-lang="python">from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth.deps import get_current_user
+from app.db.models import User, IngestJob
+from app.db.session import get_session
+from app.api.schemas.ingest import IngestProgressResponse
+
+router = APIRouter(prefix=&quot;/api/ingest&quot;, tags=[&quot;ingest&quot;])
+
+
+@router.get(&quot;/{job_id}&quot;, response_model=IngestProgressResponse)
+async def get_ingest_progress(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -&gt; IngestProgressResponse:
+    stmt = select(IngestJob).where(
+        IngestJob.id == job_id,
+        IngestJob.user_id == current_user.id,  # 越权 404
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=&quot;job not found&quot;)
+    return IngestProgressResponse(
+        job_id=str(row.id),
+        status=row.status,
+        progress=row.progress,
+        error=row.error,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )</code></pre>
+
+<p><strong>RED</strong> · <code>test_progress_returns_404_for_other_user_job</code></p>
+<li>越权 → 404</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<p><strong>RED</strong> · <code>test_progress_returns_404_for_nonexistent_job</code></p>
+<li>不存在 → 404</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<h4 id="task-11post-apiingest-stub-委派修-p1-7">Task 11：<code>POST /api/ingest</code> stub 委派（<strong>修 P1-7</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_ingest_progress.py::test_post_ingest_returns_501_with_deferred_message</code></p>
+<li>POST <code>POST /api/ingest</code> body → 501 + <code>detail=&quot;POST /api/ingest 由 M4-M6 实现，当前里程碑 stub&quot;</code>（用 501 Not Implemented 明确占位，<strong>不静默 200</strong>）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/ingest.py</code> 加 stub（<strong>修 P1-7</strong>：加 <code># TODO(m8→m4)</code> 标记 / <strong>修 r2-新-4</strong>：stub 也接受 Idempotency-Key Header 透传，未来 M4-M6 替换为真实 ingest 入口时保留 Header）：</p>
+<pre><code data-lang="python">from app.api.schemas.ingest import IngestRequest, IngestAcceptedResponse
+from fastapi import Header, HTTPException  # 修 r2-新-4
+
+@router.post(&quot;&quot;, response_model=IngestAcceptedResponse, status_code=501)
+async def post_ingest_stub(
+    req: IngestRequest,
+    # 修 r2-新-4：M8 stub 端先接受 Idempotency-Key Header（虽然 stub 不写 DB，但 API 契约已定）
+    # M4-M6 替换为真实 ingest 时直接复用此 Header → IngestJob.idempotency_key 落库
+    idempotency_key: str | None = Header(None, alias=&quot;Idempotency-Key&quot;),
+):
+    &quot;&quot;&quot;M8 占位：M4-M6 落地后替换为真实 ingest 入口。
+
+    TODO(m8→m4): 合并 M4-M6 时删除本 stub handler，将 IngestRequest 替换为真实 schema
+    并接入 M4 file ingest / M5 URL ingest / M6 confluence ingest 三个子入口。
+    Idempotency-Key Header 透传契约保留（修 r2-新-4 联动 M1 r2 4 表 idempotency_key）。
+    grep 关键词：TODO(m8→m4)
+    &quot;&quot;&quot;
+    raise HTTPException(
+        status_code=501,
+        detail=&quot;POST /api/ingest 由 M4-M6 ingest pipeline 实现，当前里程碑 stub。M8 路由仅透传 GET 进度。&quot;,
+    )</code></pre>
+
+<h4 id="task-12appapi-init-py-聚合修-p2-6">Task 12：<code>app/api/__init__.py</code> 聚合（<strong>修 P2-6</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/unit/test_api_chat.py::test_router_exposes_all_endpoints</code></p>
+<li><code>from app.api import api_router</code> → 断言 <code>api_router.routes</code> 含 <code>/chat</code> / <code>/sessions</code> / <code>/health</code> / <code>/ingest</code> 4 个 prefix 路径</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/api/__init__.py</code>：</p>
+<pre><code data-lang="python">from fastapi import APIRouter
+from app.api import auth, chat, sessions, ingest, health
+
+api_router = APIRouter()
+api_router.include_router(auth.router)       # M2 /api/auth/*
+api_router.include_router(chat.router)       # M8 /api/chat
+api_router.include_router(sessions.router)   # M8 /api/sessions/*
+api_router.include_router(ingest.router)     # M8 /api/ingest/*
+api_router.include_router(health.router)     # M8 /api/health</code></pre>
+
+<p><strong>RED</strong> · <code>test_router_health_path_is_unauthenticated</code></p>
+<li>不带 token 调 <code>GET /api/health</code> → 200（<strong>不是</strong> 401）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · health router 不用 <code>Depends(get_current_user)</code></p>
+
+<h4 id="task-13appmainpy-入口修-p0-2-p2-3-p2-5-p2-7-p2-8">Task 13：<code>app/main.py</code> 入口（<strong>修 P0-2 / P2-3 / P2-5 / P2-7 / P2-8</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m8_e2e_api.py::test_app_starts_with_lifespan</code></p>
+<li><code>from app.main import app</code> → 用 <code>TestClient</code> 启动 → 调 <code>GET /api/health</code> → 200（验证 lifespan 跑过）</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>app/main.py</code>（<strong>修 P0-2</strong>：lifespan 关闭 <code>engine.dispose()</code> / <strong>修 P2-3</strong>：middleware 顺序注释 / <strong>修 P2-5</strong>：从 <code>app.api.middleware</code> import / <strong>修 P2-7</strong>：shutdown_event + 缓冲 / <strong>修 P2-8</strong>：<code>docs_url</code>/<code>cors_origins</code> 受 <code>env</code> 控制）：</p>
+
+<pre><code data-lang="python">import asyncio
+import logging  # 修 r2-新-3：graph close 失败时记 log
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from app.api import api_router
+from app.api.middleware import RequestIdMiddleware  # 修 P2-5：从独立文件 import
+from app.api.errors import register_exception_handlers
+from app.config import settings
+from app.db.session import engine  # 修 P0-2：lifespan 关闭用
+from app.graph.checkpointer import make_checkpointer  # M7 r1：async def 返回实例
+from app.graph.workflow import compile_workflow
+
+log = logging.getLogger(__name__)  # 修 r2-新-3
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 修 P2-7：启动建 shutdown_event，health check 端点可感知
+    app.state.shutdown_event = asyncio.Event()
+    # 启动：建 checkpointer + 编译 graph
+    # 注：M7 r1 P0-3 已修 make_checkpointer 为 async def 返回 BaseCheckpointSaver 实例
+    #     lifecycle 由 M8 管理（lifespan 末尾 dispose）
+    checkpointer = await make_checkpointer()
+    app.state.checkpointer = checkpointer
+    app.state.graph = compile_workflow(checkpointer=checkpointer)
+    try:
+        yield
+    finally:
+        # 修 P2-7：通知 health check 开始返 503 + 给 in-flight 请求 500ms 缓冲
+        app.state.shutdown_event.set()
+        await asyncio.sleep(0.5)
+        # 修 r2-新-3：graph 自身幂等清理（langgraph 1.0.5 CompiledStateGraph 若有 aclose/close 调之；无则 fallback GC）
+        try:
+            graph = getattr(app.state, &quot;graph&quot;, None)
+            if graph is not None:
+                aclose = getattr(graph, &quot;aclose&quot;, None) or getattr(graph, &quot;close&quot;, None)
+                if aclose is not None:
+                    res = aclose()
+                    if asyncio.iscoroutine(res):
+                        await res
+        except Exception as e:  # 兜底：graph.close 失败不影响 engine.dispose
+            log.warning(&quot;graph close on shutdown failed&quot;, error=str(e))
+        # 修 P0-2：归还 asyncpg 连接池
+        await engine.dispose()
+        # checkpointer 幂等关闭（M7 工厂保证）
+        close = getattr(checkpointer, &quot;close&quot;, None)
+        if close is not None:
+            res = close()
+            if asyncio.iscoroutine(res):
+                await res
+
+
+def create_app(lifespan_override=None) -&gt; FastAPI:
+    &quot;&quot;&quot;FastAPI 工厂；lifespan_override 用于测试（修 P1-4）&quot;&quot;&quot;
+    app = FastAPI(
+        title=&quot;RAG V1&quot;,
+        version=&quot;0.1.0&quot;,
+        lifespan=lifespan_override or lifespan,  # 修 P1-4：可注入测试 lifespan
+        # 修 P2-8：dev 暴露 /docs + redoc，prod/staging 关闭
+        docs_url=&quot;/docs&quot; if settings.api.expose_docs else None,
+        redoc_url=&quot;/redoc&quot; if settings.api.expose_docs else None,
+        openapi_url=&quot;/openapi.json&quot; if settings.api.expose_docs else None,
+    )
+    # 修 P2-3 + r2-新-5：middleware 挂载顺序（LIFO 警示）
+    # FastAPI add_middleware 是 LIFO（后添加的先执行 / 最外层）
+    # 调用顺序：CORS（最内层，先 add）→ RequestId（中间层）→ M12 RateLimit（最外层，最后 add）
+    # 执行顺序：M12 RateLimit → RequestId → CORS → endpoint
+    # 1. CORS 内层：处理 OPTIONS preflight（不依赖 tracing）
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.api.cors_origins,
+        allow_credentials=True,
+        allow_methods=[&quot;*&quot;],
+        allow_headers=[&quot;*&quot;],
+        # 允许 M9 Gradio 前端 / M11 eval 脚本带 X-Request-Id 调用
+        expose_headers=[&quot;X-Request-Id&quot;],
+    )
+    # 2. RequestId 中间层：所有后续中间件 / 路由可读 request_id
+    app.add_middleware(RequestIdMiddleware)
+    # ↓ future: RateLimitMiddleware (M12)  # 3. M12 加在最外层：依赖 request_id for per-user limit
+    app.include_router(api_router)
+    register_exception_handlers(app)
+    return app
+
+
+app = create_app()</code></pre>
+
+<p><strong>RED</strong> · <code>test_lifespan_cleanup_on_shutdown</code></p>
+<li>用 <code>TestClient</code> 上下文 → exit 后 → 断言 checkpointer 关闭 + engine dispose</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · <code>finally: shutdown_event.set() + sleep(0.5) + engine.dispose()</code> + checkpointer.close()</p>
+
+<p><strong>REFACTOR</strong> · <code>create_app(lifespan_override=...)</code> 工厂模式已实现</p>
+
+<h4 id="task-14集成测试端到端修-p0-5-必须用真-pg">Task 14：集成测试端到端（<strong>修 P0-5 · 必须用真 PG</strong>）</h4>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m8_e2e_api.py::test_login_chat_sessions_logout_flow</code></p>
+<li>真 PG fixture 起 alembic 4 表</li>
+<li><code>POST /api/auth/register</code> → 拿 token</li>
+<li><code>POST /api/chat</code>（无 session_id）→ 拿 session_id</li>
+<li><code>POST /api/chat</code>（带 session_id + 含&quot;刚才&quot;）→ mock graph 走 chitchat</li>
+<li><code>GET /api/sessions</code> → 列表含刚才 1 条</li>
+<li><code>GET /api/sessions/{id}</code> → 详情</li>
+<li><code>POST /api/auth/logout</code> → 204</li>
+<li>跑测试 → 失败</li>
+<li><strong>不跑 sqlite</strong>，必须 <code>pytest --require-docker</code> 起真 PG（<strong>修 P0-5</strong>）</li>
+
+<p><strong>GREEN</strong> · <code>tests/conftest.py</code> 增补：</p>
+<pre><code data-lang="python">import os
+import pytest
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import make_url
+
+@pytest.fixture(scope=&quot;session&quot;)
+def pg_dsn():
+    # CI 环境跑前 `docker compose -f infra/docker-compose.yml up -d postgres`
+    return os.environ.get(
+        &quot;ASYNC_POSTGRES_DSN&quot;,
+        &quot;postgresql+asyncpg://rag_app:rag_app_password@localhost:5432/rag_test&quot;,
+    )
+
+@pytest.fixture
+async def db_engine(pg_dsn):
+    from app.db.session import engine
+    engine.url = make_url(pg_dsn)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()</code></pre>
+
+<p><strong>RED</strong> · <code>test_e2e_chat_thread_reuse_via_real_graph</code>（<strong>M7 P0-10 修订后</strong> + 真实 graph）</p>
+<li>不 mock graph，用 <code>compile_workflow</code> + mock LLM/embed/OS（langgraph.ainvoke 真跑）</li>
+<li>2 次 invoke 同 thread_id → 第二次拿得到第一次的 history</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 用 <code>pytest-httpx</code> mock 外部 HTTP（TEI / OS / Langfuse）</p>
+
+<p><strong>RED</strong> · <code>test_e2e_chat_returns_404_on_unauthorized_session</code></p>
+<li>注册 2 个用户 A / B → A chat 拿 session → B 用自己 token 调 A 的 session_id → 404</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<p><strong>RED</strong> · <code>test_e2e_health_returns_real_pg_status</code></p>
+<li>真 PG up → <code>GET /api/health</code> → 200 + postgres status=&quot;up&quot; + latency_ms 数值</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 已有 GREEN 路径</p>
+
+<p><strong>REFACTOR</strong> · 把 e2e 拆 4 个小测试（register_flow / chat_flow / sessions_flow / auth_negative）</p>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M8 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_api_health.py tests/unit/test_api_sessions.py tests/unit/test_api_chat.py tests/unit/test_api_ingest_progress.py</code> —— 全 mock DB / graph / httpx，CI 内 3s</li>
+<li><strong>M8 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m8_e2e_api.py --require-docker</code> —— <strong>必须</strong>起真 PG（<strong>修 P0-5</strong>），用 <code>pytest-httpx</code> mock 外部 HTTP（TEI / OpenSearch / Langfuse）</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/api --cov=app/main --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 <code>[RED]</code>）→ GREEN（commit 标 <code>[GREEN]</code>）→ REFACTOR（commit 标 <code>[RF]</code>）</li>
+
+<p><strong>关键测试矩阵</strong>（spec §5 错误矩阵全覆盖）：</p>
+
+<table>
+<thead><tr><th>场景</th><th>端点</th><th>期望</th><th>关键单测</th></tr></thead>
+<tbody>
+<tr><td>未登录</td><td>任意 protected</td><td>401</td><td><code>test_*_returns_401_when_unauthenticated</code></td></tr>
+<tr><td>越权 session</td><td>GET /api/sessions/{id}</td><td>404（不暴露存在性）</td><td><code>test_detail_returns_404_for_other_user_session</code></td></tr>
+<tr><td>越权 session</td><td>POST /api/chat 带他人 session_id</td><td>404</td><td><code>test_chat_returns_404_for_other_user_session</code></td></tr>
+<tr><td>LLM 4xx/5xx</td><td>POST /api/chat</td><td>502 + 不静默</td><td><code>test_chat_returns_502_on_graph_error</code></td></tr>
+<tr><td><strong>graph invoke 超时（修 P0-1）</strong></td><td>POST /api/chat</td><td>502 + 中文 detail</td><td><code>test_chat_returns_502_on_timeout</code></td></tr>
+<tr><td>OpenSearch 不可达</td><td>POST /api/chat</td><td>503 + 兜底</td><td><code>test_chat_returns_503_with_fallback_on_retrieval_error</code></td></tr>
+<tr><td>422 schema 错</td><td>POST /api/chat</td><td>422 + 字段详情</td><td><code>test_validation_error_returns_422_with_field_detail</code></td></tr>
+<tr><td>多轮 thread 复用</td><td>POST /api/chat 2 次</td><td>同 thread_id 传 graph</td><td><code>test_chat_reuses_existing_thread_on_second_call</code></td></tr>
+<tr><td>health 全部 up</td><td>GET /api/health</td><td>200 + status=&quot;ok&quot;</td><td><code>test_health_returns_200_when_all_up</code></td></tr>
+<tr><td>health 任一 down</td><td>GET /api/health</td><td>503 + status=&quot;degraded&quot;</td><td><code>test_health_returns_503_when_pg_down</code></td></tr>
+<tr><td><strong>health 5 service 探测（修 P0-3）</strong></td><td>GET /api/health</td><td>5 service 字段齐 + URL 正确</td><td><code>test_health_*_url_and_timeout</code>（5 个）</td></tr>
+<tr><td>lifespan 启动</td><td>任意 endpoint</td><td>graph 已编译</td><td><code>test_app_starts_with_lifespan</code></td></tr>
+<tr><td><strong>lifespan 关闭 engine dispose（修 P0-2）</strong></td><td>TestClient exit</td><td>engine 已关闭</td><td><code>test_lifespan_closes_db_engine</code></td></tr>
+<tr><td><strong>lifespan override 测试（修 P1-4）</strong></td><td>TestClient(no-op lifespan)</td><td>503 from get_orchestrator</td><td><code>test_orchestrator_returns_503_when_app_state_missing</code></td></tr>
+<tr><td><strong>lifespan shutdown event（修 P2-7）</strong></td><td>TestClient exit 中</td><td>health 返 503</td><td><code>test_health_returns_503_during_shutdown</code></td></tr>
+<tr><td><strong>APP_ENV 感知（修 P2-8）</strong></td><td>dev vs prod</td><td>/docs 暴露 vs 关闭</td><td><code>test_docs_url_disabled_in_prod</code></td></tr>
+<tr><td>ingest POST 暂未实现</td><td>POST /api/ingest</td><td>501 + stub 说明</td><td><code>test_post_ingest_returns_501_with_deferred_message</code></td></tr>
+<tr><td><strong>stub 标记可 grep（修 P1-7）</strong></td><td>grep</td><td><code>TODO(m8→m4)</code> 存在</td><td>手动 <code>rg &quot;TODO\(m8→m4\)&quot; apps/rag_v1/</code></td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] 5 个路由全部跑通（chat / sessions×2 / ingest / health） + auth 3 件（M2 已建）共 8 端点</li>
+<li>[ ] <code>POST /api/chat</code> 鉴权 → session 解析（缺建/有查+越权 404）→ graph.ainvoke → 返回 4 路径全测过</li>
+<li>[ ] <strong>多轮 chat thread 复用</strong>：第 2 次 invoke 同 thread_id，graph 拿得到 history（PG checkpoint 落数据）</li>
+<li>[ ] 错误矩阵全覆盖：401 / 404 / 422 / 500 / 502 / 503</li>
+<li>[ ] lifespan 启动建 graph + checkpointer，关闭自动 cleanup</li>
+<li>[ ] <strong>lifespan 关闭 <code>engine.dispose()</code> 归还 asyncpg 连接池</strong>（<strong>修 P0-2</strong>）</li>
+<li>[ ] <strong>chat 端点 <code>asyncio.wait_for</code> 包装 graph.ainvoke，超时 502</strong>（<strong>修 P0-1</strong>）</li>
+<li>[ ] <strong>health check 5 service URL/timeout/auth 具体化</strong>（<strong>修 P0-3</strong>）</li>
+<li>[ ] <code>app/api/__init__.py</code> 聚合 5 个子路由（<strong>修 P2-6</strong>）</li>
+<li>[ ] <code>compile_workflow</code> 单一来源在 <code>app/graph/checkpointer.py</code>（<strong>修 P0-10</strong>），M8 import 路径正确</li>
+<li>[ ] <strong><code>make_checkpointer</code> 已是 <code>async def</code> 返回实例</strong>（<strong>M7 r1 P0-3</strong>），M8 lifespan <code>await make_checkpointer()</code> + 手动 dispose</li>
+<li>[ ] <code>chat_sessions.updated_at</code> 更新走 ORM（<strong>修 P1-4</strong>）</li>
+<li>[ ] <code>GET /api/sessions</code> 性能依赖复合索引 <code>(user_id, is_active, updated_at DESC)</code>（<strong>修 P1-6</strong>）</li>
+<li>[ ] <strong><code>GET /api/sessions</code> 加 <code>deleted_at IS NULL</code> 软删除过滤</strong>（<strong>修 P1-6</strong>）</li>
+<li>[ ] <code>POST /api/chat</code> 鉴权集成完整（<strong>修 P1-11</strong>）</li>
+<li>[ ] <strong>503 兜底文案走 <code>settings.graph.fallback_message</code></strong>（<strong>修 P1-1</strong>）</li>
+<li>[ ] <strong><code>get_orchestrator</code> 删 fallback，未初始化时显式 503</strong>（<strong>修 P1-3</strong>）</li>
+<li>[ ] <strong><code>create_app(lifespan_override=...)</code> 工厂支持测试 override</strong>（<strong>修 P1-4</strong>）</li>
+<li>[ ] <strong><code>get_db</code> 显式 <code>AsyncSession</code> 类型注解</strong>（<strong>修 P1-5</strong>）</li>
+<li>[ ] <strong><code>POST /api/ingest</code> stub 加 <code># TODO(m8→m4)</code> 标记</strong>（<strong>修 P1-7</strong>），grep 可定位替换点</li>
+<li>[ ] <strong>所有 Response schema 字段完整定义</strong>（<strong>修 P2-1</strong>）</li>
+<li>[ ] **<code>_check_*</code> 函数直接放 <code>app/api/health_checks.py</code> 独立文件<strong>（</strong>修 P2-2**）</li>
+<li>[ ] <strong>middleware 挂载顺序带职责注释</strong>（<strong>修 P2-3</strong>）</li>
+<li>[ ] <strong><code>sessions limit</code> 走 <code>settings.api.default_session_page_size</code></strong>（<strong>修 P2-4</strong>）</li>
+<li>[ ] <strong><code>RequestIdMiddleware</code> 拆到 <code>app/api/middleware.py</code></strong>（<strong>修 P2-5</strong>）</li>
+<li>[ ] <strong>session title 用 <code>safe_truncate</code> UTF-8 byte-aware 截取</strong>（<strong>修 P2-6</strong>）</li>
+<li>[ ] <strong>lifespan 关闭设 <code>shutdown_event</code> + 500ms 缓冲 + engine dispose</strong>（<strong>修 P2-7</strong>）</li>
+<li>[ ] <strong><code>APP_ENV</code> 感知：<code>/docs</code> 暴露与 CORS 受 dev/staging/prod 控制</strong>（<strong>修 P2-8</strong>）</li>
+<li>[ ] 集成测试<strong>必须</strong>用真 PG（<strong>修 P0-5</strong>），不跑 sqlite</li>
+<li>[ ] <code>POST /api/ingest</code> 返 501 stub，文档说明 M4-M6 替换</li>
+<li>[ ] 单元 + 集成测试全过</li>
+<li>[ ] 单元覆盖率 ≥ 85%</li>
+<li>[ ] <code>pyproject.toml</code> 追加 3 个依赖（fastapi / uvicorn / python-multipart）（<strong>修 P0-8</strong>）</li>
+<li>[ ] <code>pytest-httpx</code> 已声明在 dev 依赖（<strong>修 P1-18</strong>）</li>
+<li>[ ] <strong><code>ChatResponse</code> / <code>HealthResponse</code> / exception handler response 字段统一 <code>trace_id</code></strong>（<strong>修 r2-新-1</strong>），与 M9/M10/M11 跨 M 一致</li>
+<li>[ ] <strong><code>ServiceHealth.status</code> / <code>HealthResponse.status</code> 含 <code>starting</code> 字面量</strong>（<strong>修 r2-新-2</strong>），lifespan 启动期 health 端点返 503 + status=&quot;starting&quot;</li>
+<li>[ ] <strong>lifespan finally 块 <code>graph.aclose()</code> 幂等调用 + try/except 兜底</strong>（<strong>修 r2-新-3</strong>）</li>
+<li>[ ] <strong><code>POST /api/chat</code> + <code>POST /api/ingest</code> 显式接受 <code>Idempotency-Key</code> Header 透传</strong>（<strong>修 r2-新-4</strong>）；chat 缺 session_id + 有 idempotency_key 时复用同 user_id + 同 idempotency_key 已有 session</li>
+<li>[ ] <strong><code>create_app</code> middleware 挂载注释加 LIFO 警示</strong>（<strong>修 r2-新-5</strong>），与 M12 r1 P0-1 LIFO 模式对齐</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M8 前完成）</th><th>下游（依赖 M8）</th></tr></thead>
+<tbody>
+<tr><td>M0 docker-compose（PG + OpenSearch + TEI + Langfuse）</td><td>M9 Gradio UI（调 M8 全部端点）</td></tr>
+<tr><td>M1 Alembic 4 表（users / chat_sessions / auth_sessions / ingest_jobs）</td><td>M10 Langfuse 业务级 trace（用 M8 透传的 X-Request-Id）</td></tr>
+<tr><td>M2 auth 鉴权（<code>Depends(get_current_user)</code>）</td><td>M11 RAGAS（直接 <code>graph.ainvoke()</code> 不走 M8）</td></tr>
+<tr><td>M3 LLM 工厂 + TEI Embedding</td><td>M12 Hardening（限速中间件挂在 M8 app 实例）</td></tr>
+<tr><td><strong>M7 graph（<code>compile_workflow</code> + 7 节点 + checkpointer + <code>answer_chitchat_node</code> 实现 + <code>safe_node</code> 装饰器 + <code>make_checkpointer</code> 返回实例）</strong>（M7 r1 已修）</td><td>M12 Prometheus（scrape M8 <code>GET /api/health</code>）</td></tr>
+<tr><td><strong>M7 <code>GraphSettings.fallback_message</code> 已定义</strong>（M7 r1 P1-2 已修）</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td><code>compile_workflow</code> 同步 vs graph.ainvoke 异步不匹配（M7 写 <code>def compile_workflow</code> 同步返回，但 M8 端点是 async）</td><td>lifespan 用 <code>await make_checkpointer()</code> + <code>compile_workflow(checkpointer=cp)</code> 同步建图后 <code>await graph.ainvoke()</code> 异步调；测试 mock <code>ainvoke</code></td><td>改 M7 为 <code>async def compile_workflow</code> — 风险大，会改 7 节点签名</td></tr>
+<tr><td>PG 不可达时 lifespan 启动失败 → app 起不来</td><td>跟 M7 对齐：lifespan 走 <code>make_checkpointer()</code> 工厂，自动 PG → SQLite 降级；<code>GET /api/health</code> 返 503 + UI 告警</td><td>启动失败硬挂 — M12 monitoring 才能发现，UX 差</td></tr>
+<tr><td>FastAPI lifespan 与 pytest-asyncio loop 冲突</td><td>集成测试用 <code>TestClient</code>（同步），不走 asyncio loop；单元测试用 <code>httpx.AsyncClient(transport=ASGITransport(app=app))</code> 显式 loop</td><td>—</td></tr>
+<tr><td><code>chat_sessions</code> 缺复合索引 → sessions 列表慢（<strong>P1-6</strong>）</td><td>M1 已加 <code>(user_id, is_active, updated_at DESC)</code>；M8 集成测试 EXPLAIN 验证</td><td>单列 <code>user_id</code> 索引 — 用户量大时 N 回表</td></tr>
+<tr><td><code>updated_at</code> 走原生 SQL 不更新（<strong>P1-4</strong>）</td><td>M8 session 创建走 ORM <code>db.add() + commit()</code>；不直接 <code>session.execute(update(...))</code></td><td>—</td></tr>
+<tr><td>OpenSearch 不可达时整 chat 失败而非走兜底</td><td><code>RetrievalError</code> 在 M7 节点已 try/except 返 fallback answer；M8 路由<strong>再</strong> catch 503 兜底（双层）</td><td>M8 路由层裸调 — 失去 spec §5 503 语义</td></tr>
+<tr><td>越权 session 返 403 暴露存在性</td><td>强制走 <code>WHERE user_id = current_user.id</code>，自然 404；M2 鉴权 401 与 M8 业务 404 严格分层</td><td>返 403 — 安全审计会扣分</td></tr>
+<tr><td><code>POST /api/ingest</code> 501 静默成 200</td><td>用 501 Not Implemented + 明确 detail 字符串；前端 catch <code>detail</code> 字段显式提示</td><td>返 200 + <code>pending</code> 假状态 — Gradio UI 会以为成功</td></tr>
+<tr><td>集成测试用 sqlite 假绿（<strong>P0-5</strong>）</td><td>强制 <code>--require-docker</code> 标记 + <code>pg_dsn</code> fixture；CI 起真 PG</td><td>sqlite 内存 — JSONB / UUID / 约束全失真</td></tr>
+<tr><td>M7 <code>make_checkpointer</code> 是 <code>async def</code>（M7 r1 P0-3）</td><td>M8 lifespan 用 <code>await make_checkpointer()</code> 拿实例 + 手动 <code>engine.dispose()</code> + <code>cp.close()</code>（幂等）</td><td>改 M7 为 <code>@asynccontextmanager</code> — M7 r1 已否决，破坏 lifecycle 自管语义</td></tr>
+<tr><td>Langfuse callback 注入方式</td><td>M3 工厂已注入到 <code>model.with_config({&quot;callbacks&quot;: [handler]})</code>（<strong>修 P1-14</strong>）；M8 只在 graph.ainvoke config 里再传 <code>metadata.request_id</code></td><td>M8 路由层注入 — 越权，破坏 M3 单一来源</td></tr>
+<tr><td><code>python-multipart</code> 版本不匹配 V1 Scope</td><td>锁 <code>&gt;=0.0.9</code>（spec §8.4 精确版）</td><td>—</td></tr>
+<tr><td><strong>r1-2026-06-11 P0-1 已修</strong>：<code>POST /api/chat</code> 无超时保护 → <code>graph.ainvoke</code> 慢拖垮 worker</td><td>Task 7 GREEN 段加 <code>await asyncio.wait_for(graph.ainvoke(...), timeout=settings.api.chat_timeout_seconds)</code>，超时 raise 502 + 中文 detail；RED 测试 <code>test_chat_returns_502_on_timeout</code></td><td>改 langgraph 加 <code>max_iterations=10</code>：M7 r1 P0-4 已否决（langgraph 1.0.5 无 invoke timeout API）</td></tr>
+<tr><td><strong>r1-2026-06-11 P0-2 已修</strong>：lifespan 关闭未调 <code>engine.dispose()</code> → asyncpg 连接池残留</td><td>Task 13 GREEN <code>lifespan</code> 函数 <code>finally</code> 块 <code>await engine.dispose()</code> + <code>cp.close()</code> 幂等；RED 测试 <code>test_lifespan_closes_db_engine</code>（启动后 engine 未关 → lifespan exit 后断言已关）</td><td>改 uvicorn <code>--timeout-graceful-shutdown=30</code>：被 supervisor 杀掉时连接还是泄漏</td></tr>
+<tr><td><strong>r1-2026-06-11 P0-3 已修</strong>：health check 4 service 探测实现模糊（缺 URL / timeout / auth）</td><td>Task 2 GREEN 段 5 个 <code>_check_*</code> 函数移到 <code>app/api/health_checks.py</code>，URL 全部从 <code>settings.health.{opensearch_url,tei_url,langfuse_url}</code> 读，timeout 用 <code>settings.health.health_check_timeout</code>；RED 测试 mock 具体 URL 前缀</td><td>全用 <code>httpx.AsyncClient()</code> 默认 URL：compose 端口变更时测试断不到</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-1 已修</strong>：503 降级兜底文案硬编码</td><td>Task 7 GREEN 段改用 <code>settings.graph.fallback_message</code>（与 M7 r1 P1-2 共用同一配置源 <code>app/config.py</code> GraphSettings）</td><td>写死在路由函数 — 改文案要改 M8 代码</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-2 已修</strong>：<code>GET /api/sessions</code> 缺 <code>_count_messages</code> 实现</td><td>Task 4 GREEN 段补 <code>async def _count_messages(db, session_id) -&gt; int</code> 用 <code>select(func.count()).select_from(Message).where(Message.session_id == ...)</code>；REFACTOR 改为 outerjoin 一次出数避免 N+1</td><td>删 <code>message_count</code> 字段 — 前端需要展示</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-3 已修</strong>：<code>get_orchestrator</code> fallback 路径每次重建 graph + CP 泄漏</td><td>Task 6 GREEN 删 fallback 路径，未初始化时 <code>raise HTTPException(503, &quot;服务尚未就绪，请稍后重试。&quot;)</code>；lifespan 启动失败直接 500 更诚实</td><td>保留 fallback 缓存到 module-level：测试/异常场景拿不到 graph 反而更隐蔽</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-4 已修</strong>：lifespan override 不可测，fallback 是死代码</td><td>Task 13 GREEN `create_app(lifespan_override: Lifespan</td><td>None = None)<code> 接受测试 no-op lifespan；RED 测试用 </code>TestClient(create_app(lifespan_override=noop_lifespan))` 触发 503</td><td>改用 module-level graph 单例：lifespan 重入时连接双开</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-5 已修</strong>：<code>get_db</code> Depends 缺 <code>AsyncSession</code> 类型注解</td><td>Task 6 GREEN 段 <code>async def get_db() -&gt; AsyncSession: ...</code> 显式注解</td><td>不标类型 — IDE/类型检查器无法推断下游</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-6 已修</strong>：<code>GET /api/sessions</code> 缺软删除过滤</td><td>Task 4 GREEN 段查询加 <code>ChatSession.deleted_at.is_(None)</code> 过滤（M1 schema 已有 <code>deleted_at</code> 列）</td><td>仅 <code>is_active=False</code> 过滤 — 系统归档和用户删除不可分</td></tr>
+<tr><td><strong>r1-2026-06-11 P1-7 已修</strong>：<code>POST /api/ingest</code> 501 stub 缺 M4 合并标记</td><td>Task 11 GREEN 段 stub 函数加 <code># TODO(m8→m4): 合并 M4-M6 时删除本 stub</code>；DoD 加 <code>grep &quot;TODO\(m8→m4\)&quot; apps/rag_v1/</code> 必须命中</td><td>单纯 501 — M4 合并时不知道要删哪些</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-1 已修</strong>：5 个 Response schema 字段未完整列出</td><td>Files 表 schema 段补全：<code>SessionListResponse{sessions, total}</code> / <code>SessionDetailResponse{id, title, thread_id, messages, created_at, updated_at}</code> / <code>IngestProgressResponse{job_id, status, progress, error, created_at, updated_at}</code> / <code>IngestAcceptedResponse{job_id, status=&quot;accepted&quot;}</code></td><td>只在 GREEN 段临时拼 — schema 文件与使用处不同步</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-2 已修</strong>：<code>_check_*</code> 拆到独立文件提法过晚</td><td>直接在 Task 2 GREEN 段写 <code>app/api/health_checks.py</code> 5 个函数 + <code>check_all(app)</code> 聚合；<code>health.py</code> 只留路由；删原 REFACTOR 步骤</td><td>保持内联 + 后续 PR 拆：增加 review diff 噪音</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-3 已修</strong>：middleware 挂载顺序无注释</td><td>Task 13 GREEN 段在 <code>add_middleware</code> 上方加注释：<code>1. CORS（不依赖 tracing）</code> / <code>2. RequestId（后续中间件/路由有 request_id）</code> / <code>↓ M12 RateLimit（依赖 request_id）</code></td><td>不注释 — M12 接限速时不知道该挂哪</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-4 已修</strong>：<code>limit(50)</code> 硬编码</td><td>Task 4 GREEN 段改用 <code>settings.api.default_session_page_size</code>（默认 50，<code>APISettings</code> 追加字段）</td><td>加 <code>?page_size=</code> query param — V1 阶段前端分页不需要</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-5 已修</strong>：<code>RequestIdMiddleware</code> 内联在 main.py</td><td>拆到 <code>app/api/middleware.py</code>；main.py 改 <code>from app.api.middleware import RequestIdMiddleware</code>；M12 改 request_id 行为不动 main.py</td><td>保持内联 — main.py 100 行就难读</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-6 已修</strong>：session title 截断可能截断 multi-byte（emoji / surrogate）</td><td>Task 7 GREEN 段用 <code>safe_truncate(text, max_bytes=50)</code>（按 UTF-8 byte 截，surrogate 安全）；实现放 <code>app/utils/text.py</code></td><td><code>text[:50]</code> — emoji surrogate pair 被切成乱码</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-7 已修</strong>：lifespan 关闭时 in-flight health check 仍读 DB</td><td>Task 13 GREEN <code>finally</code> 块先 <code>app.state.shutdown_event.set()</code> + <code>await asyncio.sleep(0.5)</code> 给 in-flight 请求缓冲，再 <code>engine.dispose()</code>；health 端点检测 shutdown_event 返 503</td><td>直接 <code>dispose()</code> — in-flight 请求拿 <code>InterfaceError</code> 500</td></tr>
+<tr><td><strong>r1-2026-06-11 P2-8 已修</strong>：缺 <code>APP_ENV</code> 环境感知（Swagger docs / CORS / debug）</td><td><code>APISettings.env: Literal[&quot;dev&quot;,&quot;staging&quot;,&quot;prod&quot;] = &quot;dev&quot;</code>；<code>cors_origins</code> 按 env 切换（dev=<code>[&quot;*&quot;]</code>、prod 受限域名）；<code>expose_docs: bool = env == &quot;dev&quot;</code>；<code>create_app</code> 中 <code>docs_url/redoc_url/openapi_url</code> 受 <code>expose_docs</code> 控制</td><td>全用 <code>[&quot;*&quot;]</code> + 默认开 docs — 生产环境暴露 Swagger UI 安全审计扣分</td></tr>
+<tr><td><strong>r2-2026-06-12 新-1 已修</strong>：<code>ChatResponse</code> 字段 <code>request_id</code> 与 M9/M10/M11 命名不一致</td><td>Task 7 chat 端点 + Task 8 schema 改 <code>trace_id</code> 字段；Task 2 <code>HealthResponse</code> 改 <code>trace_id</code>；Task 9 exception handler 改 <code>trace_id</code>；RequestIdMiddleware 内部 <code>request.state.request_id</code> 保留（协议级）；graph.ainvoke metadata 双键（trace_id + request_id）同字符串不同语义</td><td>仅改 M8 字段名 — M9/M10/M11 需各自同步更新字段名，跨 M 协调成本高</td></tr>
+<tr><td><strong>r2-2026-06-12 新-2 已修</strong>：5 service health 并行 + business 在 gather 后判定，lifespan 未启动时 business 永远 down</td><td>Task 2 <code>_check_business(app)</code> 重写：直接读 <code>app.state.graph</code> / <code>app.state.checkpointer</code>，未就绪时返 <code>status=&quot;starting&quot;</code> 而非 down；<code>ServiceHealth.status</code> 和 <code>HealthResponse.status</code> 加 <code>starting</code> 字面量；health 端点 starting 优先返 503</td><td>仅扩 enum 字面量 — 旧客户端可能只识别 ok/degraded/down 三态</td></tr>
+<tr><td><strong>r2-2026-06-12 新-3 已修</strong>：Lifespan 关闭时 <code>graph</code> 自身未 await 清理（依赖 langgraph 1.0.5 是否有 aclose）</td><td>Task 13 lifespan finally 块在 <code>engine.dispose()</code> 之前加 <code>getattr(graph, &quot;aclose&quot;, None) or getattr(graph, &quot;close&quot;, None)</code> 幂等调用 + try/except 兜底 + <code>log.warning</code></td><td>改 M7 在 graph 编译时显式释放资源 — 编译态资源本来就应 GC，破坏 M7 抽象</td></tr>
+<tr><td><strong>r2-2026-06-12 新-4 已修</strong>：<code>Idempotency-Key</code> Header 透传未在 M8 plan 显式支持（依赖 M1 r2 4 表 idempotency_key 联动）</td><td>Task 7 chat 端点显式接收 `idempotency_key: str</td><td>None = Header(None, alias=&quot;Idempotency-Key&quot;)`；缺 session_id + 有 idempotency_key 时查重同 user_id + 同 idempotency_key 已有 session 复用；新建 session 写 idempotency_key 到 DB（NULL = 无幂等保护）。Task 11 POST /api/ingest stub 也加 Header 透传（M4-M6 替换时直接复用）</td><td>仅在 M9 UI 端做客户端 dedup — 第三方直接调 M8 API 仍会双击污染</td></tr>
+<tr><td><strong>r2-2026-06-12 新-5 已修</strong>：middleware 顺序注释与 M12 r1 P0-1 LIFO add_middleware 顺序需复核</td><td>Task 13 GREEN 段 <code>create_app</code> middleware 注释加 LIFO 警示（&quot;后添加的先执行 / 最外层&quot; + &quot;调用顺序 CORS → RequestId → M12 RateLimit&quot; + &quot;执行顺序 M12 RateLimit → RequestId → CORS → endpoint&quot;），与 M12 r1 P0-1 LIFO 模式对齐</td><td>不加 LIFO 警示 — M12 integration 时 reviewer 可能误判嵌套关系</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M8-plan-r0</td><td>2026-06-11</td><td>初稿（基线 V1 Scope §3.3 §4 §5 + 决策 #7）</td></tr>
+<tr><td>M8-plan-r1</td><td>2026-06-11</td><td>仓库布局对齐 <code>apps/rag_v1/{app/api,tests}/</code>；补 P0-1/P0-5/P0-10/P1-4/P1-6/P1-11/P1-16/P2-6 避雷标注</td></tr>
+<tr><td>M8-plan-r2</td><td>2026-06-11</td><td>lifespan 单例 + compile_workflow 同步/异步边界明确（async context 包装）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-1 已修</strong> · <code>POST /api/chat</code> 加 <code>asyncio.wait_for(graph.ainvoke, timeout=settings.api.chat_timeout_seconds)</code> 包装；超时 raise 502 + 中文 detail；RED 测试 <code>test_chat_returns_502_on_timeout</code>；<code>APISettings.chat_timeout_seconds=30</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-2 已修</strong> · lifespan <code>finally</code> 块 <code>await engine.dispose()</code> 归还 asyncpg 连接池 + <code>cp.close()</code> 幂等；RED 测试 <code>test_lifespan_closes_db_engine</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-3 已修</strong> · 5 个 <code>_check_*</code> 函数移到 <code>app/api/health_checks.py</code>；URL 全部从 <code>settings.health.{opensearch_url,tei_url,langfuse_url}</code> 读，timeout 走 <code>settings.health.health_check_timeout</code>；RED 测试 mock 具体 URL 前缀</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-1 已修</strong> · 503 兜底文案改用 <code>settings.graph.fallback_message</code>（与 M7 r1 P1-2 共用 <code>app/config.py</code> GraphSettings）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-2 已修</strong> · Task 4 GREEN 段补 <code>async def _count_messages(db, session_id) -&gt; int</code>；REFACTOR 改 outerjoin 一次出数</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-3 已修</strong> · <code>get_orchestrator</code> 删 fallback 路径，未初始化时 <code>raise HTTPException(503)</code>；避免每次重建 graph + CP 泄漏</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-4 已修</strong> · <code>create_app(lifespan_override=None)</code> 接受测试 no-op lifespan；RED 测试用 <code>TestClient(create_app(lifespan_override=noop_lifespan))</code> 触发 503</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-5 已修</strong> · <code>get_db</code> 显式 <code>async def get_db() -&gt; AsyncSession</code> 类型注解</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-6 已修</strong> · <code>GET /api/sessions</code> 加 <code>ChatSession.deleted_at.is_(None)</code> 软删除过滤；M1 schema 已有 <code>deleted_at</code> 列</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-7 已修</strong> · <code>POST /api/ingest</code> 501 stub 加 <code># TODO(m8→m4): 合并 M4-M6 时删除本 stub</code> 标记；DoD 加 <code>grep &quot;TODO\(m8→m4\)&quot; apps/rag_v1/</code> 必须命中</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-1 已修</strong> · 5 个 Response schema 字段完整定义：<code>SessionListResponse</code> / <code>SessionDetailResponse</code> / <code>IngestProgressResponse</code> / <code>IngestAcceptedResponse</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-2 已修</strong> · <code>_check_*</code> 函数直接放 <code>app/api/health_checks.py</code> 独立文件；删原 Task 2 REFACTOR 步骤；<code>health.py</code> 只留路由</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-3 已修</strong> · <code>create_app</code> middleware 挂载顺序加职责注释（CORS → RequestId → ↓ M12 RateLimit）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-4 已修</strong> · <code>sessions limit</code> 改用 <code>settings.api.default_session_page_size</code>（<code>APISettings</code> 追加字段，默认 50）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-5 已修</strong> · <code>RequestIdMiddleware</code> 拆到 <code>app/api/middleware.py</code>；<code>main.py</code> 改为 import</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-6 已修</strong> · session title 用 <code>safe_truncate(text, max_bytes=50)</code> UTF-8 byte-aware 截取（<code>app/utils/text.py</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-7 已修</strong> · lifespan <code>finally</code> 块先 <code>app.state.shutdown_event.set()</code> + <code>await asyncio.sleep(0.5)</code> 给 in-flight 请求缓冲；health 端点检测 shutdown_event 返 503</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-8 已修</strong> · <code>APISettings.env / cors_origins / expose_docs</code> 区分 dev/staging/prod；<code>create_app</code> 中 <code>docs_url / redoc_url / openapi_url</code> 受 <code>expose_docs</code> 控制</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>M7 联动调整</strong> · M7 r1 P0-3 已修 <code>make_checkpointer</code> 为 <code>async def</code> 返回实例；M8 lifespan 改 <code>await make_checkpointer()</code> + 手动 <code>engine.dispose()</code> + <code>cp.close()</code>；更新 Architecture 段 + Files 段说明</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>M7 联动调整</strong> · M7 r1 P1-2 已修 <code>GraphSettings.fallback_message</code>；M8 P1-1 共用同一配置源</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>M7 联动调整</strong> · M7 r1 P0-4 graph timeout 由调用方 M8 负责；M8 P0-1 <code>asyncio.wait_for</code> 包装已落</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>新-1 已修</strong> · <code>ChatResponse</code> / <code>HealthResponse</code> / exception handler response 字段统一为 <code>trace_id</code>（与 M9/M10/M11 跨 M 一致）；<code>RequestIdMiddleware</code> 内部 <code>request.state.request_id</code> 与 <code>X-Request-Id</code> Header 名协议级保留；graph.ainvoke <code>metadata</code> 双键 <code>trace_id</code> + <code>request_id</code> 同字符串不同语义</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>新-2 已修</strong> · <code>ServiceHealth.status</code> / <code>HealthResponse.status</code> 加 <code>starting</code> 字面量；<code>_check_business(app)</code> 直接读 <code>app.state.graph</code> / <code>app.state.checkpointer</code>，未就绪返 <code>starting</code> 而非 down；health 端点 starting 优先返 503</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>新-3 已修</strong> · lifespan finally 块在 <code>engine.dispose()</code> 之前加 <code>getattr(graph, &quot;aclose&quot;, None) or getattr(graph, &quot;close&quot;, None)</code> 幂等调用 + try/except 兜底 + <code>log.warning</code>（与 cp.close 模式一致）</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>新-4 已修</strong> · <code>POST /api/chat</code> 显式接收 `Idempotency-Key: str</td><td>None = Header(None, alias=&quot;Idempotency-Key&quot;)<code>；缺 session_id + 有 idempotency_key 时查重同 user_id + 同 idempotency_key 已有 session 复用；新建 session 写 idempotency_key 到 DB。</code>POST /api/ingest` stub 也加 Header 透传（M4-M6 替换时直接复用）</td></tr>
+<tr><td>r2-2026-06-12</td><td>2026-06-12</td><td><strong>新-5 已修</strong> · <code>create_app</code> middleware 挂载注释加 LIFO 警示（&quot;后添加的先执行 / 最外层&quot; + &quot;调用顺序 CORS → RequestId → M12 RateLimit&quot; + &quot;执行顺序 M12 RateLimit → RequestId → CORS → endpoint&quot;），与 M12 r1 P0-1 LIFO 模式对齐</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

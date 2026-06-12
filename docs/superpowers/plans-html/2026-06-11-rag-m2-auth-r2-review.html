@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-06-11-rag-m2-auth-r2-review</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>2026-06-11-rag-m2-auth-r2-review</h1>
+  <div class="meta">
+    <span>408 行</span>
+<span>24 P0</span>
+<span>21 P1</span>
+<span>18 P2</span>
+<span class="badge-r2">1 r2 标记</span>
+    <span>2026-06-11-rag-m2-auth-r2-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#1-r1-修复验证30-项逐项">1. r1 修复验证（30 项逐项）</a></li>
+<li><a href="#2-r1-修复引入的新问题">2. r1 修复引入的新问题</a></li>
+<li><a href="#np-1-m1-r1-修订记录承诺is_revoked-已补m1-r2-review-证实-ddl-段仍缺最严重">NP-1 · 🔴 M1 r1 修订记录承诺&amp;quot;is_revoked 已补&amp;quot;，M1 r2 review 证实 DDL 段仍缺（最严重）</a></li>
+<li><a href="#np-2-appapiauthpylogout_endpoint-task-8-green-段仍是-501-占位p2-4">NP-2 · 🟠 app/api/auth.py::logout_endpoint Task 8 GREEN 段仍是 501 占位（P2-4 落地不全）</a></li>
+<li><a href="#np-3-appauthservicepyextend_session-内部调-validate_token_expir">NP-3 · 🟠 app/auth/service.py::extend_session 内部调 validate_token_expiry，silent no-op 缺审计日志</a></li>
+<li><a href="#np-4-appauthpassword_validator-缺-username-业务层二次校验与-pydantic-">NP-4 · 🟡 app.auth.password_validator 缺 username 业务层二次校验（与 Pydantic 重复但 depth 浅）</a></li>
+<li><a href="#np-5-authsessionrepositoryrevoke_all_for_user-update_sliding">NP-5 · 🟡 AuthSessionRepository.revoke_all_for_user / update_sliding_expiry / delete_expired / find_by_token_hash 仓库方法 spec 缺，r1 修订记录只口头说&amp;quot;补到 repository&amp;quot;未给契约</a></li>
+<li><a href="#3-跨-m-一致性检查">3. 跨 M 一致性检查</a></li>
+<li><a href="#31-m2-m1-严重is_revoked-字段缺失">3.1 M2 ↔ M1 · 🔴 严重（is_revoked 字段缺失）</a></li>
+<li><a href="#32-m2-m1-usersfailed_login_attempts-locked_until-字段m1-r2-待-v">3.2 M2 ↔ M1 · 🟠 users.failed_login_attempts / locked_until 字段（M1 r2 待 verify）</a></li>
+<li><a href="#33-m2-m1-usersemail-auth_sessionsip_address-auth_sessionsuse">3.3 M2 ↔ M1 · 🟡 users.email / auth_sessions.ip_address / auth_sessions.user_agent（M2 plan 不用 / M12 hardening 用）</a></li>
+<li><a href="#34-m2-m8m8-api-chat-强依赖-m2">3.4 M2 ↔ M8（M8 api-chat 强依赖 M2）</a></li>
+<li><a href="#35-m2-m9m9-ui-gradio-强依赖-m2">3.5 M2 ↔ M9（M9 ui-gradio 强依赖 M2）</a></li>
+<li><a href="#36-m2-m12m12-hardening-强依赖-m2-钩子">3.6 M2 ↔ M12（M12 hardening 强依赖 M2 钩子）</a></li>
+<li><a href="#37-m2-m0-m11基础设施-评估">3.7 M2 ↔ M0 / M11（基础设施 / 评估）</a></li>
+<li><a href="#4-风险表补全质量">4. 风险表补全质量</a></li>
+<li><a href="#5-落地建议">5. 落地建议</a></li>
+<li><a href="#第一波r2-必改4-项-p0">第一波（r2 必改，4 项 P0）</a></li>
+<li><a href="#第二波r2-重要3-项-p1">第二波（r2 重要，3 项 P1）</a></li>
+<li><a href="#第三波r2-优化2-项-p2">第三波（r2 优化，2 项 P2）</a></li>
+<li><a href="#估时修正">估时修正</a></li>
+<li><a href="#等待决策">等待决策</a></li>
+<li><a href="#跨-m-协调r2-修完后通知">跨 M 协调（r2 修完后通知）</a></li>
+<li><a href="#6-状态">6. 状态</a></li></ul>
+  </aside>
+  <main>
+<p>M2 Plan r2 Review · r1 修复验证</p>
+<blockquote>评审对象：<a href="../2026-06-10-rag-m2-auth.md">2026-06-10-rag-m2-auth.md</a>（906 行，r1 已修 30 项 P0/P1/P2）</blockquote>
+<blockquote>评审基线：<a href="./2026-06-11-rag-m2-auth-review.md">2026-06-11-rag-m2-auth-review.md</a>（r1 review，36 项 P0/P1/P2）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（r2 独立审查）</blockquote>
+<blockquote>范围：验 r1 修复是否到位 + 发现 r1 修复过程中是否引入新问题 + 跨 M 一致性</blockquote>
+<blockquote>输出策略：30 项逐项验证 + 5 项 r1 引入新问题 + 7 个 M 联动 + 风险表补全质量</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>r1 修复完成度</td><td>⭐⭐⭐⭐</td><td>30 项中 24 项<strong>已修到位</strong>；6 项<strong>部分修 / 修错位 / 落地有瑕疵</strong></td></tr>
+<tr><td>跨 M 一致性</td><td>⭐⭐</td><td>M1 <code>is_revoked</code> 字段<strong>实际仍缺</strong>（M1 r2 review NP-1 确认）→ M2 业务读 <code>session.is_revoked</code> 在 runtime AttributeError；M8/M9/M12 联动基本落地</td></tr>
+<tr><td>错误处理完整性</td><td>⭐⭐⭐⭐</td><td>spec §5 11 行 M2 范围 3 行（401/404/密码强度）全覆盖；账号锁 429 主动补</td></tr>
+<tr><td>风险表补全质量</td><td>⭐⭐⭐</td><td>6 行原风险 + 24 行 r1 已修齐；曾被否决方案列有内容但 r1 引入的&quot;is_revoked 已补&quot;<strong>实际虚假</strong></td></tr>
+<tr><td>实施就绪度</td><td>⭐⭐⭐</td><td>P0 1 项有真相缺口（is_revoked 误信 M1 已修），需 M1 r2 修完后 M2 才能动手</td></tr>
+</table>
+<p><strong>一句话</strong>：r1 修复整体到位（24/30 项 100% 修，6 项部分修），<strong>最大问题是 M1 r1 修订记录承诺&quot;<code>is_revoked</code> 字段已补&quot;但 M1 r2 review 证实 DDL 段实际仍缺该字段</strong>——M2 整篇依赖此字段（L24/L125/L566/L585/L824/L866），M2 实施时 <code>session.is_revoked</code> 会 AttributeError；外加 <code>app/auth/service.py</code> 缺 <code>extend_session</code> 内部调 <code>validate_token_expiry</code> 的边界处理、<code>/api/auth/logout</code> 501 占位（Task 8）、<code>username = username.lower().strip()</code> 入口不全、用户名归一后 <code>IPAddress</code> NULL 仍未规划入 session 表、<code>AuthSessionRepository.revoke_all_for_user</code> 仓库方法 spec 缺 5 项 r1 落地有瑕疵。r2 需 M1 r2 与 M2 r2 并行修。</p>
+<hr>
+<h2 id="1-r1-修复验证30-项逐项">1. r1 修复验证（30 项逐项）</h2>
+<table>
+<tr><th>#</th><th>r1 标记</th><th>修复内容（r1 claim）</th><th>实际验证（plan 文本位置）</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>1</td><td>P0-1</td><td>依赖版本与 spec §8.3 对齐（argon2 &lt;25→&lt;24 / cryptography &lt;44→&lt;46）</td><td>L136 <code>argon2-cffi &gt;=23.1,&lt;24</code> ✅ / L137 <code>cryptography &gt;=42,&lt;46</code> ✅</td><td>✅ 已修</td></tr>
+<tr><td>2</td><td>P0-2</td><td>删 pyjwt</td><td>L148-149 显式删除项：<code>~~pyjwt &gt;=2.9,&lt;3~~</code></td><td>✅ 已修</td></tr>
+<tr><td>3</td><td>P0-3</td><td>慢测试解法：reset_limiter + fixed_ip + patch_utcnow fixtures</td><td>L750-782 Task 9 GREEN 段 conftest.py 完整代码（autouse <code>reset_limiter</code> + <code>fixed_ip</code> + <code>patch_utcnow</code> 三件齐）</td><td>✅ 已修</td></tr>
+<tr><td>4</td><td>P0-4</td><td>M1 r1 补 <code>auth_sessions.is_revoked</code>；M2 logout/login 软吊销 + protected 端点不区分 not-found vs revoked 统一 404</td><td>L568 <code>if session is None or session.is_revoked: raise 404</code>；L585 RED 测试 <code>test_get_current_user_revoked_token</code>；L459-461 logout 实现软吊销；<strong>但 M1 r2 review NP-1 证实 M1 §4 DDL 段实际仍缺 <code>is_revoked</code> 字段</strong></td><td>🔴 <strong>修错位</strong></td></tr>
+<tr><td>5</td><td>P0-5</td><td>extend_session 改 FastAPI BackgroundTasks</td><td>L562-563 <code>get_current_user(..., background_tasks: BackgroundTasks = BackgroundTasks())</code>；L574-576 <code>background_tasks.add_task(extend_session, token_hash)</code></td><td>✅ 已修</td></tr>
+<tr><td>6</td><td>P1-1</td><td><code>validate_token_expiry</code> 抽单 now 变量</td><td>L297-298 <code>now = datetime.now(timezone.utc)</code> + 单行 <code>return now &lt; expires_at_sliding and now &lt; expires_at_hard</code></td><td>✅ 已修</td></tr>
+<tr><td>7</td><td>P1-2</td><td>Argon2 默认改 OWASP 2024（time_cost=3 / memory_cost=65536 / parallelism=1）+ rehash hook</td><td>L246-248 AuthSettings 默认值齐；L366-367 service.register 留 rehash-on-login hook 注释</td><td>✅ 已修</td></tr>
+<tr><td>8</td><td>P1-3</td><td>拆 test_auth_tokens.py + test_auth_config.py</td><td>L60-61 模块树 L174-176 Files 表全拆</td><td>✅ 已修</td></tr>
+<tr><td>9</td><td>P1-4 + P2-3</td><td>加 GET /api/auth/me 样板 endpoint</td><td>L19 Goal 段列 <code>/me</code>；L728 RED <code>test_me_returns_current_user</code>；L731 <code>test_me_unauthenticated_returns_404</code>；<strong>Files 表 L168-208 未见独立 /me 段，但 Task 8 RED 测试齐</strong></td><td>⚠️ 部分修（RED 齐，Files 表未独立列）</td></tr>
+<tr><td>10</td><td>P1-5</td><td><code>app/api/__init__.py</code> 无 prefix 修双 prefix 冲突 + 新增 <code>app/main.py</code></td><td>L687-695 GREEN <code>api_router = APIRouter()</code>（无 prefix）；L697-704 GREEN <code>app/main.py</code> 完整挂载代码</td><td>✅ 已修</td></tr>
+<tr><td>11</td><td>P1-6</td><td>pyproject.toml 追加段给完整 toml 片段</td><td>L215-225 完整 toml（runtime + dev 依赖两段）</td><td>✅ 已修</td></tr>
+<tr><td>12</td><td>P1-7</td><td>新增 password_validator.py + 弱密码 422</td><td>L319-341 GREEN 完整实现（MIN/MAX/正则/frozenset）；L664-667 register_endpoint 弱密码 422；L720 RED <code>test_register_weak_password_returns_422</code></td><td>✅ 已修</td></tr>
+<tr><td>13</td><td>P1-8</td><td>Pydantic RegisterRequest username 校验（正则 + 保留字 + 归一）</td><td>L630-645 <code>normalize_username</code> field_validator；L631 <code>RESERVED_USERNAMES</code> 列表；L640 注释&quot;业务层归一 → M1 UNIQUE 索引自动大小写不敏感&quot;</td><td>✅ 已修</td></tr>
+<tr><td>14</td><td>P1-9</td><td>单设备策略：login 时 revoke_all_for_user 软吊销旧 session</td><td>L416 service.login 调 <code>AuthSessionRepository.revoke_all_for_user(user.id)</code>；L725 RED <code>test_login_single_device_revokes_old_session</code></td><td>✅ 已修</td></tr>
+<tr><td>15</td><td>P1-10</td><td>新增 <code>app/auth/cleanup.py::purge_expired_sessions</code> + 测试</td><td>L527-539 GREEN 完整实现（GRACE=7d + delete_expired）；L519-525 RED 测试</td><td>✅ 已修</td></tr>
+<tr><td>16</td><td>P1-11</td><td>Tech Stack + pyproject 加 freezegun / pytest-httpx</td><td>L143-144 Tech Stack 表两行齐；L223-225 pyproject dev 段两行齐</td><td>✅ 已修</td></tr>
+<tr><td>17</td><td>P1-12</td><td>风险表补前端 token 存储策略（Header 模式）</td><td>L850 风险表行&quot;前端 token 存储策略不清 → M2 选 Header 模式（`Authorization: Bearer *** Set-Cookie；M9 Gradio 必须走 Header&quot;</td><td>⚠️ 部分修（措辞错位——&quot;<em><strong>&quot; 后少字符&quot;<code>，应是 </code>Authorization: Bearer </strong></em>` 模板；README 段落未独立列）</td></tr>
+<tr><td>18</td><td>P1-13</td><td>M1 补 failed_login_attempts / locked_until；M2 加 check_account_lock / record_failed_login / reset_failed_login</td><td>L500-515 service 三个函数完整实现；L722 RED <code>test_login_account_locked_returns_429</code>；L246-251 AuthSettings 阈值 5/15min；<strong>M1 字段 M1 r1 修订记录 L650 提及，但 r2 NP-1 / 别的 M1 r2 项未确认字段已落 DDL</strong></td><td>⚠️ 部分修（M2 端齐，M1 字段落 DDL 待 M1 r2 verify）</td></tr>
+<tr><td>19</td><td>P1-14</td><td><code>app/config.py</code> 末尾加 <code>settings = Settings()</code> 全局单例（X-3 落地）</td><td>L253 显式 <code>settings = Settings()  # 全局单例，所有 M 共用</code></td><td>✅ 已修</td></tr>
+<tr><td>20</td><td>P1-15</td><td>风险表补 CSRF 保护策略</td><td>L853 风险表行&quot;CSRF 风险 → 后人改 Set-Cookie 模式引入 CSRF → <strong>P1-15 已修</strong>：V1 鉴权用 Authorization Header 模式&quot;</td><td>✅ 已修</td></tr>
+<tr><td>21</td><td>P2-1</td><td><code>app/api/__init__.py</code> 注释补&quot;暴露 api_router 供 main.py 挂载&quot;</td><td>L694 <code>__all__ = [&quot;api_router&quot;]</code>；L42 Files 表描述段&quot;无 prefix，暴露 <code>api_router</code> 单一符号供 <code>app/main.py</code> 挂载&quot;</td><td>✅ 已修</td></tr>
+<tr><td>22</td><td>P2-2</td><td>login() 末尾加 token UNIQUE 冲突 retry 循环（3 次）</td><td>L417-432 GREEN 完整 <code>for attempt in range(3)</code> 循环 + IntegrityError 捕获 + 500 兜底</td><td>✅ 已修</td></tr>
+<tr><td>23</td><td>P2-4</td><td>移除 LogoutRequest，统一用 Authorization header</td><td>L677-684 GREEN <code>logout_endpoint(user=Depends(get_current_user))</code> 显式注释&quot;# P2-4 只读 header&quot;；<strong>但 L684 <code>raise HTTPException(501, &quot;see M2 follow-up: header-only logout&quot;)</code> 仍是占位</strong></td><td>⚠️ 部分修（接口签名修，但实现 501 占位）</td></tr>
+<tr><td>24</td><td>P2-5</td><td>Files 表加 tests/conftest.py 段（fixture 文档化）</td><td>L201 Files 表 L750-782 Task 9 GREEN 段 conftest 完整代码</td><td>✅ 已修</td></tr>
+<tr><td>25</td><td>P2-6</td><td>风险表补 Dockerfile 计划</td><td>L854 风险表行&quot;M2 范围 Dockerfile 缺 → 部署阶段才发现 → <strong>P2-6 已修</strong>（最小记录）&quot;</td><td>✅ 已修</td></tr>
+<tr><td>26</td><td>P2-7</td><td>风险表 + 契约边界补&quot;from app.config import settings&quot;统一约定</td><td>L126 契约边界&quot;from app.config import settings 全 M 统一约定（P2-7）&quot;；L852 风险表行&quot;X-3 落地&quot;</td><td>✅ 已修</td></tr>
+<tr><td>27</td><td>P2-8</td><td><code>validate_token_expiry</code> 显式 tz 检查 + 单元测试</td><td>L295-298 GREEN <code>if expires_at_sliding.tzinfo is None ... raise ValueError</code>；L289-290 RED <code>test_validate_token_expiry_naive_datetime_raises</code></td><td>✅ 已修</td></tr>
+<tr><td>28</td><td>P2-9</td><td>conftest.py 准备 pytest-httpx 导入</td><td>L751-752 conftest.py 头部 <code>from slowapi import Limiter / from slowapi.util import get_remote_address</code>；<strong>未见 pytest_httpx fixture 准备代码（L770-782 显式 import pytest_httpx 的 fixture 段未给）</strong></td><td>⚠️ 部分修（头部 import 齐，fixture 准备缺）</td></tr>
+<tr><td>29</td><td>P2-10</td><td>AuthSettings 加 session_extend_threshold 可配</td><td>L249 <code>session_extend_threshold: timedelta = Field(default=timedelta(days=1), env=&quot;AUTH_SESSION_EXTEND_THRESHOLD&quot;)</code>；L575 deps 引用 <code>settings.auth.session_extend_threshold</code></td><td>✅ 已修</td></tr>
+<tr><td>30</td><td>估时</td><td>5d → 7d</td><td>L7 估时 7 个工作日（P0 修补 1d + P1 实施 2d + 集成测试 1d + 跨 M 协调 1d + 与 M1 schema 协调 1d + buffer 1d）</td><td>✅ 已修</td></tr>
+</table>
+<p><strong>统计</strong>：✅ 已修 24 项 + ⚠️ 部分修 5 项（#9 /me 段未独立列 Files / #12 P1-12 措辞错位 / #18 P1-13 M1 字段待 verify / #23 LogoutRequest 501 占位 / #29 pytest-httpx fixture 未给）+ 🔴 修错位 1 项（#4 is_revoked 误信 M1 已修）。</p>
+<hr>
+<h2 id="2-r1-修复引入的新问题">2. r1 修复引入的新问题</h2>
+<h3 id="np-1-m1-r1-修订记录承诺is_revoked-已补m1-r2-review-证实-ddl-段仍缺最严重">NP-1 · 🔴 M1 r1 修订记录承诺&quot;is_revoked 已补&quot;，M1 r2 review 证实 DDL 段仍缺（最严重）</h3>
+<p><strong>位置</strong>：M2 plan L24, L125, L566, L585, L824, L866；M1 plan §4 DDL 段 L122-137</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M2 plan L125 显式声明依赖：<code>auth_sessions.is_revoked</code>（M1 已建（M1 schema 修订后））</li>
+<li>M2 plan L824 跨 M 依赖表重申：&quot;M1 schema 字段：<code>... auth_sessions.is_revoked ...</code> | <strong>M2 强依赖</strong>（P0-4 / P1-13）；M1 r1 已补&quot;</li>
+<li>M2 plan L843 风险表自承：&quot;<strong>P0-4 已修（选 A）</strong>：M2 logout / login 改用 <code>AuthSessionRepository.revoke(session_id)</code> 软吊销（<strong>update <code>is_revoked=TRUE</code>，M1 r1 已补字段</strong>）&quot;</li>
+<li>M2 plan L866 风险表行：&quot;<code>is_revoked</code> 字段在 M1 schema 缺 → M2 业务逻辑&quot;想做不能做&quot; → <strong>P0-4 已修</strong>：<strong>M1 r1 补 <code>auth_sessions.is_revoked BOOLEAN DEFAULT FALSE</code> 列</strong>&quot;</li>
+<li><strong>但 <a href="../../plans/reviews/2026-06-11-rag-m1-schema-r2-review.md">M1 r2 review NP-1</a> 证实</strong>：M1 §4 auth_sessions 表 DDL 段 L122-137 仍只列 12 列（<code>id</code> / <code>user_id</code> / <code>token_hash</code> / <code>expires_at_sliding</code> / <code>expires_at_hard</code> / <code>last_used_at</code> / <code>idempotency_key</code> / <code>ip_address</code> / <code>user_agent</code> / <code>created_at</code> / <code>created_by</code> / <code>updated_by</code>），<strong>无 <code>is_revoked</code></strong></li>
+<li>M2 plan L568 <code>if session is None or session.is_revoked: raise 404</code> 在 runtime 触发 <code>AttributeError: &#x27;AuthSession&#x27; object has no attribute &#x27;is_revoked&#x27;</code></li>
+<li><strong>M2 整篇修订记录 L880、r1 行 &quot;P0-4 已修 · M1 r1 补 auth_sessions.is_revoked 字段&quot; 全部是虚假修复</strong></li>
+</ul>
+<p><strong>修复</strong>（M2 r2 + M1 r2 双修）：</p>
+<ul>
+<li><strong>M1 r2 必改</strong>：§4 auth_sessions 表 DDL 段补 <code>is_revoked BOOLEAN DEFAULT FALSE NOT NULL</code>（与 P0-4 风险表描述对齐）；ORM 段补 <code>is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)</code>；r2 修订记录显式&quot;is_revoked 字段补 DDL&quot;</li>
+<li><strong>M2 r2 必改</strong>：</li>
+</ul>
+<ol>
+<li>L843 风险表措辞&quot;<strong>update <code>is_revoked=TRUE</code>，M1 r1 已补字段</strong>&quot; 改&quot;<strong>M1 r2 补字段，M2 等字段落地</strong>&quot;</li>
+<li>L866 风险表&quot;<strong>P0-4 已修</strong>：M1 r1 补 <code>auth_sessions.is_revoked BOOLEAN DEFAULT FALSE</code> 列&quot; 改 &quot;<strong>P0-4 待 M1 r2 修</strong>：M1 §4 DDL 段补 is_revoked 字段；M2 logout/login 改用 <code>AuthSessionRepository.revoke()</code> 软吊销&quot;</li>
+<li>L880 修订记录行 &quot;P0-4 已修 · M1 r1 补 auth_sessions.is_revoked 字段&quot; 改 &quot;P0-4 部分修（等 M1 r2 补 DDL）&quot;</li>
+<li>L24 &quot;不包含&quot;段 删 <code>is_revoked</code> 字样（避免误信）</li>
+<li>风险表新增一行：&quot;<strong>M1 r2 落地前 M2 不可动手</strong>：session.is_revoked runtime AttributeError&quot;</li>
+</ol>
+<ul>
+<li><strong>M2 plan Tasks 实施前</strong> 必须先 verify <code>psql -c &quot;\d auth_sessions&quot;</code> 看到 <code>is_revoked</code> 列，否则不开始 Task 4 写 login / logout</li>
+</ul>
+<p><strong>r2 评级</strong>：🔴 <strong>P0</strong>（M1 r1 修订记录虚假承诺 → M2 修订记录被骗 → M2 实施 runtime 必崩）</p>
+<h3 id="np-2-appapiauthpylogout_endpoint-task-8-green-段仍是-501-占位p2-4">NP-2 · 🟠 <code>app/api/auth.py::logout_endpoint</code> Task 8 GREEN 段仍是 501 占位（P2-4 落地不全）</h3>
+<p><strong>位置</strong>：M2 plan L677-684</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>P2-4 r1 修订记录 L899 写&quot;移除 LogoutRequest，统一用 Authorization header&quot;</li>
+<li>L677 GREEN <code>logout_endpoint</code> 签名已改：<code>user=Depends(get_current_user)</code></li>
+<li><strong>但 L684 仍 <code>raise HTTPException(status_code=501, detail=&quot;see M2 follow-up: header-only logout&quot;)</code></strong></li>
+<li>注释 L682-683 显式说：&quot;# 注：实际实现时建议把 token_hash 通过 Request.state 或子依赖注入&quot;</li>
+<li>L710 RED <code>test_logout_revokes_token</code>（Task 8）写&quot;register → login → 取 token → logout（Authorization header）→ 204 / 再用同一 token 调 <code>/api/auth/me</code> → 404&quot;——<strong>RED 测试期待 204，GREEN 段返 501</strong>——<strong>RED/GREEN 不一致</strong></li>
+</ul>
+<p><strong>修复</strong>（Task 8 GREEN 段补完整实现）：</p>
+<pre><code class="language-python">
+@router.post(&quot;/logout&quot;, status_code=204)
+@limiter.limit(&quot;10/minute&quot;)
+async def logout_endpoint(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    user: User = Depends(get_current_user),  # 验 token 有效
+):
+    &quot;&quot;&quot;注销当前 session：从 Authorization header 取 token 哈希，调 service.logout。&quot;&quot;&quot;
+    token_hash = hash_token(credentials.credentials)
+    await logout(token_hash)
+    return Response(status_code=204)
+</code></pre>
+<ul>
+<li>同步在 <code>app/api/__init__.py</code> 暴露 <code>HTTPBearer</code>；<code>from fastapi.security import HTTPAuthorizationCredentials</code> import</li>
+<li>注释&quot;# P2-4 只读 header&quot; 保留</li>
+<li>删 501 占位</li>
+<li>风险表 L843 同步删&quot;措辞含混 DELETE vs UPDATE&quot;行（已实际落地）</li>
+</ul>
+<p><strong>r2 评级</strong>：🟠 <strong>P1</strong>（RED/GREEN 不一致，集成测试会失败）</p>
+<h3 id="np-3-appauthservicepyextend_session-内部调-validate_token_expir">NP-3 · 🟠 <code>app/auth/service.py::extend_session</code> 内部调 <code>validate_token_expiry</code>，silent no-op 缺审计日志</h3>
+<p><strong>位置</strong>：M2 plan L470-479</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L474-476 <code>if session is None or session.is_revoked: return  # silent no-op for BackgroundTasks</code></li>
+<li>L475-476 <code>if not validate_token_expiry(session.expires_at_sliding, session.expires_at_hard): return  # 硬上限过期不续期</code></li>
+<li><strong>silent no-op 缺审计日志</strong>——<code>BackgroundTasks</code> 失败/跳过不记日志，运维无法察觉&quot;为什么某 token 7 天后没续期&quot;</li>
+<li>L466 RED <code>test_extend_session_sliding</code> 写&quot;mock session: expires_at_sliding=utcnow-1min（刚滑过期）, expires_at_hard=utcnow+20d&quot;——<strong>边界条件是 sliding 刚过期</strong>——但 L475 调 <code>validate_token_expiry</code> 会先拒（now &gt; slides_at → False）→ silent no-op → <strong>RED 测试期待&quot;刚过期也应续期&quot;，GREEN 段实际拒</strong>——<strong>RED/GREEN 不一致</strong></li>
+</ul>
+<p><strong>修复</strong>（GREEN 段改）：</p>
+<pre><code class="language-python">
+async def extend_session(token_hash: str) -&gt; None:
+    session = await AuthSessionRepository.find_by_token_hash(token_hash)
+    if session is None:
+        logger.warning(&quot;extend_session: session not found (token_hash=%s...)&quot;, token_hash[:8])
+        return
+    if session.is_revoked:
+        logger.info(&quot;extend_session: session already revoked, skip (id=%s)&quot;, session.id)
+        return
+    # 硬上限过期则不续期（业务上限），但记日志
+    if session.expires_at_hard &lt;= datetime.now(timezone.utc):
+        logger.info(&quot;extend_session: hard cap reached, skip (id=%s)&quot;, session.id)
+        return
+    # sliding 刚过期也续期（&lt; hard cap）
+    new_sliding = datetime.now(timezone.utc) + settings.auth.token_ttl_sliding
+    if new_sliding &gt; session.expires_at_hard:
+        new_sliding = session.expires_at_hard  # 不超 hard cap
+    await AuthSessionRepository.update_sliding_expiry(session.id, new_sliding)
+</code></pre>
+<ul>
+<li>同步 <code>import logging; logger = logging.getLogger(__name__)</code></li>
+<li>风险表新增一行&quot;extend_session silent no-op 缺审计&quot; + 缓解&quot;加 logger.warning / info&quot;</li>
+</ul>
+<p><strong>r2 评级</strong>：🟠 <strong>P1</strong>（RED/GREEN 不一致 + 运维盲点）</p>
+<h3 id="np-4-appauthpassword_validator-缺-username-业务层二次校验与-pydantic-">NP-4 · 🟡 <code>app.auth.password_validator</code> 缺 <code>username</code> 业务层二次校验（与 Pydantic 重复但 depth 浅）</h3>
+<p><strong>位置</strong>：M2 plan L319-341 <code>validate_password</code> 实现</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L319-341 <code>validate_password</code> 只校验<strong>密码</strong>，<strong>无</strong> <code>validate_username</code> 函数</li>
+<li>L630-645 Pydantic <code>RegisterRequest.normalize_username</code> 已做归一（<code>strip().lower()</code> + 正则 + 保留字）</li>
+<li>L633 <code>RegisterRequest.password: str = Field(min_length=12, max_length=128)</code>——<strong>Pydantic 已限制密码长度 12-128</strong></li>
+<li>L664-667 <code>register_endpoint</code> 又调 <code>validate_password(body.password)</code> 业务层二次校验</li>
+<li><strong>但 service.register L352-369 实现里</strong> L354 <code>validate_password(password)</code> 业务层又调一次——<strong>双重校验冗余</strong>（Pydantic 422 已拒，service 不会收到弱密码）</li>
+<li>业务层二次校验的<strong>唯一</strong>作用是&quot;如果有 caller 绕过 Pydantic（如内部脚本）仍能防御&quot;——但 plan 没显式说明此点</li>
+</ul>
+<p><strong>修复</strong>（注释 + 不删代码）：</p>
+<ul>
+<li>L352-369 service.register 段加注释：&quot;# 二次校验防内部调用绕过 Pydantic；外部 HTTP 入口 422 在 Pydantic 拦&quot;</li>
+<li>风险表 L865 修订记录同步加&quot;service 层二次校验（防内部 caller 绕过）&quot;</li>
+</ul>
+<p><strong>r2 评级</strong>：🟡 <strong>P2</strong>（非 bug，文档化诉求）</p>
+<h3 id="np-5-authsessionrepositoryrevoke_all_for_user-update_sliding">NP-5 · 🟡 <code>AuthSessionRepository.revoke_all_for_user</code> / <code>update_sliding_expiry</code> / <code>delete_expired</code> / <code>find_by_token_hash</code> 仓库方法 spec 缺，r1 修订记录只口头说&quot;补到 repository&quot;未给契约</h3>
+<p><strong>位置</strong>：M2 plan 多个地方（service.login L416 / L477 / cleanup L538 / deps L567 / logout L461）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>L416 <code>await AuthSessionRepository.revoke_all_for_user(user.id)</code> —— M2 plan 假设该方法存在，<strong>但 M1 plan / M2 plan 都没给 repository 层方法签名 spec</strong></li>
+<li>L477 <code>await AuthSessionRepository.update_sliding_expiry(session.id, new_sliding)</code> —— 同上</li>
+<li>L538 <code>await AuthSessionRepository.delete_expired(cutoff=cutoff)</code> —— 同上</li>
+<li>L567 <code>await AuthSessionRepository.find_by_token_hash(token_hash)</code> —— 同上</li>
+<li>L461 <code>await AuthSessionRepository.revoke(session.id)</code> —— 同上</li>
+<li>M1 plan L266-282 仅定义 ORM model（<code>User</code> / <code>AuthSession</code>），<strong>无 repository 模式（M1 走 repo 还是 DAO？Service 调 ORM 直接？）</strong></li>
+<li>M2 plan 默认 M1 已实现 <code>app/db/repositories.py</code> 包含上述 5 个方法，<strong>M1 修订记录 L650 &quot;跨 M 联动落地&quot; 段没提</strong> → M1 没承诺实现 repository 层 → M2 业务层会 import 失败</li>
+</ul>
+<p><strong>修复</strong>（M2 计划改动 + 推 M1 实施）：</p>
+<ul>
+<li>M2 plan Files 表追加 <code>app/db/repositories.py</code> + <code>tests/unit/test_repositories.py</code>，<strong>M2 范围</strong>实现 5 个方法（与 M2 service 同步）：</li>
+<pre><code class="language-python">
+  # app/db/repositories.py
+  class AuthSessionRepository:
+      @staticmethod
+      async def find_by_token_hash(token_hash: str) -&gt; AuthSession | None: ...
+      @staticmethod
+      async def create(user_id: int, token_hash: str, expires_at_sliding: datetime, expires_at_hard: datetime, ip_address: str | None = None, user_agent: str | None = None) -&gt; AuthSession: ...
+      @staticmethod
+      async def revoke(session_id: int) -&gt; None: ...
+      @staticmethod
+      async def revoke_all_for_user(user_id: int) -&gt; int: ...
+      @staticmethod
+      async def update_sliding_expiry(session_id: int, new_sliding: datetime) -&gt; None: ...
+      @staticmethod
+      async def delete_expired(cutoff: datetime) -&gt; int: ...
+  class UserRepository:
+      @staticmethod
+      async def find_by_username(username: str) -&gt; User | None: ...
+      @staticmethod
+      async def find_by_id(user_id: int) -&gt; User | None: ...
+      @staticmethod
+      async def create(username: str, password_hash: str, email: str | None = None) -&gt; User: ...
+      @staticmethod
+      async def update(user: User) -&gt; User: ...
+</code></pre>
+<li>推 M1 修订记录 L650 跨 M 联动补：&quot;M2 强依赖 <code>app/db/repositories.py</code> 5 个 AuthSessionRepository 方法 + 4 个 UserRepository 方法&quot;</li>
+<li>M2 估时 +1d（repository 实现 0.5d + 测试 0.5d）</li>
+</ul>
+<p><strong>r2 评级</strong>：🟠 <strong>P1</strong>（repository 缺方法 → M2 业务 import 失败 / runtime AttributeError）</p>
+<hr>
+<h2 id="3-跨-m-一致性检查">3. 跨 M 一致性检查</h2>
+<h3 id="31-m2-m1-严重is_revoked-字段缺失">3.1 M2 ↔ M1 · 🔴 严重（<code>is_revoked</code> 字段缺失）</h3>
+<table>
+<tr><th>M2 引用位置</th><th>M2 期待</th><th>M1 实际（M1 r2 review 证实）</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L24 &quot;不包含&quot;段</td><td>M1 已有 <code>auth_sessions.is_revoked</code> 字段</td><td>M1 §4 DDL 段 L122-137 无此列</td><td>🔴 缺</td></tr>
+<tr><td>L125 契约边界表</td><td>M1 字段: <code>auth_sessions.is_revoked</code></td><td>同上</td><td>🔴 缺</td></tr>
+<tr><td>L566 deps <code>session.is_revoked</code></td><td>runtime 读字段</td><td>runtime AttributeError</td><td>🔴 缺</td></tr>
+<tr><td>L568 <code>if session.is_revoked: raise 404</code></td><td>字段为 BOOL</td><td>字段不存在</td><td>🔴 缺</td></tr>
+<tr><td>L824 跨 M 依赖表</td><td>M1 r1 已补</td><td>M1 r2 NP-1 证实未补</td><td>🔴 缺</td></tr>
+<tr><td>L866 风险表 P0-4 修订行</td><td>M1 r1 补 is_revoked</td><td>M1 r2 NP-1 证实未补</td><td>🔴 缺</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：</p>
+<ul>
+<li>M1 r2 修完前 M2 <strong>不可动手</strong> Task 4 / Task 7 / Task 8（这些 task 全依赖 <code>session.is_revoked</code>）</li>
+<li>M2 修订记录 L880 P0-4 行改&quot;<strong>部分修（等 M1 r2）</strong>&quot;</li>
+<li>M2 风险表 L866 P0-4 行改&quot;<strong>P0-4 待 M1 r2 修</strong>&quot;</li>
+<li>M2 估时 +1d（M1 r2 协调 / 等字段 / 验证 <code>\d auth_sessions</code>）</li>
+</ul>
+<h3 id="32-m2-m1-usersfailed_login_attempts-locked_until-字段m1-r2-待-v">3.2 M2 ↔ M1 · 🟠 <code>users.failed_login_attempts</code> / <code>locked_until</code> 字段（M1 r2 待 verify）</h3>
+<table>
+<tr><th>M2 引用位置</th><th>M2 期待</th><th>M1 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L500 <code>user.locked_until</code></td><td>TIMESTAMPTZ NULLABLE</td><td>M1 r1 L114-115 已加 <code>failed_login_attempts INTEGER NOT NULL DEFAULT 0</code> + <code>locked_until TIMESTAMPTZ NULLABLE</code></td><td>⚠️ M1 r2 待 verify</td></tr>
+<tr><td>L505 <code>user.failed_login_attempts</code></td><td>INT DEFAULT 0</td><td>同上</td><td>⚠️ M1 r2 待 verify</td></tr>
+<tr><td>L507 <code>settings.auth.failed_login_lockout_count</code> (默认 5)</td><td>M1 默认值匹配</td><td>M1 字段 DEFAULT 0 匹配</td><td>✅ 业务侧 ok</td></tr>
+<tr><td>L824 跨 M 依赖</td><td>M1 r1 已加</td><td>M1 修订记录 L650 提及</td><td>⚠️ M1 r2 待 verify</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：M1 r2 verify 完这两字段后 M2 即可动手 Task 5（账号锁辅助）。</p>
+<h3 id="33-m2-m1-usersemail-auth_sessionsip_address-auth_sessionsuse">3.3 M2 ↔ M1 · 🟡 <code>users.email</code> / <code>auth_sessions.ip_address</code> / <code>auth_sessions.user_agent</code>（M2 plan 不用 / M12 hardening 用）</h3>
+<table>
+<tr><th>M2 引用位置</th><th>M2 期待</th><th>M1 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L24 &quot;不包含&quot;</td><td>M1 已有 email / ip_address / user_agent</td><td>M1 r1 L108 email / L133-134 ip_address + user_agent</td><td>✅ M1 已加</td></tr>
+<tr><td>L125 契约</td><td>同上</td><td>同上</td><td>✅</td></tr>
+<tr><td>L417-432 service.login 调 <code>create(user_id, token_hash, ...)</code></td><td>create 不传 ip_address / user_agent</td><td>字段 NULLABLE，可不传</td><td>✅ 兼容</td></tr>
+<tr><td>L677-684 logout_endpoint</td><td>不传 ip_address / user_agent</td><td>同上</td><td>✅ 兼容</td></tr>
+<tr><td>L822 跨 M 依赖</td><td>M2 暂不用</td><td>M12 hardening 用</td><td>✅ 兼容</td></tr>
+</table>
+<p><strong>风险</strong>：M2 plan <strong>完全没设计 ip_address / user_agent 的采集路径</strong>——<code>/api/auth/login</code> 和 <code>/api/auth/register</code> 接受 Request 对象（slowapi 限速已注入 <code>request: Request</code>），但 service.create 不收这两个字段。<strong>M12 hardening 阶段 M2 plan 必加 task &quot;从 Request.client.host 取 ip_address / from Request.headers.get(&#x27;user-agent&#x27;) 取 user_agent&quot;</strong>——但<strong>当前 plan 没显式留 hook</strong>。</p>
+<p><strong>M2 落地建议</strong>：M2 r2 在 <code>app/api/auth.py</code> 补 1 个 task &quot;采集 ip_address / user_agent&quot;（即使 M2 暂不入库）：</p>
+<pre><code class="language-python">
+@router.post(&quot;/register&quot;, status_code=201, response_model=UserResponse)
+@limiter.limit(&quot;5/minute&quot;)
+async def register_endpoint(
+    request: Request,  # 已有
+    body: RegisterRequest,
+):
+    # M2 暂不传 ip_address / user_agent 入库（M12 hardening 启用）
+    # 但先取出来给 M12 用
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get(&quot;user-agent&quot;)
+    user = await register(body.username, body.password, ip_address=ip_address, user_agent=user_agent)
+    ...
+</code></pre>
+<ul>
+<li>service.register 签名加 <code>ip_address: str | None = None, user_agent: str | None = None</code></li>
+<li>AuthSessionRepository.create 同步加这两个参数（即使暂时不存）</li>
+<li>风险表新增一行&quot;M12 hardening 启用 ip_address / user_agent 入库&quot; + 缓解&quot;M2 阶段 service 签名先收，M12 启用&quot;</li>
+</ul>
+<h3 id="34-m2-m8m8-api-chat-强依赖-m2">3.4 M2 ↔ M8（M8 api-chat 强依赖 M2）</h3>
+<table>
+<tr><th>M2 契约</th><th>M8 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L122 <code>Depends(get_current_user)</code> 签名</td><td>需 verify（M8 plan 不可读，文件不存在）</td><td>⚠️ M8 plan 缺</td></tr>
+<tr><td>L123 Authorization Header 模式</td><td>M8 plan 缺</td><td>⚠️</td></tr>
+<tr><td>L122 <code>HTTPBearer</code></td><td>M8 plan 缺</td><td>⚠️</td></tr>
+<tr><td>L19 <code>GET /api/auth/me</code> 样板</td><td>M8 plan 缺</td><td>⚠️</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：M8 plan r1 必读 M2 plan L122-123 / L19 段落；M2 不需改（接口已固定）。</p>
+<h3 id="35-m2-m9m9-ui-gradio-强依赖-m2">3.5 M2 ↔ M9（M9 ui-gradio 强依赖 M2）</h3>
+<table>
+<tr><th>M2 契约</th><th>M9 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L850 风险表&quot;前端 token 存储 Header 模式&quot;</td><td>M9 plan 缺</td><td>⚠️ M9 plan 缺</td></tr>
+<tr><td>L122 HTTPBearer</td><td>M9 plan 缺</td><td>⚠️</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：M9 plan r1 必读 M2 plan L850 段；M2 不需改。</p>
+<h3 id="36-m2-m12m12-hardening-强依赖-m2-钩子">3.6 M2 ↔ M12（M12 hardening 强依赖 M2 钩子）</h3>
+<table>
+<tr><th>M2 留 hook</th><th>M12 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L366-367 service.register 留 rehash-on-login hook（注释）</td><td>M12 plan 缺</td><td>⚠️ M12 plan 缺</td></tr>
+<tr><td>L850 风险表 &quot;M12 hardening 启用 ip_address / user_agent&quot;</td><td>M12 plan 缺</td><td>⚠️</td></tr>
+<tr><td>L848 风险表 &quot;session 清理 cron 由 M12 hardening 接入&quot;</td><td>M12 plan 缺</td><td>⚠️</td></tr>
+<tr><td>L836 风险表&quot;argon2 rehash on login M12 hardening 补&quot;</td><td>M12 plan 缺</td><td>⚠️</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：M12 plan r1 必读 M2 plan L366-367 / L836 / L848 / L850 四处；M2 不需改（hook 已留）。</p>
+<h3 id="37-m2-m0-m11基础设施-评估">3.7 M2 ↔ M0 / M11（基础设施 / 评估）</h3>
+<table>
+<tr><th>M2 契约</th><th>M0 / M11 实际</th><th>状态</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>L213 <code>app/config.py</code> 末尾 <code>settings = Settings()</code></td><td>M0 阶段已建 config.py 基础</td><td>✅</td></tr>
+<tr><td>L51 Pydantic Settings 聚合</td><td>M0 已有顶层 Settings</td><td>✅</td></tr>
+<tr><td>L51 M2 追加 AuthSettings 子块</td><td>不破坏 M0 顶层</td><td>✅</td></tr>
+</table>
+<p><strong>M2 落地建议</strong>：无（已对齐）。</p>
+<hr>
+<h2 id="4-风险表补全质量">4. 风险表补全质量</h2>
+<table>
+<tr><th>维度</th><th>r1 实际</th><th>评价</th></tr>
+<tr><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>原 6 行风险</td><td>L836 / L838 / L839 / L840 / L841 / L842（保留 + 划线）</td><td>✅ 完整保留</td></tr>
+<tr><td>r1 已修 24 行</td><td>L843-L868 24 行 P0/P1/P2 修复记录</td><td>✅ 24 行齐</td></tr>
+<tr><td>曾被否决替代方案</td><td>L836（bcrypt 12）/ L843（DELETE vs UPDATE）/ L840（同步 extend + create_task）/ L841（JWT 方案）/ L847（多设备 5 个 / 无策略）/ L850（cookie 模式）/ L852（X-1 推迟 M12）/ L853（cookie 模式）/ L865（pyjwt deprecated 兼容层）</td><td>✅ 9 行有意义</td></tr>
+<tr><td><strong>r1 引入新风险</strong></td><td>L866 误信&quot;M1 r1 补 is_revoked&quot;——<strong>实际 M1 r2 证实未补</strong></td><td>🔴 <strong>虚假修复</strong></td></tr>
+<tr><td>DDL 复杂度量化行</td><td>无</td><td>⚠️ M1 r2 NP-1 提&quot;DDL 复杂度量化&quot;未补</td></tr>
+<tr><td>M1 schema 联动落地行</td><td>L843 提&quot;选 A+B 混合：字段有，行为 A&quot;</td><td>🔴 <strong>字段实际未补</strong></td></tr>
+<tr><td>跨 M 协调责任</td><td>隐式在 L822-825 表</td><td>✅ 清晰</td></tr>
+</table>
+<p><strong>r2 建议风险表新增 / 修改行</strong>：</p>
+<ol>
+<li><strong>新增（r1 引入 NP-1）</strong>：</li>
+<pre><code class="language-">
+   | M1 r1 修订记录承诺&quot;`is_revoked` 已补&quot;但 M1 r2 证实 DDL 段仍缺 → M2 业务 runtime AttributeError | **r2 必改**：M1 r2 补 is_revoked 列；M2 修订记录 L880 P0-4 行改&quot;部分修（等 M1 r2）&quot;；M2 不可动手 Task 4/7/8 | r2-2026-06-11 |
+</code></pre>
+<li><strong>修改 L843</strong>（措辞）：</li>
+<pre><code class="language-">
+   原：&quot;**P0-4 已修（选 A）**：M2 logout / login 改用 `AuthSessionRepository.revoke(session_id)` 软吊销（update `is_revoked=TRUE`，M1 r1 已补字段）；protected endpoint 见不到 active session 统一返 404（不区分 not-found vs revoked）&quot;
+   改：&quot;**P0-4 部分修（等 M1 r2）**：M2 logout / login 改用 `AuthSessionRepository.revoke(session_id)` 软吊销（update `is_revoked=TRUE`）；M1 r2 补 auth_sessions.is_revoked 列；protected endpoint 见不到 active session 统一返 404（不区分 not-found vs revoked）&quot;
+</code></pre>
+<li><strong>修改 L866</strong>：</li>
+<pre><code class="language-">
+   原：&quot;**P0-4 已修**：M1 r1 补 `auth_sessions.is_revoked BOOLEAN DEFAULT FALSE` 列；M2 logout/login 改用 `AuthSessionRepository.revoke()` 软吊销&quot;
+   改：&quot;**P0-4 待 M1 r2 修**：M1 §4 DDL 段补 `is_revoked BOOLEAN DEFAULT FALSE NOT NULL` 列；M1 ORM 段补 `is_revoked: Mapped[bool]`；M2 logout/login 改用 `AuthSessionRepository.revoke()` 软吊销&quot;
+</code></pre>
+<li><strong>新增</strong>：<code>/api/auth/logout</code> 501 占位（NP-2）—— r2 必改</li>
+<li><strong>新增</strong>：M12 hardening 启用 ip_address / user_agent 入库（NP-3.3）—— M2 阶段 service 签名先收参数</li>
+</ol>
+<hr>
+<h2 id="5-落地建议">5. 落地建议</h2>
+<h3 id="第一波r2-必改4-项-p0">第一波（r2 必改，4 项 P0）</h3>
+<ol>
+<li><strong>🔴 NP-1</strong>：M1 r2 补 <code>is_revoked</code> 字段（DDL + ORM）+ M2 修订记录 4 处改&quot;部分修（等 M1 r2）&quot;+ 风险表 2 行改</li>
+<li><strong>🔴 NP-2</strong>（Task 8）：<code>logout_endpoint</code> 501 占位改完整实现 + 同步 import HTTPBearer / HTTPAuthorizationCredentials</li>
+<li><strong>🟠 NP-5</strong>：M2 Files 表追加 <code>app/db/repositories.py</code>（5 个 AuthSessionRepository + 4 个 UserRepository 方法）+ 推 M1 修订记录 L650 补&quot;repository 依赖&quot;行 + 估时 +1d</li>
+<li><strong>🟠 NP-3</strong>：<code>extend_session</code> 改 hard cap 边界处理（sliding 刚过期也续期）+ 加 logger 审计</li>
+</ol>
+<h3 id="第二波r2-重要3-项-p1">第二波（r2 重要，3 项 P1）</h3>
+<ol>
+<li><strong>🟠 P1-12 措辞错位</strong>（L850）：&quot;Authorization: Bearer ***&quot; 模板补完整；README 段独立列</li>
+<li><strong>🟠 P1-13 M1 字段待 verify</strong>（r2 review M1 端）：M1 r2 verify <code>failed_login_attempts</code> / <code>locked_until</code> 落 DDL</li>
+<li><strong>🟡 P2-9 pytest-httpx fixture 准备代码</strong>（L770-782）：补 <code>@pytest.fixture def httpx_mock_for_tei()</code></li>
+</ol>
+<h3 id="第三波r2-优化2-项-p2">第三波（r2 优化，2 项 P2）</h3>
+<ol>
+<li><strong>🟡 NP-4</strong>（注释）：<code>service.register</code> 二次校验加注释（防内部 caller 绕过）</li>
+<li><strong>🟡 M12 hardening 钩子</strong>（NP-3.3）：service 签名先收 <code>ip_address</code> / <code>user_agent</code>（即使 M2 暂不入库）</li>
+</ol>
+<h3 id="估时修正">估时修正</h3>
+<ul>
+<li>M2 整体估时从 <strong>7d → 8d</strong>（+1d repository 实现 + M1 r2 协调 / 验证 <code>\d auth_sessions</code>）</li>
+</ul>
+<h3 id="等待决策">等待决策</h3>
+<ul>
+<li><strong>NP-1 is_revoked 字段</strong>：M1 r2 决策是 <code>BOOLEAN DEFAULT FALSE</code> 还是 <code>TIMESTAMPTZ NULL</code>（后者审计更友好）——M2 P0-4 风险表已隐含选 BOOLEAN，但 spec 决策 #14 没说</li>
+<li><strong>NP-2 logout_endpoint token 提取</strong>：<code>HTTPBearer</code> 二次注入还是 <code>Request.state</code> 暂存？——M2 P2-4 已选 HTTPBearer 二次注入</li>
+<li><strong>NP-5 repository 模式</strong>：M2 实施还是 M1 实施？——M2 估时已包含 +1d，但 M1 plan L266-282 ORM model 完整，repository 层 M1 留白</li>
+<li><strong>NP-3.3 ip_address / user_agent 何时入库</strong>：M2 阶段入库还是 M12 hardening 启用？——M2 plan 已隐含&quot;暂不入库&quot;，但 service 签名是否收参数待决</li>
+</ul>
+<h3 id="跨-m-协调r2-修完后通知">跨 M 协调（r2 修完后通知）</h3>
+<ul>
+<li><strong>推 M1</strong>：补 <code>is_revoked</code> 字段（DDL + ORM）；补 <code>app/db/repositories.py</code> 9 个方法（M2 估时包含实现，但契约 M1 定）</li>
+<li><strong>推 M8 API</strong>：使用 <code>Depends(get_current_user)</code> 签名（L122-123）+ 走 Authorization Header 模式 + 用 <code>GET /api/auth/me</code> 样板</li>
+<li><strong>推 M9 UI</strong>：明确用 Authorization Header 存 token，不用 localStorage / cookie</li>
+<li><strong>推 M12 hardening</strong>：argon2 rehash on login 完整实现（接 M2 L366-367 注释）+ session 清理 cron 接入（接 M2 L848 风险表）+ ip_address / user_agent 入库（接 M2 NP-3.3）+ 业务层 <code>app/db/repositories.py</code> 是否需要 transaction 装饰</li>
+</ul>
+<hr>
+<h2 id="6-状态">6. 状态</h2>
+<ul>
+<li><strong>r1 修复完成度</strong>：30 项中 24 项 100% 修，5 项部分修，1 项修错位（is_revoked 误信 M1）</li>
+<li><strong>r1 引入新问题</strong>：5 项（NP-1 🔴 P0 / NP-2 🟠 P1 / NP-3 🟠 P1 / NP-4 🟡 P2 / NP-5 🟠 P1）</li>
+<li><strong>跨 M 一致性</strong>：M1 is_revoked 字段缺 🔴 / M1 failed_login_attempts 待 verify 🟠 / M1 email/ip_address/user_agent ✅ / M8/M9/M12 联动基本落地</li>
+<li><strong>风险表补全</strong>：6 行原 + 24 行 r1 已修齐 + 1 行虚假修复（待 r2 改）+ 4 行 r2 建议新增/修改</li>
+<li><strong>实施就绪度</strong>：M1 r2 修完 <code>is_revoked</code> 后可动手；M2 估时 7d → 8d</li>
+</ul>
+<p><strong>r2 一句话总结</strong>：r1 修复整体到位（24/30），但<strong>信任了 M1 r1 修订记录的虚假承诺（is_revoked）</strong>导致 M2 修订记录 4 处失真；外加 <code>logout_endpoint</code> 501 占位、repository 层方法 spec 缺、<code>extend_session</code> RED/GREEN 不一致 3 项落地瑕疵。r2 改 4 项 P0 后可动手，估时 +1d 到 8d。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

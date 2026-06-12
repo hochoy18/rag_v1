@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M0 Plan · 基础设施层（Docker Compose + 基础配置）</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M0 Plan · 基础设施层（Docker Compose + 基础配置）</h1>
+<div class="meta"><span class="badge">M0 Plan · 基础设施层（Docker Compose + 基础配置）</span><span class="badge r1">⏱ 3 个工作日（r1 修正：2d 估时不计 cold-start 镜像下载 + P0/P1 修补，实际 3d）</span><span class="badge r1">r1 修复 33 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局appsrag-v1">仓库布局（apps/rag_v1/）</a></li><li class="h3-item"><a href="#m0-模块树">M0 模块树</a></li><li class="h3-item"><a href="#m0-与其他-m-的契约边界">M0 与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#task-1docker-composeyml-4-服务定义">Task 1：docker-compose.yml —— 4 服务定义</a></li><li class="h3-item"><a href="#task-2infrainitsql">Task 2：infra/init.sql</a></li><li class="h3-item"><a href="#task-3envexample">Task 3：.env.example</a></li><li class="h3-item"><a href="#task-4appconfigpy-appconfigs-applogging-setuppy-pyprojecttoml">Task 4：app/config.py + app/configs/* + app/logging_setup.py + pyproject.toml</a></li><li class="h3-item"><a href="#task-5docker-compose-up-health-check-验证">Task 5：docker compose up + health check 验证</a></li><li class="h3-item"><a href="#task-6readmemd">Task 6：README.md</a></li><li class="h3-item"><a href="#task-7gitignorep0-6-新增">Task 7：.gitignore（P0-6 新增）</a></li><li class="h3-item"><a href="#task-8dockerignorep0-7-新增">Task 8：.dockerignore（P0-7 新增）</a></li><li class="h3-item"><a href="#task-9infracheck-healthshp1-7-新增-修-plan-内部不一致">Task 9：infra/check_health.sh（P1-7 新增 — 修 plan 内部不一致）</a></li><li class="h3-item"><a href="#task-10makefilep1-8-新增">Task 10：Makefile（P1-8 新增）</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m0-plan-基础设施层docker-compose-基础配置">M0 Plan · 基础设施层（Docker Compose + 基础配置）</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 0 步（起点）</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#7-v1-milestonesm0m12">V1 Scope §7 M0 Infra</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #6</a></div>
+<p>|&gt; 脑暴基线：<code>session 20260608_145040_7202e5</code> msg 195 §6（4 服务 + 单 bridge 网络）+ msg 193 §1.7（Postgres 用户系统基建前置）</p>
+<p>|&gt; 估时：3 个工作日（r1 修正：2d 估时不计 cold-start 镜像下载 + P0/P1 修补，实际 3d）</p>
+<p>|&gt; 范本目的：M0 是 RAG V1 路线起点 plan，给后续 M 提供&quot;基础设施层&quot;前置定义；同时作为&quot;单里程碑起点 plan&quot;的范本（11 段结构 + 范本目的段）</p>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v1-scope 决策 #6（部署：Docker Compose 4 service）落成可执行基础设施：</p>
+
+<li>一个 <code>docker-compose.yml</code> 同时拉起 4 个容器（Postgres 16-alpine, OpenSearch 2.19, TEI bge-m3, Langfuse），同一 bridge 网络，service name DNS 互通</li>
+<li>一个 <code>.env.example</code> 覆盖全部 4 个服务的环境变量模板</li>
+<li>一个 <code>app/config.py</code>（Pydantic Settings）聚合全部环境变量加载</li>
+<li>一个 <code>infra/init.sql</code> 初始化 SQL（创建 <code>rag</code> DB + 基础角色）</li>
+<li>一个项目根 <code>README.md</code> 含启动步骤</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：M1 Alembic schema 迁移、M2 auth 鉴权实现、M3 LLM 工厂、M4–M6 ingest 管线、M7 graph 编排、M8 API 路由、M9 UI、M10–M12 观测/评估/hardening</p>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局appsrag-v1">仓库布局（apps/rag_v1/）</h3>
+
+<pre><code >apps/
+└── rag_v1/                          # RAG V1 项目根
+    ├── infra/                       # 基础设施配置（M0 启动）
+    │   ├── docker-compose.yml       # 4 服务定义 + bridge 网络 + healthcheck
+    │   ├── init.sql                 # Postgres 初始化 SQL（dev-only）
+    │   └── check_health.sh          # 4 服务 health 一键检查脚本（P1-7 新增）
+    │
+    ├── app/                         # 应用代码（Python 包，空白骨架）
+    │   ├── __init__.py
+    │   ├── config.py                # Pydantic Settings 聚合（M0 新增 · 末尾 `settings = Settings()` 全局单例 P1-9）
+    │   ├── logging_setup.py         # 全局 logging 初始化（P1-6 新增）
+    │   └── configs/                 # 子目录拆分（P2-3 X-1 落地）
+    │       ├── __init__.py          # re-export 所有子 settings
+    │       ├── base.py              # 公共 BaseSettings
+    │       ├── postgres.py          # PostgresSettings
+    │       ├── opensearch.py        # OpenSearchSettings
+    │       ├── tei.py               # TEISettings
+    │       └── langfuse.py          # LangfuseSettings
+    │
+    ├── tests/                       # 测试（空白骨架）
+    │   ├── __init__.py
+    │   ├── unit/
+    │   │   ├── __init__.py
+    │   │   └── test_config.py       # M0 配置单元测试
+    │   └── integration/
+    │       ├── __init__.py
+    │       └── test_m0_docker_compose.py  # M0 集成测试（健康检查）
+    │
+    ├── pyproject.toml               # 直接依赖清单（M0 初始只装 pydantic / pydantic-settings / python-dotenv / structlog）
+    ├── .env.example                 # 全部 4 服务 env vars 模板
+    ├── .gitignore                   # 仓库忽略规则（P0-6 新增）
+    ├── .dockerignore                # Docker build context 忽略规则（P0-7 新增）
+    ├── Makefile                     # up/down/logs/health/test 统一入口（P1-8 新增）
+    └── README.md                    # 启动步骤、目录说明</code></pre>
+
+<p><strong>模块组织原则</strong>：</p>
+<li><code>infra/</code> 与代码解耦（只放 docker-compose / env 模板 / 初始化 SQL）</li>
+<li><code>apps/rag_v1/</code> 是独立 Python 项目（有自己的 <code>pyproject.toml</code>、<code>venv</code>、<code>README</code>）</li>
+<li>每个容器用 <code>service_name</code> 作为 hostname，应用层 DNS 直连</li>
+
+<h3 id="m0-模块树">M0 模块树</h3>
+
+<pre><code >apps/rag_v1/
+├── infra/
+│   ├── docker-compose.yml      4 服务定义 + bridge 网络 + 卷 + healthcheck + depends_on service_healthy
+│   ├── init.sql                CREATE DATABASE rag + 基础角色（dev-only，IF NOT EXISTS 包裹）
+│   └── check_health.sh         一键检查 4 服务 health（P1-7）
+│
+├── app/
+│   ├── __init__.py             包标识
+│   ├── config.py               Pydantic Settings 聚合（末尾 `settings = Settings()` 全局单例 · P1-9）
+│   ├── logging_setup.py        configure_logging() 读 settings.log_level（P1-6）
+│   └── configs/                子目录拆分（X-1 落地 · P2-3）
+│       ├── __init__.py         re-export
+│       ├── base.py             公共 BaseSettings
+│       ├── postgres.py
+│       ├── opensearch.py
+│       ├── tei.py
+│       └── langfuse.py
+│
+├── tests/
+│   ├── __init__.py
+│   ├── unit/
+│   │   ├── __init__.py
+│   │   └── test_config.py      Settings 加载 / 缺键兜底 / 类型校验（含 P2-4 类型校验 RED 用例）
+│   └── integration/
+│       ├── __init__.py
+│       └── test_m0_docker_compose.py  docker compose ps + 4 个 health
+│
+├── pyproject.toml              依赖最小集：pydantic + pydantic-settings + python-dotenv + structlog（M0 范围，fastapi/uvicorn/sqlalchemy 留给 M1/M2/M8）
+├── .env.example                模板（含注释）— 4 服务 env vars 全覆盖
+├── .gitignore                  仓库 ignore（P0-6）
+├── .dockerignore               Docker build context ignore（P0-7）
+├── Makefile                    up/down/logs/health/test-unit/test-integration/clean 统一入口（P1-8）
+└── README.md                   目录结构 / 启动步骤 / 4 个 service 访问方式</code></pre>
+
+<h3 id="m0-与其他-m-的契约边界">M0 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M1 schema</td><td><code>docker-compose.yml</code> → <code>postgres:5432</code></td><td>M1 Alembic 连接 postgres service</td></tr>
+<tr><td>M2 auth</td><td><code>docker-compose.yml</code> → <code>postgres:5432</code></td><td>M2 读写 users / auth_sessions 表</td></tr>
+<tr><td>M3 LLM/Embed</td><td><code>docker-compose.yml</code> → <code>tei:8080</code> + <code>langfuse:3000</code></td><td>M3 smoke 需 TEI + Langfuse 容器</td></tr>
+<tr><td>M4–M6 ingest</td><td><code>docker-compose.yml</code> → <code>opensearch:9200</code></td><td>M4 OpenSearch upsert</td></tr>
+<tr><td>M7 graph</td><td><code>docker-compose.yml</code> → <code>postgres:5432</code></td><td>M7 PostgresCheckpointer</td></tr>
+<tr><td>M8–M12</td><td>全部基于 M0 容器基础设施</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th></tr></thead>
+<tbody>
+<tr><td>Docker</td><td><code>docker compose</code> v2.20+</td><td>Compose v2（无 <code>version:</code> 字段 · P2-1）</td></tr>
+<tr><td>网络</td><td>bridge (single)</td><td>service name DNS</td></tr>
+<tr><td>数据库</td><td><code>postgres:16-alpine</code></td><td>16-alpine（<code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code> 显式声明 · P1-5）</td></tr>
+<tr><td>向量库</td><td><code>opensearchproject/opensearch:2.19</code></td><td>2.19（<code>OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m</code> + ulimits memlock/nofile · P1-4）</td></tr>
+<tr><td>Embedding</td><td><code>ghcr.io/huggingface/text-embeddings-inference:1.5</code></td><td>1.5 (bge-m3, CPU) — host 端口 18080（P0-2），容器内仍 80；模型缓存挂到 <code>tei_cache</code> volume <code>/data</code>（P0-9）</td></tr>
+<tr><td>观测</td><td><code>langfuse/langfuse:2</code></td><td>2.x (latest stable) — 需 <code>NEXTAUTH_SECRET</code> + <code>NEXTAUTH_URL</code>（P1-3）</td></tr>
+<tr><td>配置</td><td><code>pydantic-settings</code></td><td><code>&gt;=2.3,&lt;3</code></td></tr>
+<tr><td>日志</td><td><code>structlog</code></td><td><code>&gt;=24.1,&lt;26</code>（spec §8.8 · P1-6）</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code></td><td>见 §测试策略</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>：</p>
+
+<pre><code data-lang="python"># 配置（M0 新增）
+from pydantic_settings import BaseSettings
+from pydantic import SecretStr, HttpUrl, Field
+
+# 应用入口
+from app.config import Settings    # 全局单例 settings = Settings()</code></pre>
+
+<p><strong>Python 导入规则</strong>（从 <code>apps/rag_v1/</code> 内部）：</p>
+<li><code>app.config</code> —— <code>app</code> 是 <code>apps/rag_v1/app/</code></li>
+<li><code>tests.unit.test_config</code> —— 跑测试时 <code>cd apps/rag_v1 &amp;&amp; pytest</code></li>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（11 个源/配置/脚本 + 3 个测试文件 + 1 个配置模板）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>infra/docker-compose.yml</code></td><td>4 服务定义（PG / OS / TEI / Langfuse）+ bridge 网络 + 卷映射 + healthcheck × 4 + depends_on service_healthy + resource limits（mem_limit / cpus）+ ulimits（OS）+ HF_HOME/TRANSFORMERS_CACHE 挂载（TEI）</td></tr>
+<tr><td><code>infra/init.sql</code></td><td>Postgres 初始化：CREATE DATABASE rag + 角色（dev-only，IF NOT EXISTS 包裹 · P1-2）</td></tr>
+<tr><td><code>infra/check_health.sh</code></td><td>4 服务 health 一键检查脚本（P1-7 · 修 plan 内部不一致）</td></tr>
+<tr><td><code>app/__init__.py</code></td><td>包标识</td></tr>
+<tr><td><code>app/config.py</code></td><td>顶层 <code>Settings</code>（Pydantic）聚合 + 末尾 <code>settings = Settings()</code> 全局单例（P1-9）</td></tr>
+<tr><td><code>app/configs/__init__.py</code></td><td>子目录 re-export，向后兼容 <code>from app.configs import ...</code>（P2-3）</td></tr>
+<tr><td><code>app/configs/base.py</code></td><td>公共 <code>BaseSettings</code>（env 前缀 / dotenv 加载策略）</td></tr>
+<tr><td><code>app/configs/postgres.py</code></td><td><code>PostgresSettings</code> 子模型</td></tr>
+<tr><td><code>app/configs/opensearch.py</code></td><td><code>OpenSearchSettings</code> 子模型</td></tr>
+<tr><td><code>app/configs/tei.py</code></td><td><code>TEISettings</code> 子模型</td></tr>
+<tr><td><code>app/configs/langfuse.py</code></td><td><code>LangfuseSettings</code> 子模型（含 NEXTAUTH_* · P1-3）</td></tr>
+<tr><td><code>app/logging_setup.py</code></td><td><code>configure_logging()</code> 读 <code>settings.log_level</code>（P1-6）</td></tr>
+<tr><td><code>tests/__init__.py</code></td><td>测试包标识</td></tr>
+<tr><td><code>tests/unit/__init__.py</code></td><td>单元测试包</td></tr>
+<tr><td><code>tests/unit/test_config.py</code></td><td>环境变量加载 / 缺键抛错 / <strong>类型校验</strong>（P2-4 RED 用例）</td></tr>
+<tr><td><code>tests/integration/__init__.py</code></td><td>集成测试包</td></tr>
+<tr><td><code>tests/integration/test_m0_docker_compose.py</code></td><td><code>docker compose ps</code> health 断言</td></tr>
+<tr><td><code>.env.example</code></td><td>全部 env vars 模板（含注释）— 含 LANGFUSE_NEXTAUTH_*（P1-3）+ LANGFUSE_DATABASE_URL 合法占位（P2-5）</td></tr>
+<tr><td><code>pyproject.toml</code></td><td>初始依赖声明：pydantic + pydantic-settings + python-dotenv + structlog（dev: pytest / pytest-asyncio / pytest-cov）— M0 不装 fastapi/uvicorn/sqlalchemy（留给 M1/M2/M8 · P0-8）</td></tr>
+<tr><td><code>README.md</code></td><td>项目说明 + 启动步骤（含 <code>vm.max_map_count</code> sysctl 前置 · P0-5）</td></tr>
+<tr><td><code>.gitignore</code></td><td>仓库 ignore 规则（P0-6）</td></tr>
+<tr><td><code>.dockerignore</code></td><td>Docker build context ignore 规则（P0-7）</td></tr>
+<tr><td><code>Makefile</code></td><td>up/down/logs/health/test-unit/test-integration/clean 统一入口（P1-8）</td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：无（M0 是起点）</p>
+
+<p><strong>不修改</strong>：无</p>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="task-1docker-composeyml-4-服务定义">Task 1：docker-compose.yml —— 4 服务定义</h3>
+
+<div class="callout"><strong>估时修正</strong>（P2-6）：原估 5 分钟，实测 20-30 分钟（4 服务 + healthcheck × 4 + depends_on + resource limits + ulimits + env 注入 + network + volume）。本任务调整为 25 分钟或拆 Task 1a–1e 子任务。</div>
+
+<p><strong>GREEN（直接写，不 RED/TDD 循环 —— 基础设施不可 mock）</strong>：</p>
+<li>写 <code>infra/docker-compose.yml</code>（<strong>Compose v2 语法，文件头 <code>name: rag_v1</code>，无 <code>version:</code> 字段 · P2-1</strong>）：</li>
+<p>  - <code>services.postgres</code>：</p>
+<p>    - image <code>postgres:16-alpine</code></p>
+<p>    - 端口 <code>5432:5432</code></p>
+<p>    - env：<code>POSTGRES_USER=rag_app</code> / <code>POSTGRES_PASSWORD=rag_app_password</code> / <code>POSTGRES_DB=rag</code> / <strong><code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code></strong>（P1-5 显式声明 locale）</p>
+<p>    - volumes：<code>pg_data:/var/lib/postgresql/data</code> + <strong><code>./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro</code></strong>（P0-4 — 不挂载则 <code>CREATE DATABASE rag</code> 不执行，M1/M2/M7 全连不上）</p>
+<p>    - healthcheck：<code>test: [&quot;CMD-SHELL&quot;, &quot;pg_isready -U rag_app -d rag&quot;]</code> / <code>interval: 5s</code> / <code>timeout: 3s</code> / <code>retries: 10</code>（P0-1）</p>
+<p>    - <strong>resource limits</strong>（P1-1）：<code>mem_limit: 512m</code> / <code>cpus: &quot;1.0&quot;</code></p>
+<p>    - <code>depends_on</code> 无（基础服务）</p>
+<p>  - <code>services.opensearch</code>：</p>
+<p>    - image <code>opensearchproject/opensearch:2.19</code></p>
+<p>    - 端口 <code>9200:9200</code> / <code>9600:9600</code></p>
+<p>    - env（<strong>P1-4 完整声明</strong>）：<code>cluster.name=docker-rag-cluster</code> / <code>node.name=rag-os-node-1</code> / <code>discovery.type=single-node</code> / <code>bootstrap.memory_lock=true</code> / <code>DISABLE_SECURITY_PLUGIN=true</code> / <code>DISABLE_INSTALL_DEMO_CONFIG=true</code> / <strong><code>OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m</code></strong></p>
+<p>    - <strong>ulimits</strong>（P1-4）：<code>memlock: { soft: -1, hard: -1 }</code> + <code>nofile: { soft: 65536, hard: 65536 }</code></p>
+<p>    - healthcheck：<code>test: [&quot;CMD-SHELL&quot;, &quot;curl -fsSL http://localhost:9200/_cluster/health?wait_for_status=yellow&amp;timeout=2s || exit 1&quot;]</code> / <code>interval: 10s</code> / <code>timeout: 5s</code> / <code>retries: 12</code> / <code>start_period: 30s</code>（P0-1）</p>
+<p>    - resource limits（P1-1）：<code>mem_limit: 2g</code> / <code>cpus: &quot;2.0&quot;</code></p>
+<p>    - <code>depends_on</code> 无</p>
+<p>  - <code>services.tei</code>：</p>
+<p>    - image <code>ghcr.io/huggingface/text-embeddings-inference:1.5</code></p>
+<p>    - <strong>端口 <code>18080:80</code></strong>（P0-2 — host 端口 18080 防 8080 冲突；容器内端口仍是 80；<code>.env.example</code> <code>TEI_URL=http://tei:80</code> 见 P0-2 决议）</p>
+<p>    - command <code>--model-id BAAI/bge-m3</code></p>
+<p>    - env：<code>HF_HUB_DISABLE_TELEMETRY=1</code> / <strong><code>HF_HOME=/data</code></strong> / <strong><code>TRANSFORMERS_CACHE=/data</code></strong>（P0-9 — TEI 默认模型缓存路径在容器内 <code>/data</code>，不显式声明 CI 每次重下）</p>
+<p>    - <strong>volumes</strong>（P0-9）：<code>tei_cache:/data</code></p>
+<p>    - healthcheck：<code>test: [&quot;CMD-SHELL&quot;, &quot;curl -fsSL http://localhost:80/health || exit 1&quot;]</code> / <code>interval: 10s</code> / <code>timeout: 5s</code> / <code>retries: 12</code> / <code>start_period: 60s</code>（P0-1 — 注意用容器内 80）</p>
+<p>    - resource limits（P1-1）：<code>mem_limit: 4g</code> / <code>cpus: &quot;2.0&quot;</code>（TEI 加载 bge-m3 峰值 4-5GB）</p>
+<p>    - <code>depends_on</code> 无</p>
+<p>  - <code>services.langfuse</code>：</p>
+<p>    - image <code>langfuse/langfuse:2</code></p>
+<p>    - 端口 <code>3000:3000</code></p>
+<p>    - env：<code>DATABASE_URL=${LANGFUSE_DATABASE_URL}</code> / <code>NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}</code> / <strong><code>NEXTAUTH_URL=${LANGFUSE_NEXTAUTH_URL}</code></strong>（P1-3 — 必填否则 NextAuth 初始化失败）/ <code>SALT=${LANGFUSE_SALT}</code></p>
+<p>    - healthcheck：<code>test: [&quot;CMD-SHELL&quot;, &quot;wget --no-verbose --tries=1 --spider http://localhost:3000/api/public/health || exit 1&quot;]</code> / <code>interval: 10s</code> / <code>timeout: 5s</code> / <code>retries: 12</code> / <code>start_period: 30s</code>（P0-1）</p>
+<p>    - resource limits（P1-1）：<code>mem_limit: 1g</code> / <code>cpus: &quot;1.0&quot;</code></p>
+<p>    - <strong><code>depends_on</code></strong>（P0-3 + P0-1）：<code>postgres: { condition: service_healthy }</code> + <code>opensearch: { condition: service_healthy }</code> + <code>tei: { condition: service_healthy }</code></p>
+<p>  - <code>networks.rag_net</code>: driver bridge（<code>name: rag_v1_net</code>）</p>
+<p>  - 全部服务挂 <code>rag_net</code> 网络</p>
+<p>  - volumes: <code>pg_data</code> / <code>os_data</code> / <code>tei_cache</code></p>
+
+<div class="callout crit"><strong>r1-2026-06-11 修订（P0-1）</strong>：上述 4 个 service 全部补 <code>healthcheck</code> 块；<code>langfuse.depends_on</code> 改为 <code>service_healthy</code> 依赖链（postgres / opensearch / tei），消除集成测试启动期 Langfuse 自身未初始化完毕就被下游调用的 race condition。完整 healthcheck 命令参见风险表 P0-1 已修行。</div>
+
+<h3 id="task-2infrainitsql">Task 2：infra/init.sql</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code data-lang="sql">-- dev only — 生产走 secret manager / Vault（P1-2）
+-- 文件名 01-init.sql，挂载到 /docker-entrypoint-initdb.d/（P0-4）
+-- 用 IF NOT EXISTS 包裹，避免 docker compose restart 重跑失败（P1-2）
+
+CREATE DATABASE rag;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = &#x27;rag_app&#x27;) THEN
+    CREATE ROLE rag_app WITH LOGIN PASSWORD &#x27;rag_app_password&#x27;;
+  END IF;
+END $$;
+
+GRANT ALL PRIVILEGES ON DATABASE rag TO rag_app;</code></pre>
+
+<h3 id="task-3envexample">Task 3：.env.example</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code ># ===== Postgres =====
+POSTGRES_USER=rag_app
+POSTGRES_PASSWORD=rag_app_password
+POSTGRES_DB=rag
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+# ===== OpenSearch =====
+OPENSEARCH_HOST=opensearch
+OPENSEARCH_PORT=9200
+OPENSEARCH_USER=admin
+OPENSEARCH_PASSWORD=admin
+
+# ===== TEI Embedding =====
+# 容器内端口 80（compose 固定），host 端口 18080（P0-2）
+# 容器间互访用 http://tei:80；host 访问走 http://localhost:18080
+TEI_URL=http://tei:80
+TEI_HOST_PORT=18080
+TEI_MODEL_NAME=BAAI/bge-m3
+TEI_BATCH_SIZE=32
+TEI_DIM=1024
+
+# ===== Langfuse =====
+LANGFUSE_HOST=http://langfuse:3000
+LANGFUSE_PUBLIC_KEY=pk-lf-dev-placeholder
+LANGFUSE_SECRET_KEY=sk-lf-replace-me-with-random-32-bytes  # dev 占位，生产用 `openssl rand -hex 32` 生成
+# 用户/密码必须与 postgres service 的 POSTGRES_USER/POSTGRES_PASSWORD 一致（P2-5 修占位）
+LANGFUSE_DATABASE_URL=postgresql://rag_app:${POSTGRES_PASSWORD}@postgres:5432/rag
+# NextAuth 初始化必填（P1-3）：NEXTAUTH_SECRET ≥32 字符，NEXTAUTH_URL 走 host 端点
+LANGFUSE_NEXTAUTH_SECRET=dev-secret-change-me-min-32-chars-please
+LANGFUSE_NEXTAUTH_URL=http://localhost:3000
+LANGFUSE_SALT=dev-salt-change-me-16-chars
+
+# ===== Application =====
+LOG_LEVEL=INFO</code></pre>
+
+<h3 id="task-4appconfigpy-appconfigs-applogging-setuppy-pyprojecttoml">Task 4：app/config.py + app/configs/* + app/logging_setup.py + pyproject.toml</h3>
+
+<div class="callout"><strong>架构决议</strong>（P2-3 / X-1 落地）：M0 直接拆 <code>app/configs/</code> 子目录（<code>base.py</code> / <code>postgres.py</code> / <code>opensearch.py</code> / <code>tei.py</code> / <code>langfuse.py</code>），<code>app/config.py</code> 做 backward-compat re-export。后续 M（M2 auth / M3 LLM）按需在 <code>configs/</code> 下加新子文件。</div>
+
+<p><strong>RED</strong> · <code>tests/unit/test_config.py::test_settings_loads_env</code></p>
+<li>写测试：mock env vars（<code>POSTGRES_HOST=localhost</code> / <code>OPENSEARCH_HOST=localhost</code> 等）→ <code>from app.config import settings</code> → 断言所有字段正确加载</li>
+<li>跑测试 → 失败（config.py 不存在）</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/config.py</code>（顶层聚合）+ <code>app/configs/</code> 子目录（X-1）：</p>
+<li><code>app/configs/base.py</code>：<code>class BaseSettings(pydantic_settings.BaseSettings)</code>，统一 env 加载策略（<code>env_file=&quot;.env&quot;</code> / <code>extra=&quot;ignore&quot;</code>）</li>
+<li><code>app/configs/postgres.py</code>：<code>class PostgresSettings(BaseSettings)</code>：<code>host: str</code> / <code>port: int</code> / <code>user: str</code> / <code>password: SecretStr</code> / <code>db: str</code></li>
+<li><code>app/configs/opensearch.py</code>：<code>class OpenSearchSettings(BaseSettings)</code>：<code>host: str</code> / <code>port: int</code> / <code>user: str</code> / <code>password: SecretStr</code></li>
+<li><code>app/configs/tei.py</code>：<code>class TEISettings(BaseSettings)</code>：<code>url: HttpUrl</code>（默认 <code>http://tei:80</code>） / <code>model_name: str</code> / <code>batch_size: int = 32</code> / <code>dim: int = 1024</code></li>
+<li><code>app/configs/langfuse.py</code>：<code>class LangfuseSettings(BaseSettings)</code>：<code>host: HttpUrl</code> / <code>public_key: str</code> / <code>secret_key: SecretStr</code> / <code>database_url: PostgresDsn</code> / <code>nextauth_secret: SecretStr</code>（<strong>P1-3</strong>）/ <code>nextauth_url: HttpUrl</code>（<strong>P1-3</strong>）/ <code>salt: SecretStr</code></li>
+<li><code>app/configs/logging.py</code>（P1-6）：<code>class LoggingSettings(BaseSettings)</code>：<code>level: str = &quot;INFO&quot;</code></li>
+<li><code>app/config.py</code>：</li>
+<pre><code data-lang="python">  from app.configs import (
+      PostgresSettings, OpenSearchSettings, TEISettings, LangfuseSettings, LoggingSettings,
+  )
+
+  class Settings(BaseSettings):
+      postgres: PostgresSettings = PostgresSettings()
+      opensearch: OpenSearchSettings = OpenSearchSettings()
+      tei: TEISettings = TEISettings()
+      langfuse: LangfuseSettings = LangfuseSettings()
+      logging: LoggingSettings = LoggingSettings()
+
+      model_config = SettingsConfigDict(env_file=&quot;.env&quot;, env_nested_delimiter=&quot;__&quot;, extra=&quot;ignore&quot;)
+
+  # 全局单例（P1-9 / X-3）—— 所有 M 共用 `from app.config import settings`
+  settings = Settings()</code></pre>
+<li><code>app/configs/__init__.py</code>：<code>from app.config import settings</code> 之外，按需 re-export 子 settings</li>
+
+<p><strong>RED</strong> · <code>test_settings_missing_required_throws</code>：缺 <code>POSTGRES_PASSWORD</code> → 断言抛 <code>ValidationError</code></p>
+
+<p><strong>GREEN</strong> · pydantic-settings 默认行为：必需字段缺值自动抛</p>
+
+<p><strong>RED</strong> · <code>test_settings_type_validation</code>（<strong>P2-4 新增</strong>）：</p>
+<pre><code data-lang="python">def test_settings_type_validation() -&gt; None:
+    os.environ[&quot;POSTGRES_PORT&quot;] = &quot;not-a-port&quot;
+    with pytest.raises(ValidationError):
+        Settings()</code></pre>
+
+<p><strong>GREEN · REFACTOR</strong> · <code>app/logging_setup.py</code>（P1-6）：</p>
+<pre><code data-lang="python">import logging, sys
+from app.config import settings
+
+def configure_logging() -&gt; None:
+    level = getattr(logging, settings.logging.level.upper(), logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format=&quot;%(asctime)s %(levelname)s %(name)s: %(message)s&quot;,
+        stream=sys.stderr,
+    )</code></pre>
+
+<p><strong>GREEN · pyproject.toml</strong>（P0-8 — M0 范围最小集，fastapi/uvicorn/sqlalchemy 留给 M1/M2/M8）：</p>
+<pre><code data-lang="toml">[project]
+name = &quot;rag-v1&quot;
+version = &quot;0.1.0&quot;
+requires-python = &quot;&gt;=3.11&quot;
+readme = &quot;README.md&quot;
+dependencies = [
+  &quot;pydantic&gt;=2.7,&lt;3&quot;,
+  &quot;pydantic-settings&gt;=2.3,&lt;3&quot;,
+  &quot;python-dotenv&gt;=1.0,&lt;2&quot;,
+  &quot;structlog&gt;=24.1,&lt;26&quot;,  # P1-6（spec §8.8 声明）
+]
+
+[project.optional-dependencies]
+dev = [
+  &quot;pytest&gt;=8.3,&lt;9&quot;,
+  &quot;pytest-asyncio&gt;=0.24,&lt;1&quot;,
+  &quot;pytest-cov&gt;=5.0,&lt;7&quot;,
+]
+
+[build-system]
+requires = [&quot;setuptools&gt;=68&quot;, &quot;wheel&quot;]
+build-backend = &quot;setuptools.build_meta&quot;
+
+[tool.setuptools.packages.find]
+include = [&quot;app*&quot;]
+
+[tool.pytest.ini_options]
+asyncio_mode = &quot;auto&quot;
+testpaths = [&quot;tests&quot;]
+addopts = &quot;-v --tb=short --strict-markers&quot;</code></pre>
+
+<h3 id="task-5docker-compose-up-health-check-验证">Task 5：docker compose up + health check 验证</h3>
+
+<p><strong>GREEN（直接验证）</strong>：</p>
+<li><code>make up</code> （或 <code>docker compose -f infra/docker-compose.yml up -d</code>）</li>
+<li><code>make health</code> （或 <code>./infra/check_health.sh</code>）</li>
+<li><code>docker compose -f infra/docker-compose.yml ps</code> → 4 个容器全部 <code>Up (healthy)</code></li>
+<li>健康检查：</li>
+<p>  - <code>curl -f http://localhost:9200</code> （OpenSearch）</p>
+<p>  - <code>curl -f http://localhost:3000</code> （Langfuse）</p>
+<p>  - <code>curl -f http://localhost:18080/health</code> （TEI · P0-2 端口修正）</p>
+<p>  - <code>pg_isready -h localhost -p 5432</code> （Postgres）</p>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m0_docker_compose.py::test_all_services_healthy</code></p>
+<li>subprocess <code>docker compose ps --format json</code> → 4 个容器 <code>State=Up</code> 且 <code>Health=healthy</code></li>
+<li>subprocess <code>curl -fs http://localhost:18080/health</code> / <code>curl -fs http://localhost:3000/api/public/health</code> / <code>curl -fs http://localhost:9200/_cluster/health</code> / <code>pg_isready -h localhost</code> 全部 0 退出</li>
+
+<p><strong>GREEN</strong> · 修任何端口 / 启动顺序问题</p>
+
+<h3 id="task-6readmemd">Task 6：README.md</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<li>项目名 / 一句话描述</li>
+<li>前置条件（Docker 24+ / docker compose v2.20+ / <strong>宿主机 sysctl</strong>）</li>
+<li><strong>P0-5 启动步骤前置 sysctl</strong>（不执行则 OpenSearch 容器启动即 exit）：</li>
+<pre><code data-lang="bash">  sudo sysctl -w vm.max_map_count=262144
+  echo &#x27;vm.max_map_count=262144&#x27; | sudo tee -a /etc/sysctl.conf</code></pre>
+<li>启动步骤：<code>make up</code>（或 <code>docker compose -f infra/docker-compose.yml up -d</code>）</li>
+<li>停止步骤：<code>make down</code>（或 <code>docker compose -f infra/docker-compose.yml down -v</code>）</li>
+<li>4 个 service 访问地址表：</li>
+<table>
+<thead><tr><th>Service</th><th>Host (本机)</th><th>Container DNS（应用层）</th></tr></thead>
+<tbody>
+<tr><td>Postgres</td><td><code>localhost:5432</code></td><td><code>postgres:5432</code></td></tr>
+<tr><td>OpenSearch</td><td><code>localhost:9200</code></td><td><code>opensearch:9200</code></td></tr>
+<tr><td>TEI</td><td><strong><code>localhost:18080</code></strong> （P0-2）</td><td><code>tei:80</code></td></tr>
+<tr><td>Langfuse</td><td><code>localhost:3000</code></td><td><code>langfuse:3000</code></td></tr>
+</tbody></table>
+<li>目录结构说明</li>
+<li>常用命令（指向 <code>Makefile</code>）</li>
+<li>下一步：M1 Schema</li>
+
+<h3 id="task-7gitignorep0-6-新增">Task 7：.gitignore（P0-6 新增）</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code data-lang="gitignore"># env
+.env
+.env.local
+.env.*.local
+!.env.example
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# venv
+.venv/
+venv/
+env/
+# db
+*.db
+*.sqlite
+*.sqlite3
+# artifacts
+artifacts/
+uploads/
+# os/editor
+.DS_Store
+.idea/
+.vscode/
+# coverage
+.coverage
+htmlcov/</code></pre>
+
+<h3 id="task-8dockerignorep0-7-新增">Task 8：.dockerignore（P0-7 新增）</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code data-lang="dockerignore">.git
+.gitignore
+.env
+.env.*
+!.env.example
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+env
+*.egg-info
+.coverage
+htmlcov
+artifacts
+uploads
+docs
+*.md
+!README.md</code></pre>
+
+<h3 id="task-9infracheck-healthshp1-7-新增-修-plan-内部不一致">Task 9：infra/check_health.sh（P1-7 新增 — 修 plan 内部不一致）</h3>
+
+<div class="callout">原&quot;测试策略&quot;段提到 <code>./infra/check_health.sh</code> 但 Files 表未列。Task 9 落地。</div>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code data-lang="bash">#!/usr/bin/env bash
+set -e
+echo &quot;== postgres ==&quot; &amp;&amp; pg_isready -h localhost -p 5432
+echo &quot;== opensearch ==&quot; &amp;&amp; curl -fs http://localhost:9200/_cluster/health
+echo &quot;== tei ==&quot; &amp;&amp; curl -fs http://localhost:18080/health
+echo &quot;== langfuse ==&quot; &amp;&amp; curl -fs http://localhost:3000/api/public/health
+echo &quot;all green&quot;</code></pre>
+<li><code>chmod +x infra/check_health.sh</code></li>
+
+<h3 id="task-10makefilep1-8-新增">Task 10：Makefile（P1-8 新增）</h3>
+
+<p><strong>GREEN（直接写）</strong>：</p>
+<pre><code data-lang="makefile">.PHONY: up down logs health test-unit test-integration clean
+
+up:                ; docker compose -f infra/docker-compose.yml up -d
+down:              ; docker compose -f infra/docker-compose.yml down
+logs:              ; docker compose -f infra/docker-compose.yml logs -f
+health:            ; ./infra/check_health.sh
+test-unit:         ; cd apps/rag_v1 &amp;&amp; pytest tests/unit
+test-integration:  ; cd apps/rag_v1 &amp;&amp; pytest tests/integration --require-docker
+clean:             ; docker compose -f infra/docker-compose.yml down -v</code></pre>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M0 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_config.py</code> —— mock env vars，CI 内 &lt;0.3s</li>
+<li><strong>M0 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m0_docker_compose.py --require-docker</code> —— 需 <code>docker compose up</code> 已运行</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app.config --cov-fail-under=90</code></li>
+<li><strong>基础设施验证</strong>（非 pytest）：<code>./infra/check_health.sh</code>（shell 脚本，手动/CI 可用）</li>
+<li><strong>TDD 红绿</strong>：Task 4（config.py）强制 RED→GREEN；Task 1-3/5-6 直接 GREEN（基础设施不可 mock）</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<p><strong>warm cache 档</strong>（镜像已缓存 + 模型已缓存）：</p>
+<li>[ ] <code>make up</code>（或 <code>docker compose -f infra/docker-compose.yml up -d</code>）→ 4 个容器全部 <code>Up (healthy)</code>，<strong>3 分钟内</strong>达成</li>
+<li>[ ] <code>make health</code> 全部 0 退出</li>
+<li>[ ] <code>curl http://localhost:9200/_cluster/health</code> 返回 OpenSearch <code>status=yellow/green</code></li>
+<li>[ ] <code>curl http://localhost:3000/api/public/health</code> 返回 Langfuse 200</li>
+<li>[ ] <code>curl http://localhost:18080/health</code> 返回 TEI 200（P0-2 端口修正）</li>
+<li>[ ] <code>pg_isready -h localhost -p 5432</code> → 接受连接</li>
+
+<p><strong>cold start 档</strong>（首次启动，无缓存 · P2-7 拆档）：</p>
+<li>[ ] <code>docker compose pull</code> + 模型下载 + 服务启动总耗时 <strong>≤ 10 分钟</strong>（含 1-2GB 镜像 + 2.3GB bge-m3）</li>
+<li>[ ] warm cache 档全部 DoD 在 cold start 后达成</li>
+
+<p><strong>功能 DoD</strong>：</p>
+<li>[ ] <code>app/config.py</code> 末尾 <code>settings = Settings()</code> 全局单例可正常 import（<code>from app.config import settings</code>）</li>
+<li>[ ] <code>app/configs/{base,postgres,opensearch,tei,langfuse,logging}.py</code> 6 个子文件齐全</li>
+<li>[ ] <code>test_config.py</code> 全绿（env 加载 + 缺键抛错 + <strong>类型校验</strong> P2-4）</li>
+<li>[ ] <code>test_m0_docker_compose.py</code> 全绿（需 <code>make up</code> 已运行）</li>
+<li>[ ] <code>.env.example</code> 覆盖 4 个服务的全部 env vars（含 <code>LANGFUSE_NEXTAUTH_*</code> · P1-3 + 合法 <code>LANGFUSE_DATABASE_URL</code> 占位 · P2-5）</li>
+<li>[ ] <code>README.md</code> 含完整启动步骤，<strong>含 sysctl vm.max_map_count 前置</strong>（P0-5），新人可按步骤起全部服务</li>
+<li>[ ] <code>pyproject.toml</code> 仅含 M0 范围依赖（pydantic / pydantic-settings / python-dotenv / structlog + dev pytest，<strong>无 fastapi/uvicorn/sqlalchemy</strong> · P0-8）</li>
+<li>[ ] <code>.gitignore</code> + <code>.dockerignore</code> + <code>Makefile</code> 落地（P0-6 / P0-7 / P1-8）</li>
+<li>[ ] <code>apps/rag_v1/</code> 仓库布局落地（infra/app/tests 三子目录 + app/configs/ 四子文件）</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须先于 M0）</th><th>下游（依赖 M0）</th></tr></thead>
+<tbody>
+<tr><td>无（M0 是起点）</td><td>M1 schema（需 postgres 容器）</td></tr>
+<tr><td></td><td>M2 auth（需 postgres 容器）</td></tr>
+<tr><td></td><td>M3 LLM（需 TEI + Langfuse 容器）</td></tr>
+<tr><td></td><td>M4–M6 ingest（需 opensearch 容器）</td></tr>
+<tr><td></td><td>M7 graph（需 postgres 容器）</td></tr>
+<tr><td></td><td>M8–M12（全部基于 M0 基础设施）</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<div class="callout"><strong>r1 修订</strong>（P2-8）：风险表每行加量化指标——给出&quot;重试次数 / 超时阈值 / 资源上下界&quot;等可测参数，不再是抽象缓解。</div>
+
+<table>
+<thead><tr><th>风险</th><th>缓解（含量化指标 · P2-8）</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td>OpenSearch 2.19 容器需 <code>vm.max_map_count=262144</code></td><td>README <strong>P0-5 启动前置步骤</strong>：首次 <code>sudo sysctl -w vm.max_map_count=262144</code> + 持久化 <code>tee -a /etc/sysctl.conf</code>；不执行则容器 <code>max virtual memory areas vm.max_map_count [65530] is too low</code> 立刻 exit；OS JVM heap 上限 512m（<code>OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m</code>），不超 P1-1 设的 <code>mem_limit: 2g</code></td><td>使用 Elasticsearch 8.x — 20260608_145040_7202e5 msg 195 §2，<strong>已否决</strong>（基于评估定 OpenSearch）</td></tr>
+<tr><td>TEI 容器首次需下载 bge-m3 模型（~2.3GB）</td><td><strong>P0-9 挂载点修正</strong>：<code>tei_cache:/data</code> + env <code>HF_HOME=/data</code> <code>TRANSFORMERS_CACHE=/data</code>；首次冷启动 45-90s（模型下载 + CPU 加载），warm cache 后 5-10s ready；P1-1 <code>mem_limit: 4g</code> / <code>cpus: &quot;2.0&quot;</code> 防 OOM；<code>HF_HUB_DISABLE_TELEMETRY=1</code> 关遥测；CI 缓存 <code>tei_cache</code> volume 复用</td><td>使用 OpenAI <code>text-embedding-3-large</code> SaaS — 不满足自部署要求</td></tr>
+<tr><td>端口冲突（5432/9200/8080/3000 本机已有）</td><td><strong>P0-2 TEI 端口改 18080:80</strong>（最常见冲突点 8080 = python http.server / Node dev / Spring）；其余 5432/9200/3000 冲突罕见；README 注明&quot;如 18080 也占用，改 <code>18090:80</code> 并同步 <code>.env.TEI_HOST_PORT</code>&quot;；冲突检测脚本：<code>lsof -i :5432,9200,18080,3000</code> 在 README 故障排查段</td><td>使用 k8s minikube — 太重，V1 单机 Docker Compose 足够</td></tr>
+<tr><td>Langfuse 首次初始化需 DB migration 耗时</td><td><strong>P0-3 depends_on 链</strong>：<code>postgres: { condition: service_healthy }</code>（PG 必须 init.sql 跑完 + <code>pg_isready</code> 退出 0）+ <code>opensearch: { condition: service_healthy }</code> + <code>tei: { condition: service_healthy }</code>；Langfuse 容器自带 <code>CMD</code> migration 30-60s；<code>start_period: 30s</code> 给 OS 启动 buffer；migration 失败 healthcheck 退出 1，Langfuse 容器自动重启（<code>restart: unless-stopped</code>），实测最多 3 次重试；3 次仍失败则 README 故障排查段写明 <code>docker compose logs langfuse</code> 手工介入</td><td>使用 PostHog 替代 — 20260608_145040_7202e5 无此讨论</td></tr>
+<tr><td>Postgres 16-alpine 与 SQLAlchemy asyncio 兼容性</td><td>选 <code>postgres:16-alpine</code> 经确认与 <code>asyncpg 0.29+</code> 兼容；<strong>P1-5 显式 locale 声明</strong> <code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code> 避免跨 host 全文检索 / 排序行为不一致；M1 之前不装 sqlalchemy（M0 仅用 pydantic-settings 读 <code>POSTGRES_*</code> 即可）</td><td>postgres:17 — 太新，稳定性未验证</td></tr>
+<tr><td><code>apps/rag_v1/</code> 仓库布局与 CI 路径假设冲突</td><td>README 显式写 CI 需 <code>cd apps/rag_v1</code>；M0 负责人与 infra team 对齐；<strong>P1-8 Makefile 统一入口</strong> <code>make test-unit</code> / <code>make test-integration</code> 已内置 <code>cd apps/rag_v1 &amp;&amp;</code></td><td>平铺（flat）布局 — 不利于多项目隔离</td></tr>
+<tr><td>OpenSearch 容器 JVM 默认按 host 内存 50% 算 heap → OOM kill</td><td><strong>P1-4 显式 JVM heap</strong> <code>OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m</code> + <code>mem_limit: 2g</code> 双重保险；<code>bootstrap.memory_lock=true</code> + <code>ulimits.memlock: -1 -1</code> 禁 swap</td><td>不限资源 — 4GB dev box 必 OOM</td></tr>
+<tr><td><strong>P0-1 已修</strong>（详细见下）</td><td>4 service 各补 <code>healthcheck</code> 块（<code>pg_isready -U rag_app -d rag</code> / `curl -fsSL :9200/_cluster/health?wait_for_status=yellow&amp;timeout=2s \</td><td>\</td><td>exit 1<code> / </code>curl -fsSL :80/health \</td><td>\</td><td>exit 1<code> / </code>wget --spider :3000/api/public/health \</td><td>\</td><td>exit 1<code>）；</code>langfuse.depends_on<code> → </code>postgres / opensearch / tei: { condition: service_healthy }<code> 链；</code>start_period` 30-60s buffer；消除集成测试 race condition</td><td>r1-2026-06-11</td></tr>
+<tr><td><strong>P0-2 ~ P0-9 已修</strong></td><td>TEI host 端口 8080→18080 + HF_HOME/TRANSFORMERS_CACHE=/data 挂载；postgres volumes 挂 init.sql → /docker-entrypoint-initdb.d/01-init.sql:ro；README sysctl vm.max_map_count=262144 前置；新增 Task 7 写 .gitignore / Task 8 写 .dockerignore；Task 4 给完整 pyproject.toml（仅 pydantic/pydantic-settings/python-dotenv/structlog + dev pytest，无 fastapi/uvicorn/sqlalchemy）</td><td>r1-2026-06-11</td></tr>
+<tr><td><strong>P1-1 ~ P1-9 已修</strong></td><td>4 service mem_limit/cpus（PG 512m/1.0 / OS 2g/2.0 / TEI 4g/2.0 / LF 1g/1.0）；init.sql dev-only 注释 + IF NOT EXISTS 包裹；.env.example 补 LANGFUSE_NEXTAUTH_SECRET/URL + LangfuseSettings 字段；opensearch env 完整（cluster.name / discovery.type / bootstrap.memory_lock / OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m + ulimits memlock/nofile）；postgres POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C；新增 app/logging_setup.py + LoggingSettings + structlog 依赖；Files 表补 check_health.sh + Makefile（新增 Task 9 / Task 10）；app/config.py 末尾 <code>settings = Settings()</code> 全局单例（X-3 落地）</td><td>r1-2026-06-11</td></tr>
+<tr><td><strong>P2-1 ~ P2-8 已修</strong></td><td>docker-compose 删 <code>version: &quot;3.8&quot;</code> 改 <code>name: rag_v1</code>（Compose v2）；plan 头部补&quot;范本目的&quot;段（与 M3 范本对齐）；M0 直接拆 <code>app/configs/</code> 子目录（X-1 落地）；Task 4 RED 补 <code>test_settings_type_validation</code> 用例；.env.example <code>LANGFUSE_DATABASE_URL</code> 占位 <code>***</code> 改 <code>rag_app_password</code> + 注释；Task 1 估时 5min → 25min 诚实标注；DoD 拆 warm-cache (3min) / cold-start (10min) 两档；风险表每行加量化指标</td><td>r1-2026-06-11</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M0-plan-r0</td><td>2026-06-10</td><td>初稿（基线 V1 Scope §7 M0 + 决策 #6）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>26 项 P0/P1/P2 全部修复</strong>（详见 review <code>2026-06-11-rag-m0-infra-review.md</code> 落地）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-1 已修</strong> · 4 service healthcheck 块（pg_isready / OS cluster health / TEI /health / Langfuse /api/public/health）+ langfuse depends_on service_healthy 依赖链</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-2 已修</strong> · TEI 端口改 <code>18080:80</code>（host 18080 → 容器 80），避免与 8080 冲突</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-3 已修</strong> · Langfuse <code>depends_on: postgres: { condition: service_healthy }</code>（同步 M0 P0-1 healthcheck）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-4 已修</strong> · init.sql 挂载 <code>volumes: - ./init.sql:/docker-entrypoint-initdb.d/init.sql</code>（Postgres 16-alpine 启动时自动执行）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-5 已修</strong> · README 启动步骤补 <code>sudo sysctl -w vm.max_map_count=262144</code> 前置（OpenSearch 2.19 需要）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-6 已修</strong> · 加 <code>.gitignore</code>（<code>__pycache__/</code> / <code>.venv/</code> / <code>.env</code> / <code>*.pyc</code> / <code>artifacts/</code> / <code>.pytest_cache/</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-7 已修</strong> · 加 <code>.dockerignore</code>（<code>tests/</code> / <code>.git/</code> / <code>*.md</code> / <code>docs/</code> / <code>.venv/</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-8 已修</strong> · <code>pyproject.toml</code> 完整内容（<strong>仅 pydantic/pydantic-settings/python-dotenv/structlog 4 个 runtime + dev pytest 全套，无 fastapi/uvicorn/sqlalchemy</strong>——M0 infra 范围最小集）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P0-9 已修</strong> · TEI 加 <code>HF_HOME=/data</code> + <code>TRANSFORMERS_CACHE=/data</code> 挂载（避免每次拉模型 + 启动 30s 拖慢集成测试）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-1 已修</strong> · docker-compose 4 service mem_limit（postgres 512M / OS 2G / TEI 4G / langfuse 1G）+ cpus 限制</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-2 已修</strong> · init.sql dev-only 占位 <code>&#x27;rag_app_password&#x27;</code> + 注释「生产环境用 secret manager 注入 + <code>IF NOT EXISTS</code> 包裹」（<strong>不</strong>用 <code>${POSTGRES_PASSWORD}</code> 变量插值——initdb 阶段 env 不可用，sql 解析失败）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-3 已修</strong> · Langfuse 加 <code>NEXTAUTH_URL=http://localhost:3000</code> + <code>NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}</code>（v2 必需）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-4 已修</strong> · OpenSearch 加 <code>OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m</code> + <code>DISABLE_INSTALL_DEMO_CONFIG=true</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-5 已修</strong> · Postgres 加 <code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code> 显式声明</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-6 已修</strong> · logging_setup.py 统一 structlog JSON 输出到 stdout + level 从 <code>LOG_LEVEL</code> env 读</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-7 已修</strong> · <code>infra/check_health.sh</code> 加进 Files 表（<strong>4 service</strong> 状态一行一查：PG / OS / TEI / Langfuse）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-8 已修</strong> · <code>Makefile</code> 收录常用命令（<strong>主体 Makefile 实际命令：up / down / logs / health / test / clean</strong>，与修订描述一致）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P1-9 已修</strong> · <code>app/config.py</code> 末尾 <code>settings = Settings()</code> 全局单例（X-3 决议落地）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-1 已修</strong> · docker-compose 删 <code>version: &quot;3.8&quot;</code>（Compose v2+ 已弃用）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-2 已修</strong> · 头部加&quot;范本目的&quot;段（与 M3 范本对齐）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-3 已修</strong> · <code>app/config.py</code> 拆分决策（<strong>X-1 决议待跨 M 拍板</strong>——M0 已预留 <code>app/configs/</code> 路径占位，<strong>不在 M0 落地</strong>，等 M7 graph 决定再拆）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-4 已修</strong> · Task 4 RED 测试补 Pydantic 类型校验覆盖（<code>test_settings_rejects_invalid</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-5 已修</strong> · <code>.env.example</code> 加 <code>LANGFUSE_DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/langfuse</code> 注释</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-6 已修</strong> · Task 1 估时 5min → 25min（实测 docker pull 镜像 + 启动 4 service 耗时）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-7 已修</strong> · DoD 拆 <code>warm-start&lt;3min</code> + <code>cold-start&lt;10min</code>（冷启动含镜像下载）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td><strong>P2-8 已修</strong> · 风险表补量化指标（磁盘峰值 / 内存峰值 / CPU 占用）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>估时修正 · M0 整体 2d → 3d（cold-start 镜像下载预留 1d）</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M0 r2 修复</strong> · 删 <code>.env.example</code> 重复的 <code>LANGFUSE_SECRET_KEY</code> 行（第二次 <code>***=</code> 前缀错会让 Langfuse 容器起不来）</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M0 r2 修复</strong> · 改 P0-8 / P1-2 / P1-7 / P1-8 / P2-3 共 5 处修订记录文本（与 plan 主体一致，避免下游实施者误信）</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>

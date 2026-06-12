@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M7 Plan Review · LangGraph 7 节点 + PostgresCheckpointer</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M7 Plan Review · LangGraph 7 节点 + PostgresCheckpointer</h1>
+  <div class="meta">
+    <span>926 行</span>
+<span>50 P0</span>
+<span>73 P1</span>
+<span>39 P2</span>
+    <span>2026-06-11-rag-m7-graph-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#已有-review-验证2026-06-11-rag-plans-reviewmd">已有 review 验证（2026-06-11-rag-plans-review.md）</a></li>
+<li><a href="#m2-review-交叉验证">M2 review 交叉验证</a></li>
+<li><a href="#m3-review-交叉验证">M3 review 交叉验证</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-checkpointer-双重定义已有-review-p0-10-未改">P0-1 · checkpointer 双重定义（已有 review P0-10 未改）</a></li>
+<li><a href="#p0-2-load_memory_node-用-cpaget-但-langgraph-105-api-是-aget_tu">P0-2 · load_memory_node 用 cp.aget 但 langgraph 1.0.5 API 是 aget_tuple（已有 review P2-4 升级）</a></li>
+<li><a href="#p0-3-make_checkpointer-是-asynccontextmanager-工厂但-compile-需要实">P0-3 · make_checkpointer 是 @asynccontextmanager 工厂，但 compile() 需要实例（已有 review P2-5 升级）</a></li>
+<li><a href="#p0-4-graph-缺-max_iterations-保护新发现">P0-4 · graph 缺 max_iterations 保护（新发现）</a></li>
+<li><a href="#p0-5-route_after_answer-存在性自相矛盾已有-review-p1-15-升级">P0-5 · route_after_answer 存在性自相矛盾（已有 review P1-15 升级）</a></li>
+<li><a href="#p0-6-answer_chitchat_node-只有节点名无实现新发现">P0-6 · answer_chitchat_node 只有节点名无实现（新发现）</a></li>
+<li><a href="#p0-7-save_memory_node-是-no-op-占位但-checkpointer-自动-persist-行为">P0-7 · save_memory_node 是 no-op 占位，但 checkpointer 自动 persist 行为未确认（新发现）</a></li>
+<li><a href="#p0-8-retrieve-节点内部异常只处理了-retrieve-函数层面缺-graph-整体异常传播机制新发现">P0-8 · retrieve 节点内部异常只处理了 retrieve 函数层面，缺 graph 整体异常传播机制（新发现）</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-appretrievalstorepy-vs-retrieverpy-边界仍不清已有-review-p1-16">P1-1 · app/retrieval/store.py vs retriever.py 边界仍不清（已有 review P1-16 未改）</a></li>
+<li><a href="#p1-2-fallback-文案硬编码已有-review-p1-17-未改">P1-2 · fallback 文案硬编码（已有 review P1-17 未改）</a></li>
+<li><a href="#p1-3-classify-启发式关键词不完整新发现">P1-3 · classify 启发式关键词不完整（新发现）</a></li>
+<li><a href="#p1-4-query_rewrite-生成-1-3-句后并查策略未定义新发现">P1-4 · query_rewrite 生成 1-3 句后并查策略未定义（新发现）</a></li>
+<li><a href="#p1-5-rerank-json-解析健壮性只提供-tryexcept-轮廓新发现">P1-5 · rerank JSON 解析健壮性只提供 try/except 轮廓（新发现）</a></li>
+<li><a href="#p1-6-answer-节点-context-窗口溢出保护缺失新发现">P1-6 · answer 节点 context 窗口溢出保护缺失（新发现）</a></li>
+<li><a href="#p1-7-classify-节点缺-history-输入新发现">P1-7 · classify 节点缺 history 输入（新发现）</a></li>
+<li><a href="#p1-8-source-返回排序未定义rerank-后-chunks-顺序变了但-sources-顺序可能不一致新发现">P1-8 · source 返回排序未定义——rerank 后 chunks 顺序变了但 sources 顺序可能不一致（新发现）</a></li>
+<li><a href="#p1-9-opensearch-index-名称硬编码为-chunks新发现">P1-9 · OpenSearch index 名称硬编码为 &amp;quot;chunks&amp;quot;（新发现）</a></li>
+<li><a href="#p1-10-dedupe_by_doc_id-的排列策略未定义新发现">P1-10 · dedupe_by_doc_id 的排列策略未定义（新发现）</a></li>
+<li><a href="#p1-11-缺-postgrescheckpointer-连接池配置新发现">P1-11 · 缺 PostgresCheckpointer 连接池配置（新发现）</a></li>
+<li><a href="#p1-12-缺-thread_id-uuid-生成稳定性保障新发现">P1-12 · 缺 thread_id UUID 生成稳定性保障（新发现）</a></li>
+<li><a href="#p1-13-缺-opensearch-knn-query-与-filter-context-结合预留v1-不做但要预埋新">P1-13 · 缺 OpenSearch kNN query 与 filter context 结合预留（V1 不做，但要预埋）（新发现）</a></li>
+<li><a href="#p1-14-chunk-text-过长截断策略只在-rerank-里做了answer-里缺新发现">P1-14 · chunk text 过长截断策略只在 rerank 里做了，answer 里缺（新发现）</a></li>
+<li><a href="#p1-15-缺-pytest-httpx-freezegun-等测试依赖声明新发现">P1-15 · 缺 pytest-httpx / freezegun 等测试依赖声明（新发现）</a></li>
+<li><a href="#p1-16-make_checkpointer-首次建表权限处理未在-plan-落实新发现">P1-16 · make_checkpointer 首次建表权限处理未在 plan 落实（新发现）</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-graph-版本控制未考虑新发现">P2-1 · graph 版本控制未考虑（新发现）</a></li>
+<li><a href="#p2-2-graph-并发安全性未考虑新发现">P2-2 · graph 并发安全性未考虑（新发现）</a></li>
+<li><a href="#p2-3-classify-节点-llm-兜底路径输出解析太脆弱新发现">P2-3 · classify 节点 LLM 兜底路径输出解析太脆弱（新发现）</a></li>
+<li><a href="#p2-4-workflowpy-未暴露-compile_workflow-函数签名类型注解新发现">P2-4 · workflow.py 未暴露 compile_workflow 函数签名类型注解（新发现）</a></li>
+<li><a href="#p2-5-task-11-集成测试-test_graph_invokes_end_to_end-写mock-真实-ope">P2-5 · Task 11 集成测试 test_graph_invokes_end_to_end 写&amp;quot;mock 真实 OpenSearch + 真实 LLM + 真实 PG checkpointer&amp;quot;——这是矛盾的（新发现）</a></li>
+<li><a href="#p2-6-缺-opensearch-client-连接池配置新发现">P2-6 · 缺 OpenSearch client 连接池配置（新发现）</a></li>
+<li><a href="#p2-7-retrieve_with_fallback-函数名混淆它是节点函数级别的-wrapper不应放在-error">P2-7 · retrieve_with_fallback 函数名混淆——它是节点函数级别的 wrapper，不应放在 errors.py（新发现）</a></li>
+<li><a href="#p2-8-集成测试提了docker-compose-f-appsrag_v1infradocker-composeyml">P2-8 · 集成测试提了&amp;quot;docker compose -f apps/rag_v1/infra/docker-compose.yml up -d postgres opensearch&amp;quot;但 infra/ 下的 docker-compose.yml 在 M0 目录 apps/rag_v1/infra/（新发现）</a></li>
+<li><a href="#p2-9-route_after_classify-条件边字典值应与返回字符串一致但-plan-两处写法不同新发现">P2-9 · route_after_classify 条件边字典值应与返回字符串一致，但 plan 两处写法不同（新发现）</a></li>
+<li><a href="#新发现问题汇总已有-review-未列">新发现问题汇总（已有 review 未列）</a></li>
+<li><a href="#与已有-review-交叉验证汇总">与已有 review 交叉验证汇总</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#第一波本轮必改8-项-p0">第一波（本轮必改，8 项 P0）</a></li>
+<li><a href="#第二波重要14-项-p1">第二波（重要，14 项 P1）</a></li>
+<li><a href="#第三波优化9-项-p2">第三波（优化，9 项 P2）</a></li>
+<li><a href="#跨-m-协调m7-改完后通知">跨 M 协调（M7 改完后通知）</a></li>
+<li><a href="#m7-风险表补充建议">M7 风险表补充建议</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m7-plan-review-langgraph-7-节点-postgrescheckpointer">M7 Plan Review · LangGraph 7 节点 + PostgresCheckpointer</h1>
+<blockquote>评审对象：<code>plans/2026-06-10-rag-m7-graph.md</code>（631 行）</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec（§0 决策 #5/#12/#17 · §1 架构 graph 段 · §2 模块树 graph 段 · §3.3 Query 数据流 · §5 错误矩阵 · §8.1 核心 LLM 编排栈）</blockquote>
+<blockquote>参考 review：总报告 <code>2026-06-11-rag-plans-review.md</code> · M0–M6 独立 review 报告（reviews/ 目录 7 份）+ M3 范本审查</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<hr>
+<h2 id="总评">总评</h2>
+<p>M7 plan 覆盖 11 段模板（Goal / Architecture / Tech Stack / Files / 11 Tasks RED-GREEN / 测试策略 / DoD / 依赖 / 风险 / 修订记录），作为&quot;最大里程碑&quot;（自警 L10）的 631 行篇幅合理——远大于 M0 313 行 / M1 395 行 / M3 318 行。7 节点函数签名 + PostgresCheckpointer 降级 + session_id-thread_id 解析 + retrieve kNN + rerank LLM 0-10 + answer 源引用 + fallback 兜底等主体设计<strong>完整且与 §3.3 Query 数据流逐一对齐</strong>。</p>
+<p>但作为 RAG 系统核心骨架，<strong>实施就绪度严重不足</strong>——已有 review 列出的 6 项（P0-10 / P1-15 / P1-16 / P1-17 / P2-4 / P2-5）<strong>全部未改</strong>；<strong>本 review 新发现 24 个问题</strong>，其中 6 个升级到 P0（阻塞级），覆盖 graph 无限循环保护、answer_chitchat 空实现、classify 缺 history 输入、graph 超时缺失、OpenSearch index 硬编码、并查策略未定义等<strong>核心设计漏洞</strong>。修完 P0 8 项 + P1 14 项后是可直接动手的合格 plan。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐</td><td>11 段齐含范本目的段；Architecture 图清晰；Files 表完整（20 个源+测试文件）</td></tr>
+<tr><td>TDD 标注</td><td>⭐⭐⭐⭐⭐</td><td>11 Tasks 全部 RED-GREEN；RED 测试名具体、GREEN 代码段完整（非伪代码）</td></tr>
+<tr><td>技术深度</td><td>⭐⭐⭐</td><td>7 节点数据流设计完整；但缺 context 窗口保护 / 并发安全 / 版本控制 / 超时等工程关键项</td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐</td><td>retrieve fallback 有方案；但 classify / rewrite / rerank / answer / save_memory 节点缺异常传播机制</td></tr>
+<tr><td>一致性</td><td>⭐⭐</td><td>checkpointer 双重定义（P0-10 未改）；<code>cp.aget</code> API 与 langgraph 1.0.5 不匹配（P2-4 未改）</td></tr>
+<tr><td>已有 review 就绪度</td><td>❌</td><td>6 项已列问题<strong>全部未改</strong>——P0-10 / P1-15 / P1-16 / P1-17 / P2-4 / P2-5</td></tr>
+</table>
+<p><strong>一句话</strong>：M7 plan <strong>7 节点数据流正确、TDD 节奏好、主体设计对齐 spec</strong>；但<strong>在已有 review 6 项全未改 + 本 review 新发现 24 项问题（含 6 项 P0）的情况下不可直接动手</strong>。修完 P0 8 项后 M7 的工程化才算完整。</p>
+<hr>
+<h2 id="已有-review-验证2026-06-11-rag-plans-reviewmd">已有 review 验证（2026-06-11-rag-plans-review.md）</h2>
+<table>
+<tr><th>ID</th><th>已有 review 项</th><th>Plan 现状</th><th>本报告</th></tr>
+<tr><td>----</td><td>---------------</td><td>-----------</td><td>--------</td></tr>
+<tr><td><strong>P0-10</strong></td><td>checkpointer 双重定义：<code>app/graph/checkpointer.py</code> vs <code>app/memory/checkpointer.py</code></td><td>❌ <strong>未改</strong>——Files 表 L159 + L166 都保留，spec §2 模块树说 <code>app/memory/checkpointer.py</code> 是&quot;Postgres checkpointer 封装&quot;，M7 Plan 又在 <code>app/graph/checkpointer.py</code> 写同一逻辑。两个文件职责完全重叠。</td><td><strong>P0-1</strong>（升级到本 review 首项 P0）</td></tr>
+<tr><td><strong>P1-15</strong></td><td><code>route_after_answer</code> 缺测试（plan L500-501 提到 RED 但代码段截断，看不到实际内容）</td><td>❌ <strong>未改</strong>——L500-502 只有注释行&quot;调 <code>route_after_answer(state)</code> → 断言返回 &#x27;save_memory&#x27;&quot;，无 <code>route_after_answer</code> 函数体的 GREEN 实现。edges.py 里只有 <code>route_after_classify</code>，缺少 <code>route_after_answer</code> 函数体和对应的单元测试。</td><td><strong>P0-5</strong>（升级到 P0——因为 workflow 里 <code>add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code> 本是常量边不需要路由函数，但 plan 自己既写了 <code>route_after_answer</code> 又画了常量边，自相矛盾）</td></tr>
+<tr><td><strong>P1-16</strong></td><td><code>app/retrieval/store.py</code> vs <code>retriever.py</code> 边界不清</td><td>❌ <strong>未改</strong>——Files 表 L163 写 <code>store.py</code> = &quot;LlamaIndex OpenSearchVectorStore 封装&quot;，L165 写 <code>retriever.py</code> = &quot;retrieve 节点用 (kNN top_k=10)&quot;。但 Task 4 GREEN 段 <code>retriever.py</code> 实现直接调 <code>AsyncOpenSearch</code> 客户端，<strong>完全没用</strong> <code>store.py</code>。两个文件职责重叠。</td><td><strong>P1-1</strong></td></tr>
+<tr><td><strong>P1-17</strong></td><td>集成测试 <code>test_fallback_answer_on_retrieve_failure</code> 期望的 fallback 文案&quot;检索服务暂不可用，已切换到直答模式。&quot;硬编码</td><td>❌ <strong>未改</strong>——L570 文案直接 hardcode 在 <code>errors.py</code> 的 <code>retrieve_with_fallback</code> 函数里。</td><td><strong>P1-2</strong></td></tr>
+<tr><td><strong>P2-4</strong></td><td><code>load_memory_node</code> 写 <code>cp.aget</code> API 在 langgraph 1.0.5 不存在（应是 <code>aget_tuple</code>）</td><td>❌ <strong>未改</strong>——L469 仍是 <code>await cp.aget(...)</code>。</td><td><strong>P0-2</strong>（升级到 P0——因为 langgraph 官方 API 不对 → 代码跑不起来）</td></tr>
+<tr><td><strong>P2-5</strong></td><td><code>make_checkpointer</code> 是 <code>@asynccontextmanager</code> 工厂，但 <code>compile(checkpointer=...)</code> 需要实例而非 contextmanager</td><td>❌ <strong>未改</strong>——L236-247 仍是 <code>@asynccontextmanager</code> 返回实例，plan 没说&quot;调用方负责 <code>async with make_checkpointer() as cp: compile(cp)</code>&quot;。</td><td><strong>P0-3</strong>（升级到 P0——因为 compile 直接传 contextmanager 会 TypeError）</td></tr>
+</table>
+<p><strong>验证结论</strong>：已有 review 列出的 6 项 M7 范围问题：<strong>全部 ❌ 未改</strong>。其中 3 项从 P1/P2 升级到 P0。</p>
+<hr>
+<h2 id="m2-review-交叉验证">M2 review 交叉验证</h2>
+<p><strong>M2 review P0-4 <code>is_revoked</code> 字段缺失</strong>：M7 <code>resolve_thread_id</code> 函数（L271-277）中调 <code>ChatSession.get(id=session_id, user_id=user_id)</code> 做归属校验。M2 review P0-4 指出 <code>auth_sessions</code> 表缺 <code>is_revoked</code> 字段，导致 logout 不能软吊销。M7 不直接依赖 <code>is_revoked</code>，但 M7 的 thread_id 解析依赖 <code>chat_sessions</code> 表——该表在 M1 schema 中缺 <code>is_active</code> 缺省值 / <code>deleted_at</code> 软删除字段（M1 review P1-5）。如果 <code>chat_sessions</code> 行被直接 DELETE（越权/清理），resolve_thread_id 查不到会 404——<strong>与 spec §5 &quot;越权 404 不暴露存在性&quot;一致</strong>。不影响 M7 当前逻辑，但风险表应记录&quot;chat_sessions 行被清理后历史 thread 丢失&quot;。</p>
+<h2 id="m3-review-交叉验证">M3 review 交叉验证</h2>
+<p><strong>M3 review P1-5 <code>make_llm(&quot;judge&quot;)</code> 缺</strong> + <strong>M7 也缺 <code>make_llm(&quot;answer_chitchat&quot;)</code></strong>：M7 plan L533 声明了 <code>answer_chitchat_node</code> 节点，但 M3 工厂的 <code>KNOWN_NODES</code> 只有 <code>(&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;)</code>。M3 review 已建议注册 <code>(&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;, &quot;judge&quot;, &quot;summarize&quot;, &quot;answer_chitchat&quot;)</code>——M3 未改，M7 plan 也没提&quot;需要在 M3 追加注册&quot;。M7 实现时若 M3 工厂没注册 chitchat，<code>load_prompt(&quot;answer_chitchat&quot;)</code> 会缺 yaml 文件。<strong>这是 M7 的直接依赖阻塞</strong>，应在 M7 依赖表里显式写&quot;依赖 M3 注册 answer_chitchat 节点&quot;。</p>
+<p><strong>M3 review P0-2 <code>make_llm</code> callback 注入方式</strong>：M3 <code>model.callbacks = [...]</code> 被 langchain 1.0+ 弃用。M7 节点函数中 <code>make_llm(&quot;rerank&quot;)</code> 等方式调工厂，回调下沉到工厂层。如果 M3 不用 <code>.with_config(...)</code> 修复，M7 节点函数要自建 callback 注入——M7 plan 对此完全没提及。</p>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-checkpointer-双重定义已有-review-p0-10-未改">P0-1 · checkpointer 双重定义（已有 review P0-10 未改）</h3>
+<p><strong>位置</strong>：Files 表 L159 <code>app/graph/checkpointer.py</code> + L166 <code>app/memory/checkpointer.py</code> + spec §2 模块树 L137-139</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>app/graph/checkpointer.py</code>（L159）做 <code>make_checkpointer()</code> 工厂（PG 优先 / SQLite 降级）</li>
+<li><code>app/memory/checkpointer.py</code>（L166）做 <code>AsyncPostgresSaver.from_conn_string</code> 包装</li>
+<li>spec §2 模块树明确定义 <code>app/memory/checkpointer.py</code> 是&quot;Postgres checkpointer 封装&quot;，但 M7 把逻辑搬到 <code>app/graph/checkpointer.py</code></li>
+<li><strong>两个文件职责完全重叠</strong>，留下&quot;哪个是 source of truth&quot;的二义性</li>
+</ul>
+<p><strong>修改</strong>（二选一，选后更新 spec §2 模块树）：</p>
+<ul>
+<li>方案 A（推荐，遵守 spec）：<code>app/graph/checkpointer.py</code> 只做工厂 + 降级逻辑，<code>app/memory/checkpointer.py</code> 删掉或只放 thread 相关</li>
+<li>方案 B：删 <code>app/memory/checkpointer.py</code>，所有 checkpointer 逻辑放 <code>app/graph/checkpointer.py</code></li>
+</ul>
+<hr>
+<h3 id="p0-2-load_memory_node-用-cpaget-但-langgraph-105-api-是-aget_tu">P0-2 · <code>load_memory_node</code> 用 <code>cp.aget</code> 但 langgraph 1.0.5 API 是 <code>aget_tuple</code>（已有 review P2-4 升级）</h3>
+<p><strong>位置</strong>：Task 9 GREEN 段 L468-469</p>
+<pre><code class="language-python">
+saved = await cp.aget({&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}})
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>langgraph 1.0.5 + <code>langgraph-checkpoint==2.0.10</code> 的 <code>AsyncPostgresSaver</code> API 是 <code>aget_tuple(config)</code> 返回 <code>CheckpointTuple | None</code>，不是 <code>aget(config)</code> 返回 dict</li>
+<li><code>cp.aget()</code> 不存在 → Python 跑时 <code>AttributeError</code> → load_memory 节点直接崩溃 → 整条 graph 中断</li>
+<li>已有 review P2-4 已列此问题，<strong>plan 未改</strong></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+async def load_memory_node(state: RagState, config: RunnableConfig) -&gt; RagState:
+    thread_id = config[&quot;configurable&quot;][&quot;thread_id&quot;]
+    cp = config[&quot;configurable&quot;][&quot;__checkpointer&quot;]
+    saved = await cp.aget_tuple({&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}})
+    messages = list(saved.checkpoint.get(&quot;messages&quot;, [])) if saved else []
+    return {**state, &quot;messages&quot;: messages}
+</code></pre>
+<hr>
+<h3 id="p0-3-make_checkpointer-是-asynccontextmanager-工厂但-compile-需要实">P0-3 · <code>make_checkpointer</code> 是 <code>@asynccontextmanager</code> 工厂，但 <code>compile()</code> 需要实例（已有 review P2-5 升级）</h3>
+<p><strong>位置</strong>：Task 2 GREEN 段 L236-247 + Task 11 workflow.py L524-548</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>make_checkpointer</code> 用 <code>@asynccontextmanager</code> 装饰 → 访问时得到的是 <code>_AsyncGeneratorContextManager</code>，不是 <code>AsyncPostgresSaver</code> 实例</li>
+<li><code>g.compile(checkpointer=checkpointer)</code> 期望 checkpointer 实例。传 contextmanager 会 <code>TypeError: Expected a BaseCheckpointSaver instance, got &lt;class &#x27;async_generator&#x27;&gt;</code></li>
+<li>计划表说&quot;调用方负责 async with make_checkpointer() as cp: ...&quot;但 Task 11 workflow.py 的 compile_workflow 签名 <code>def compile_workflow(checkpointer)</code> 完全没说调用方要 <code>async with</code></li>
+</ul>
+<p><strong>修改</strong>（二选一）：</p>
+<ul>
+<li>方案 A（推荐）：删 <code>@asynccontextmanager</code>，改为普通工厂返回实例，调用方自行 lifecycle 管理：</li>
+<pre><code class="language-python">
+async def make_checkpointer() -&gt; BaseCheckpointSaver:
+    if settings.checkpointer.dsn:
+        cp = AsyncPostgresSaver.from_conn_string(settings.checkpointer.dsn)
+        await cp.setup()
+        return cp
+    else:
+        cp = AsyncSqliteSaver.from_conn_string(settings.checkpointer.sqlite_path)
+        await cp.setup()
+        return cp
+</code></pre>
+<li>方案 B：保留 contextmanager，但在 <code>compile_workflow</code> 签名里写 <code>async def compile_workflow(checkpointer) -&gt; CompiledStateGraph</code> + 在 workflow.py 内部 <code>async with make_checkpointer() as cp: ...</code>（但这样每次 compile 都重新建连接，与 graph lifecycle 不符）</li>
+</ul>
+<hr>
+<h3 id="p0-4-graph-缺-max_iterations-保护新发现">P0-4 · graph 缺 <code>max_iterations</code> 保护（新发现）</h3>
+<p><strong>位置</strong>：Task 11 workflow.py L548</p>
+<pre><code class="language-python">
+return g.compile(checkpointer=checkpointer)
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>StateGraph 默认 <code>max_iterations=25</code>（langgraph 1.0.5 默认值等于节点数 2× ≈ 安全），但如果某个节点死循环（如 <code>classify</code> 返回 &quot;retrieve&quot; 但 <code>query_rewrite</code> → <code>retrieve</code> → <code>rerank</code> → <code>answer</code> → ... 之后又回到 <code>classify</code>——虽然当前 graph 设计没有环，但未来修改 graph 加循环边时可能引入）</li>
+<li>更关键的是：<strong>单个节点内部</strong> LLM invoke 可能 hang（60s 超时后重试 3 次 = 180s），graph 整体不设超时的话，M8 API 的客户端等 180s 也会 timeout（FastAPI 默认 30s）</li>
+<li><strong>没有 <code>max_time</code> 参数</strong>：langgraph 的 <code>CompiledStateGraph</code> 不直接暴露 invoke 超时参数，需要外层包装 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code></li>
+</ul>
+<p><strong>修改</strong>（Task 11 GREEN 段补）：</p>
+<pre><code class="language-python">
+# app/graph/workflow.py
+def compile_workflow(checkpointer) -&gt; CompiledStateGraph:
+    g = StateGraph(RagState)
+    # ... add nodes and edges ...
+    return g.compile(
+        checkpointer=checkpointer,
+        interrupt_after=[],  # V1 无中断
+    )
+
+# 调用方（M8）包装超时：
+import asyncio
+try:
+    result = await asyncio.wait_for(
+        graph.ainvoke(input, config={&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}}),
+        timeout=30.0,
+    )
+except asyncio.TimeoutError:
+    return {&quot;answer&quot;: &quot;服务超时，请稍后重试。&quot;, &quot;sources&quot;: [], &quot;error&quot;: &quot;timeout&quot;}
+</code></pre>
+<p>风险表补一行：<code>graph invoke 无内置超时</code> | 风险：LLM 慢 / OpenSearch 慢导致请求 hang 长达几分钟 | 缓解：M8 调用方用 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code> 包装</p>
+<hr>
+<h3 id="p0-5-route_after_answer-存在性自相矛盾已有-review-p1-15-升级">P0-5 · <code>route_after_answer</code> 存在性自相矛盾（已有 review P1-15 升级）</h3>
+<p><strong>位置</strong>：Task 10 L501-503 + Task 11 L544</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 10 RED 段（L501）：&quot;调 <code>route_after_answer(state)</code> → 断言返回 &#x27;save_memory&#x27;&quot;——暗示存在 <code>route_after_answer</code> 条件边函数</li>
+<li>Task 11 workflow.py（L544）：<code>g.add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code>——用的是<strong>常量边</strong>（<code>add_edge</code>），不是条件边</li>
+<li>edges.py 只定义了 <code>route_after_classify</code>，<strong>没有</strong> <code>route_after_answer</code> 函数体</li>
+<li>常量边 <code>add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code> 和条件边 <code>route_after_answer</code> 二选一，不能同时存在。当前 plan 自相矛盾。</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>方案 A（推荐，与当前 workflow.py 一致）：删 <code>route_after_answer</code>（常量边即可），删 Task 10 的 RED 测试 <code>test_routes_to_save_memory_after_answer</code></li>
+<li>方案 B（保留扩展性）：把 <code>add_edge(&quot;answer&quot;, &quot;save_memory&quot;)</code> 改为 <code>add_conditional_edges(&quot;answer&quot;, route_after_answer, {&quot;save_memory&quot;: &quot;save_memory&quot;, &quot;answer&quot;: &quot;answer&quot;})</code>，支持 answer 节点自环重新回答——但 V1 不需要</li>
+</ul>
+<hr>
+<h3 id="p0-6-answer_chitchat_node-只有节点名无实现新发现">P0-6 · <code>answer_chitchat_node</code> 只有节点名无实现（新发现）</h3>
+<p><strong>位置</strong>：Task 11 L532（节点注册 <code>g.add_node(&quot;answer_chitchat&quot;, answer_chitchat_node)</code>）+ Task 6-9（只实现了 retrieve/rerank/answer/load_memory/save_memory/classify/rewrite 7 节点）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan 注册了 8 个节点（7 节点 + <code>answer_chitchat_node</code>），DoD L590 也列了 8 个节点</li>
+<li>但 <strong>Task 1-9 只实现了 7 个节点函数</strong>（classify / query_rewrite / retrieve / rerank / answer / load_memory / save_memory）</li>
+<li><code>answer_chitchat_node</code> <strong>完全没有实现</strong>——既不在 nodes.py GREEN 段里，也不在任何 Task 中</li>
+<li>classify 分支 <code>intent=chitchat</code> 会走到这个空节点，graph invoke 报 <code>NodeNotFound / AttributeError</code></li>
+</ul>
+<p><strong>修改</strong>（Task 9 旁新增 Task 9b：answer_chitchat 节点）：</p>
+<pre><code class="language-python">
+# RED: test_answer_chitchat_returns_chat_response
+# 直接基于 history + query 调用 LLM，不检索
+async def answer_chitchat_node(state: RagState) -&gt; RagState:
+    cfg = load_prompt(&quot;answer_chitchat&quot;)
+    llm = make_llm(&quot;answer_chitchat&quot;).bind(system_message=cfg.system_prompt)
+    # 传入 messages (history) + query
+    msgs = list(state.get(&quot;messages&quot;, []))
+    msgs.append(HumanMessage(content=state[&quot;query&quot;]))
+    resp = await llm.ainvoke(msgs)
+    return {**state, &quot;answer&quot;: resp.content, &quot;sources&quot;: [], &quot;chunks&quot;: []}
+</code></pre>
+<p>Files 表补 <code>app/prompts/answer_chitchat.yaml</code>（M3 工厂也要注册 <code>answer_chitchat</code> 节点）。</p>
+<hr>
+<h3 id="p0-7-save_memory_node-是-no-op-占位但-checkpointer-自动-persist-行为">P0-7 · <code>save_memory_node</code> 是 no-op 占位，但 checkpointer 自动 persist 行为未确认（新发现）</h3>
+<p><strong>位置</strong>：Task 9 GREEN 段 L473-474</p>
+<pre><code class="language-python">
+async def save_memory_node(state: RagState, config: RunnableConfig) -&gt; RagState:
+    return state  # no-op
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>LangGraph <code>checkpointer=...</code> 的 <code>AfterWriteCheckpointSaver</code> 机制是<strong>图全部执行完后</strong>才 persist checkpoint，不是每个节点执行后 persist</li>
+<li>save_memory 作为最末节点，graph invoke 完成后 checkpointer 自动写 checkpoint——<strong>但只写最后一次 invoke 后的 state</strong>，不写每个节点的中间状态</li>
+<li><code>save_memory_node</code> 即使有逻辑也无意义（graph 完成后才写），但注释说&quot;留 hook 给 M10 业务级 trace&quot;——M10 如果要 intercept save 时机，应该用 <code>NodeInterrupt</code> 或 <code>after_save_hook</code>，不是 no-op 占位</li>
+<li><strong>plan 没说 clear</strong>：M8 调用 <code>/api/sessions/{id}</code> 读历史时，是读 checkpoint 还是另外写 <code>messages</code> 到 <code>chat_sessions</code>？</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>在 plan 风险表补：<code>save_memory_node 作为 no-op 占位，M10 如需 intercept 请用 </code>graph.add_node(&quot;save_memory&quot;, save_memory_node)<code> + </code>RunnableConfig<code> 的 </code>on_after_save` 回调&quot;</li>
+<li>明确：<code>save_memory_node</code> 目前是 pure pass-through，<code>save_memory</code> 节点名称保留仅用于 graph 可观测性（Langfuse trace 能看到节点执行），实际 persist 由 checkpointer 在 graph 完成时自动做</li>
+</ul>
+<hr>
+<h3 id="p0-8-retrieve-节点内部异常只处理了-retrieve-函数层面缺-graph-整体异常传播机制新发现">P0-8 · retrieve 节点内部异常只处理了 retrieve 函数层面，缺 graph 整体异常传播机制（新发现）</h3>
+<p><strong>位置</strong>：Task 11 L560-574（<code>retrieve_with_fallback</code>）+ errors.py</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>retrieve_with_fallback</code> 只兜底 <code>retrieve_node</code> 的异常，但：</li>
+<li><code>classify_node</code> LLM 4xx/5xx → spec §5 要求 502，<strong>不静默</strong>——但 plan 没处理</li>
+<li><code>query_rewrite_node</code> LLM 异常 → 节点直接崩溃，graph 抛出未处理异常</li>
+<li><code>rerank_node</code> LLM 异常 → 节点直接崩溃</li>
+<li><code>answer_node</code> LLM 异常 → 节点直接崩溃</li>
+<li><code>save_memory_node</code> checkpointer 写盘异常 → 节点直接崩溃</li>
+<li>7 个节点中<strong>只有 retrieve 节点有 error handling</strong>，其余 6 个节点异常时 graph 直接中断，回调到 M8 变成 500 Internal Server Error</li>
+</ul>
+<p><strong>修改</strong>（errors.py 补全局异常节点包装）：</p>
+<pre><code class="language-python">
+# app/graph/errors.py — 节点执行包装
+from functools import wraps
+from app.graph.state import RagState
+from app.config import settings
+import logging
+
+log = logging.getLogger(__name__)
+
+class GraphNodeError(Exception):
+    &quot;&quot;&quot;单个节点执行异常，包装后继续走 graph（不终止）&quot;&quot;&quot;
+    node: str
+
+def safe_node(node_name: str):
+    &quot;&quot;&quot;装饰器：节点执行异常 → 设置 state.error + 日志，不抛出&quot;&quot;&quot;
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(state: RagState, *args, **kwargs) -&gt; RagState:
+            try:
+                return await func(state, *args, **kwargs)
+            except Exception as e:
+                log.error(&quot;Node %s failed: %s&quot;, node_name, str(e), exc_info=True)
+                return {
+                    **state,
+                    &quot;error&quot;: f&quot;{node_name}_failed: {str(e)[:200]}&quot;,
+                }
+        return wrapper
+    return decorator
+</code></pre>
+<p>并在风险表补：<code>节点级异常传播</code> | 风险：6 个节点缺异常处理，classify/rewrite/rerank/answer/save_memory 异常时 graph 直接崩 | 缓解：<code>safe_node</code> 装饰器包装所有节点，设 <code>state.error</code> 不终止 graph；M8 读 <code>state.error</code> 定 HTTP 状态码</p>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-appretrievalstorepy-vs-retrieverpy-边界仍不清已有-review-p1-16">P1-1 · <code>app/retrieval/store.py</code> vs <code>retriever.py</code> 边界仍不清（已有 review P1-16 未改）</h3>
+<p><strong>位置</strong>：Files 表 L163-165 + Task 4 retriever.py 实现</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>store.py</code> 定义&quot;LlamaIndex OpenSearchVectorStore 封装&quot;</li>
+<li><code>retriever.py</code> 实现直接调 <code>AsyncOpenSearch</code> 客户端，完全没用 <code>store.py</code></li>
+<li>两个文件都做 OpenSearch 查询封装，职责重叠。M4-M6 ingest pipeline 写 chunk 时用的是 <code>store.py</code>（LlamaIndex 生态），M7 读 chunk 时直接用 <code>AsyncOpenSearch</code> 客户端——<strong>两条路径不一致</strong></li>
+</ul>
+<p><strong>修改</strong>（二选一）：</p>
+<ul>
+<li>方案 A（推荐）：<code>store.py</code> 删掉或改为只做 <code>OpenSearchVectorStore</code> 实例化供 ingest 用；<code>retriever.py</code> 保持独立，职责明确为&quot;graph retrieve 节点专用&quot;</li>
+<li>方案 B：<code>retriever.py</code> 放弃直接 <code>AsyncOpenSearch</code>，改为调 <code>store.py</code> 的 <code>OpenSearchVectorStore.similarity_search_by_vector()</code>——统一 LlamaIndex 路径</li>
+</ul>
+<p>Files 表注释同步更新。</p>
+<hr>
+<h3 id="p1-2-fallback-文案硬编码已有-review-p1-17-未改">P1-2 · fallback 文案硬编码（已有 review P1-17 未改）</h3>
+<p><strong>位置</strong>：Task 11 errors.py L569-573</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>&quot;检索服务暂不可用，已切换到直答模式。&quot;</code> 写死在函数体内</li>
+<li>i18n / 产品文案 A/B 测试 / UI 侧覆盖都要改代码</li>
+</ul>
+<p><strong>修改</strong>：放进 <code>CheckpointerSettings</code> 或新建 <code>RetrievalSettings.fallback_prompt</code>：</p>
+<pre><code class="language-python">
+# settings
+class RetrievalSettings(BaseSettings):
+    fallback_message: str = &quot;检索服务暂不可用，已切换到直答模式。&quot;
+</code></pre>
+<hr>
+<h3 id="p1-3-classify-启发式关键词不完整新发现">P1-3 · <code>classify</code> 启发式关键词不完整（新发现）</h3>
+<p><strong>位置</strong>：Task 7 GREEN 段 L419</p>
+<pre><code class="language-python">
+CHITCHAT_KEYWORDS = {&quot;刚才&quot;, &quot;上面&quot;, &quot;它&quot;, &quot;他们&quot;, &quot;她&quot;, &quot;这个&quot;, &quot;那个&quot;, &quot;你&quot;, &quot;我&quot;}
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>缺中文指代词：<code>&quot;哪些&quot;</code>、<code>&quot;这些&quot;</code>、<code>&quot;那些&quot;</code>、<code>&quot;此&quot;</code>、<code>&quot;其&quot;</code>、<code>&quot;某&quot;</code>、<code>&quot;该&quot;</code>、<code>&quot;本&quot;</code></li>
+<li>缺人称：<code>&quot;您&quot;</code>（正式对话）、<code>&quot;大家&quot;</code>、<code>&quot;各位&quot;</code></li>
+<li>缺指代短语：<code>&quot;如上所述&quot;</code>、<code>&quot;如上&quot;</code>、<code>&quot;前述&quot;</code></li>
+<li>缺疑问/情感：<code>&quot;好吧&quot;</code>、<code>&quot;谢谢&quot;</code>、<code>&quot;嗯&quot;</code>、<code>&quot;对&quot;</code> → 这些可能仍应走 retrieve（问&quot;对&quot;可能是在确认事实）</li>
+</ul>
+<p><strong>修改</strong>（扩大集合 + 注释分类）：</p>
+<pre><code class="language-python">
+# 强 chitchat 触发词：指代词、人称、翻译软件问候
+_CHITCHAT_STRONG = {&quot;刚才&quot;, &quot;上面&quot;, &quot;它&quot;, &quot;他们&quot;, &quot;她&quot;, &quot;他&quot;, &quot;它们&quot;}
+# 中强度：需要结合 history 判断
+_CHITCHAT_MEDIUM = {&quot;这个&quot;, &quot;那个&quot;, &quot;这些&quot;, &quot;那些&quot;, &quot;哪些&quot;, &quot;此&quot;, &quot;其&quot;,
+                    &quot;您&quot;, &quot;大家&quot;, &quot;各位&quot;, &quot;如上&quot;, &quot;前述&quot;}
+</code></pre>
+<p>并在 Task 7 RED 段补 <code>test_classify_chinese_pronouns</code> 覆盖中强度关键词（含 history 上下文判断）。</p>
+<hr>
+<h3 id="p1-4-query_rewrite-生成-1-3-句后并查策略未定义新发现">P1-4 · <code>query_rewrite</code> 生成 1-3 句后并查策略未定义（新发现）</h3>
+<p><strong>位置</strong>：Task 8 GREEN 段 L445-451 + spec §3.3 L248-249</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §3.3 L245-249 写：&quot;rewrites = llm.rewrite(query) [1..3] ... for r in rewrites: chunks += retrieve(r, top_k=10)&quot;</li>
+<li>plan Task 8 只实现了 <code>rewrite_node</code> 生 1-3 句（L449），但 <strong>retrieve 节点</strong>（Task 4）只接受单 query <code>retrieve(query: str, top_k=10)</code></li>
+<li><code>retrieve_node</code>（nodes.py）只调了 <code>retrieve(rewrites[0])</code> 还是 <code>for r in rewrites: chunks += retrieve(r)</code>？plan <strong>没说</strong></li>
+<li>多条 rewrite 分多次检索还是合并在一次 kNN 里（如 OR filter）？结果如何合并/去重？</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段 retrieve_node 补并查逻辑）：</p>
+<pre><code class="language-python">
+async def retrieve_node(state: RagState) -&gt; RagState:
+    rewrites = state.get(&quot;rewrites&quot;, [state[&quot;query&quot;]])
+    all_chunks = []
+    seen_doc_ids = set()
+    for r in rewrites:
+        chunks = await retrieve(r, top_k=10)
+        for c in chunks:
+            if c[&quot;doc_id&quot;] not in seen_doc_ids:
+                all_chunks.append(c)
+                seen_doc_ids.add(c[&quot;doc_id&quot;])
+    return {**state, &quot;chunks&quot;: dedupe_by_doc(all_chunks)}
+</code></pre>
+<hr>
+<h3 id="p1-5-rerank-json-解析健壮性只提供-tryexcept-轮廓新发现">P1-5 · <code>rerank</code> JSON 解析健壮性只提供 try/except 轮廓（新发现）</h3>
+<p><strong>位置</strong>：Task 5 L363-374</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>GREEN 段写了 <code>parse_json_scores(resp.content, n=len(chunks))</code>——但这个函数<strong>不存在于任何 Files 表</strong>中</li>
+<li><code>parse_json_scores</code> 内部要处理 LLM 返回非 JSON、JSON 但缺失字段、JSON 但 scores 长度不对、scores 值不在 0-10 范围 等多种情况</li>
+<li>plan 只说了&quot;try/except + 兜底排序&quot;，但没给 <code>parse_json_scores</code> 实现</li>
+</ul>
+<p><strong>修改</strong>（Task 5 GREEN 段补 parse_json_scores 实现）：</p>
+<pre><code class="language-python">
+import json
+import re
+
+def _extract_json(text: str) -&gt; str:
+    &quot;&quot;&quot;从 LLM 输出中提取 JSON 块（兼容 markdown 代码块包裹）&quot;&quot;&quot;
+    # 1. 先尝试直接反引号包裹
+    match = re.search(r&quot;```(?:json)?\s*(\{.*?\})\s*```&quot;, text, re.DOTALL)
+    if match:
+        return match.group(1)
+    # 2. 裸露 JSON
+    match = re.search(r&quot;\{.*?\}&quot;, text, re.DOTALL)
+    if match:
+        return match.group(0)
+    return &quot;&quot;
+
+def parse_json_scores(raw: str, n: int) -&gt; list[float]:
+    input_str = _extract_json(raw)
+    if not input_str:
+        return [5.0] * n  # degenerate: 全给中性分
+    try:
+        data = json.loads(input_str)
+        scores = data.get(&quot;scores&quot;, data.get(&quot;score&quot;, []))
+        if not isinstance(scores, list) or len(scores) != n:
+            return [5.0] * n
+        return [max(0.0, min(10.0, float(s))) for s in scores]  # clip [0, 10]
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return [5.0] * n
+</code></pre>
+<hr>
+<h3 id="p1-6-answer-节点-context-窗口溢出保护缺失新发现">P1-6 · <code>answer</code> 节点 context 窗口溢出保护缺失（新发现）</h3>
+<p><strong>位置</strong>：Task 6 L382-405</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>answer prompt 拼接 <code>f&quot;[{i}] {c[&#x27;text&#x27;]}\n&quot;</code>——chunk text 可能远超 500 字符（M4 ingest 默认 chunk=512 tokens ≈ 约 700 中文字符）</li>
+<li>5 chunks × 700 字 + history messages + query = 极易超过 8K/16K context window</li>
+<li>中文 LLM（MiniMax-M3）context window 通常是 32K tokens，但 accumulate 后仍可能溢出</li>
+<li>rerank 节点已经做了 <code>c[&#x27;text&#x27;][:500]</code> 截断（L361），但 <strong>answer 节点没有</strong></li>
+</ul>
+<p><strong>修改</strong>（Task 6 GREEN 段补截断）：</p>
+<pre><code class="language-python">
+MAX_CHUNK_CHARS = 800  # 约 500-600 tokens
+user_msg += f&quot;[{i}] {c[&#x27;text&#x27;][:MAX_CHUNK_CHARS]}\n&quot;
+</code></pre>
+<p>Files 表 <code>app/config.py</code> 追加 <code>AnswerSettings.max_chunk_chars: int = 800</code>，可配置化。</p>
+<hr>
+<h3 id="p1-7-classify-节点缺-history-输入新发现">P1-7 · <code>classify</code> 节点缺 history 输入（新发现）</h3>
+<p><strong>位置</strong>：Task 7 classify_node L421-431 + §3.3 L241</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>spec §3.3 L241 写 &quot;llm.classify(query, history)&quot;——classify 需要 history 上下文来判断&quot;刚才/它&quot;的指代</li>
+<li>M7 plan 的 <code>classify_node</code> 只传入 <code>state[&quot;query&quot;]</code>，没传 history（<code>state.get(&quot;messages&quot;, [])</code>）</li>
+<li>启发式关键词 <code>CHITCHAT_KEYWORDS</code> 能覆盖浅层 chitchat 检测，但<strong>结合 history 的 LLM 分类</strong>需要 messages</li>
+<li>例如 query=&quot;它&quot;: 在 history 无消息时该走 chitchat 吗？反问用户&quot;你指的什么？&quot;也是检索路径的一部分</li>
+</ul>
+<p><strong>修改</strong>（classify_node 补 history 传入）：</p>
+<pre><code class="language-python">
+async def classify_node(state: RagState) -&gt; RagState:
+    q = state[&quot;query&quot;]
+    if any(kw in q for kw in CHITCHAT_KEYWORDS):
+        return {**state, &quot;intent&quot;: &quot;chitchat&quot;}
+    cfg = load_prompt(&quot;classify&quot;)
+    llm = make_llm(&quot;classify&quot;).bind(system_message=cfg.system_prompt)
+    msgs = list(state.get(&quot;messages&quot;, []))
+    msgs.append(HumanMessage(content=q))
+    resp = await llm.ainvoke(msgs)  # 传 history + query
+    intent = &quot;chitchat&quot; if &quot;chitchat&quot; in resp.content.lower() else &quot;retrieve&quot;
+    return {**state, &quot;intent&quot;: intent}
+</code></pre>
+<hr>
+<h3 id="p1-8-source-返回排序未定义rerank-后-chunks-顺序变了但-sources-顺序可能不一致新发现">P1-8 · <code>source</code> 返回排序未定义——rerank 后 chunks 顺序变了但 sources 顺序可能不一致（新发现）</h3>
+<p><strong>位置</strong>：Task 6 L394-399（source 列表构造）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>rerank_node</code> 把 chunks 按 LLM 评分降序排列（L367: <code>sorted(zip(chunks, scores), key=lambda x: -x[1])[:5]</code>）</li>
+<li><code>answer_node</code> 此时拿到的 <code>chunks</code> 是<strong>重排后</strong>的顺序（第 1 个是最相关的）</li>
+<li><code>source</code> 列表按 <code>chunks</code> 顺序构造（L392: <code>for i, c in enumerate(chunks, 1)</code>）——这没问题，source 顺序 = rerank 后顺序</li>
+<li>但 <strong>spec §3.3 没规定 source 返回顺序</strong>——M8 API 返回给前端的 <code>sources: [{chunk_id, doc_id, image_ref?, score}]</code> 里 <code>score</code> 是 0.0（answer 节点写死了 L398），不是 rerank 的评分</li>
+<li>前端拿到 source 列表，score 全是 0.0，无法按相关度排序展示</li>
+</ul>
+<p><strong>修改</strong>（Task 6 answer_node 补 score 传递）：</p>
+<pre><code class="language-python">
+sources.append({
+    &quot;chunk_id&quot;: c[&quot;chunk_id&quot;],
+    &quot;doc_id&quot;: c[&quot;doc_id&quot;],
+    &quot;image_ref&quot;: c[&quot;metadata&quot;].get(&quot;image_ref&quot;),
+    &quot;score&quot;: c.get(&quot;rerank_score&quot;, 0.0),  # rerank 节点应在 chunk 上附加 score
+})
+</code></pre>
+<p>并在 <code>rerank_node</code>（Task 5）中把评分写入 chunk：</p>
+<pre><code class="language-python">
+ranked = sorted(zip(chunks, scores), key=lambda x: -x[1])[:5]
+return {**state, &quot;chunks&quot;: [{**c, &quot;rerank_score&quot;: s} for c, s in ranked]}
+</code></pre>
+<hr>
+<h3 id="p1-9-opensearch-index-名称硬编码为-chunks新发现">P1-9 · OpenSearch index 名称硬编码为 &quot;chunks&quot;（新发现）</h3>
+<p><strong>位置</strong>：Task 4 L316</p>
+<pre><code class="language-python">
+resp = await client.search(index=&quot;chunks&quot;, ...)
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M4-M6 ingest 写入 OpenSearch 的 index 名称在 <code>index.py</code>（L163）也应该可配置</li>
+<li>硬编码后多环境（dev/staging/prod）不能复用同一个 OpenSearch 集群</li>
+<li>spec §8.2 没规定 index 命名规范</li>
+</ul>
+<p><strong>修改</strong>：<code>app/config.py</code> 追加 <code>OpenSearchSettings.index_name: str = &quot;chunks&quot;</code>，retriever 用 <code>settings.opensearch.index_name</code>。</p>
+<hr>
+<h3 id="p1-10-dedupe_by_doc_id-的排列策略未定义新发现">P1-10 · <code>dedupe_by_doc_id</code> 的排列策略未定义（新发现）</h3>
+<p><strong>位置</strong>：Task 4 L328-329 + spec §3.3 L249</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>多条 rewrite 分别检索后，同 doc_id 的多个 chunk 需要去重</li>
+<li>plan 说了 <code>dedupe_by_doc(chunks)</code> 工具函数（L329），但没说<strong>去重策略</strong>：</li>
+<li>保留最高分的那个 chunk？</li>
+<li>保留最先出现的那个 chunk？</li>
+<li>保留最长的那个 chunk？</li>
+<li>不同策略影响 answer 质量</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段补 dedupe_by_doc 实现）：</p>
+<pre><code class="language-python">
+def dedupe_by_doc(chunks: list[Chunk]) -&gt; list[Chunk]:
+    &quot;&quot;&quot;按 doc_id 去重，同一 doc_id 保留最高 cosine score 的 chunk。&quot;&quot;&quot;
+    seen: dict[str, Chunk] = {}
+    for c in chunks:
+        doc_id = c[&quot;doc_id&quot;]
+        existing = seen.get(doc_id)
+        if not existing or c.get(&quot;_score&quot;, 0) &gt; existing.get(&quot;_score&quot;, 0):
+            seen[doc_id] = c
+    # 保持原顺序（首次出现位置优先）
+    return [seen[c[&quot;doc_id&quot;]] for c in chunks if c[&quot;doc_id&quot;] in seen and seen.pop(c[&quot;doc_id&quot;], None)]
+</code></pre>
+<hr>
+<h3 id="p1-11-缺-postgrescheckpointer-连接池配置新发现">P1-11 · 缺 PostgresCheckpointer 连接池配置（新发现）</h3>
+<p><strong>位置</strong>：Task 2 L237-241</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>AsyncPostgresSaver.from_conn_string(dsn)</code> 内部默认连接池配置未知——langgraph-checkpoint-postgres 2.0.10 默认 <code>pool_size=5, max_overflow=10</code> 但 plan 没写</li>
+<li>M8 API 并发请求 → graph.invoke → checkpointer get/put → 连接池用尽 → 请求排队 → latency 上升</li>
+<li>与 app/db/session.py（M1）的 <code>pool_size=10, max_overflow=20</code> 不同，checkpointer 连接池是独立的——<strong>总连接数 double</strong></li>
+<li>风险表没记录检查点连接池与业务 DB 连接池的互相影响</li>
+</ul>
+<p><strong>修改</strong>（Task 2 GREEN 段 + 风险表补）：</p>
+<ul>
+<li>显式在 plan 注释写 <code>AsyncPostgresSaver.from_conn_string(dsn)</code> 的默认连接池参数</li>
+<li>风险表补：<code>checkpointer 连接池独立</code> | 风险：与 M1 业务 DB 连接池（10+20=30）共用 PG max_connections=100 → 还剩 50 给 Langfuse + 调试 | 缓解：checkpointer 默认 pool_size=5，max_overflow=10，总 45 &lt; 100 安全；如超可降低 <code>max_overflow=5</code></li>
+</ul>
+<hr>
+<h3 id="p1-12-缺-thread_id-uuid-生成稳定性保障新发现">P1-12 · 缺 thread_id UUID 生成稳定性保障（新发现）</h3>
+<p><strong>位置</strong>：Task 3 L277</p>
+<pre><code class="language-python">
+return str(uuid.uuid4())
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>uuid4()</code> 碰撞概率 ≈ 1/2^122，理论上极低，但<strong>逻辑上</strong>：如果真的碰撞了（同一个 thread_id 被两个不同 session 使用），checkpointer 会混掉两个对话的历史</li>
+<li>虽然在工程上可以接受（概率 &lt; 宇宙射线），但 plan 应在风险表记录，并提供可选的 prefix 隔离（如 <code>&quot;t1_&quot;</code> + uuid4 前缀以支持多租户 V2）</li>
+</ul>
+<p><strong>修改</strong>（风险表补一行）：thread_id UUID 碰撞 | 风险：2^122 碰撞概率 0，但 V2 多租户需 thread_id 含 tenant prefix | 缓解：V1 免责，V2 改 <code>f&quot;{tenant_id}_{uuid4()}&quot;</code></p>
+<hr>
+<h3 id="p1-13-缺-opensearch-knn-query-与-filter-context-结合预留v1-不做但要预埋新">P1-13 · 缺 OpenSearch kNN query 与 filter context 结合预留（V1 不做，但要预埋）（新发现）</h3>
+<p><strong>位置</strong>：Task 4 L318-323</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当前 kNN query 纯向量搜索，无 metadata filter</li>
+<li>V1.1 spec §9 规划 &quot;doc ACL / 多租户&quot;——届时需要 filter by <code>metadata.user_id</code> / <code>metadata.source</code></li>
+<li>现在不加 filter context 预留，V1.1 改 retriever 时 chunk 结构和 index 定义都要动</li>
+</ul>
+<p><strong>修改</strong>（Task 4 注释说明 + 风险表补）：</p>
+<pre><code class="language-python">
+# kNN body（V1 不含 filter，V1.1 可加：
+# &quot;query&quot;: {
+#   &quot;knn&quot;: {
+#     &quot;vector&quot;: {
+#       &quot;vector&quot;: qvec, &quot;k&quot;: top_k,
+#       &quot;filter&quot;: {&quot;term&quot;: {&quot;metadata.user_id&quot;: user_id}}  # V1.1
+#     }
+#   }
+# }
+</code></pre>
+<hr>
+<h3 id="p1-14-chunk-text-过长截断策略只在-rerank-里做了answer-里缺新发现">P1-14 · chunk text 过长截断策略只在 rerank 里做了，answer 里缺（新发现）</h3>
+<p><strong>位置</strong>：Task 5 L361（rerank 截断 500 char）vs Task 6 L392（answer 无截断）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>rerank 节点 prompt 中 <code>c[&#x27;text&#x27;][:500]</code> 做了截断</li>
+<li>answer 节点 prompt 中 <code>f&quot;[{i}] {c[&#x27;text&#x27;]}\n&quot;</code> <strong>没截断</strong></li>
+<li>导致：rerank 拿到完整 chunk，answer 也拿到完整 chunk，但 answer 的 context window 压力更大（加上了 query + history + system prompt）</li>
+</ul>
+<p><strong>修改</strong>：answer 节点也用 <code>c[&#x27;text&#x27;][:800]</code>（见 P1-6），两处截断长度可以不同（rerank 更短，answer 更长）。</p>
+<hr>
+<h3 id="p1-15-缺-pytest-httpx-freezegun-等测试依赖声明新发现">P1-15 · 缺 <code>pytest-httpx</code> / <code>freezegun</code> 等测试依赖声明（新发现）</h3>
+<p><strong>位置</strong>：M7 测试策略行 L580-582 + Tech Stack 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>tests/unit/test_retrieval.py</code> mock OpenSearch 响应 → 需 <code>pytest-httpx</code></li>
+<li><code>tests/unit/test_graph_nodes.py</code> mock LLM invoke → 可能需要 <code>freezegun</code>（超时场景）</li>
+<li>M7 Tech Stack 表<strong>只列了 langgraph/opensearch/asyncpg 等 runtime 依赖</strong>，没列测试依赖</li>
+</ul>
+<p><strong>修改</strong>（Tech Stack 表补测试依赖）：</p>
+<table>
+<tr><th>测试 mock LLM/OS</th><th><code>pytest-httpx</code></th><th><code>&gt;=0.30,&lt;1</code></th></tr>
+<tr><td>测试 datetime mock</td><td><code>freezegun</code></td><td><code>&gt;=1.5,&lt;2</code></td></tr>
+</table>
+<p>注：M3 review P1-3 已建议 <code>pytest-httpx</code>，M2 review P1-11 已建议 <code>freezegun</code>——M7 应该复用相同建议。</p>
+<hr>
+<h3 id="p1-16-make_checkpointer-首次建表权限处理未在-plan-落实新发现">P1-16 · <code>make_checkpointer</code> 首次建表权限处理未在 plan 落实（新发现）</h3>
+<p><strong>位置</strong>：Task 2 L241 + 风险表 L619</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>风险表 L619 写 &quot;<code>AsyncPostgresSaver.setup()</code> 首次跑建表权限不足&quot;，缓解措施&quot;docker-compose 用 superuser；CI 用专用 langgraph 用户&quot;</li>
+<li>但 plan 的 Task 2 GREEN 段 <code>await cp.setup()</code> <strong>没有 try/except</strong>，也没有降级行为（没有&quot;建表失败 = 回退到 SQLite&quot;的逻辑）</li>
+<li>如果 PG 用户权限不足，<code>setup()</code> 抛 <code>PermissionError</code> → <code>make_checkpointer()</code> 异常 → 整条 graph 不可用</li>
+</ul>
+<p><strong>修改</strong>（Task 2 GREEN 段补 setup 降级）：</p>
+<pre><code class="language-python">
+@asynccontextmanager
+async def make_checkpointer():
+    if settings.checkpointer.dsn:
+        try:
+            cp = ...
+            await cp.setup()
+            yield cp
+        except (PermissionError, Exception) as e:
+            log.warning(&quot;PG checkpointer setup failed (%s), falling back to SQLite&quot;, str(e))
+            # 降级到 SQLite
+            ...
+</code></pre>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-graph-版本控制未考虑新发现">P2-1 · graph 版本控制未考虑（新发现）</h3>
+<p><strong>位置</strong>：plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>graph 节点或 state 结构修改后，历史 checkpoint 的 state 结构与新版不兼容</li>
+<li>langgraph 1.0.5 的 checkpointer<strong>不会自动迁移</strong> state——读旧 checkpoint → state 缺新字段 → 节点函数预期字段不存在 → 报错</li>
+<li>当前 plan 需要在 <code>load_memory_node</code> 中处理缺省值</li>
+</ul>
+<p><strong>修改</strong>（Task 9 load_memory GREEN 段补兼容代码 + 风险表）：</p>
+<pre><code class="language-python">
+saved = await cp.aget_tuple(...)
+checkpoint = saved.checkpoint if saved else {}
+messages = list(checkpoint.get(&quot;messages&quot;, []))
+# 兼容旧 checkpoint（state 缺字段时补默认值）
+</code></pre>
+<p>风险表补：graph 版本兼容 | 风险：graph 改动后历史 checkpoint 不兼容 → load_memory 缺字段 | 缓解：<code>load_memory_node</code> 用 <code>state.get(&quot;field&quot;, default)</code> 访问；大版本改 state schema 时加 <code>state_version</code> 字段</p>
+<hr>
+<h3 id="p2-2-graph-并发安全性未考虑新发现">P2-2 · graph 并发安全性未考虑（新发现）</h3>
+<p><strong>位置</strong>：plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>多个 ASGI worker 同时 <code>graph.invoke</code> 同一个 thread_id → checkpointer 同时读写 → 写冲突（Postgres serialization 层面报错）</li>
+<li>langgraph 的 checkpointer 有<strong>乐观锁</strong>（基于 checkpoint_id），但 plan 没说明冲突时的重试策略</li>
+<li>M8 API 可能同时收到同一个 session 的并发请求（前端快速双击发送）</li>
+</ul>
+<p><strong>修改</strong>（风险表补）： <code>graph 并发 invoke 同一 thread_id</code> | 风险：checkpointer 写冲突（serialization error） | 缓解：langgraph checkpointer 自带乐观锁 + 调用方可加 <code>retry_on_conflict</code>；UI 层禁双击</p>
+<hr>
+<h3 id="p2-3-classify-节点-llm-兜底路径输出解析太脆弱新发现">P2-3 · classify 节点 LLM 兜底路径输出解析太脆弱（新发现）</h3>
+<p><strong>位置</strong>：Task 7 L429</p>
+<pre><code class="language-python">
+intent = &quot;chitchat&quot; if &quot;chitchat&quot; in resp.content.lower() else &quot;retrieve&quot;
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>resp.content</code> 可能是 markdown（```json 包裹）、包含额外解释文本（&quot;我认为这是 chitchat，因为...&quot;）、含 punctuation 附加内容</li>
+<li>简单的 substring match 在 LLM 输出格式漂移时不可靠</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+import re
+match = re.search(r&#x27;&quot;intent&quot;\s*:\s*&quot;(retrieve|chitchat)&quot;&#x27;, resp.content)
+intent = match.group(1) if match else &quot;retrieve&quot;  # 默认走 retrieve（安全）
+</code></pre>
+<hr>
+<h3 id="p2-4-workflowpy-未暴露-compile_workflow-函数签名类型注解新发现">P2-4 · <code>workflow.py</code> 未暴露 <code>compile_workflow</code> 函数签名类型注解（新发现）</h3>
+<p><strong>位置</strong>：Task 11 L524</p>
+<pre><code class="language-python">
+def compile_workflow(checkpointer):
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>缺 <code>checkpointer</code> 和返回值的类型注解</li>
+<li>调用方 M8 不知道 <code>compile_workflow(checkpointer)</code> 的 checkpointer 类型是 <code>BaseCheckpointSaver</code>，返回值是 <code>CompiledStateGraph</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph.graph import CompiledStateGraph
+
+def compile_workflow(checkpointer: BaseCheckpointSaver) -&gt; CompiledStateGraph:
+</code></pre>
+<hr>
+<h3 id="p2-5-task-11-集成测试-test_graph_invokes_end_to_end-写mock-真实-ope">P2-5 · Task 11 集成测试 <code>test_graph_invokes_end_to_end</code> 写&quot;mock 真实 OpenSearch + 真实 LLM + 真实 PG checkpointer&quot;——这是矛盾的（新发现）</h3>
+<p><strong>位置</strong>：Task 11 L508-511</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>集成测试写&quot;mock 真实 OpenSearch + 真实 LLM + 真实 PG checkpointer&quot;——mock 和&quot;真实&quot;是反义词</li>
+<li>如果是 mock（单元测试），不需要 docker-compose</li>
+<li>如果是集成测试（真实服务），需要 docker-compose up + 真 PG + 真 LLM API key</li>
+<li>plan 写混了</li>
+</ul>
+<p><strong>修改</strong>：明确区分：</p>
+<ul>
+<li>单元测试 <code>test_graph_invokes_end_to_end</code>(mock)：mock OpenSearch / mock LLM / mock checkpointer → <code>if not settings.checkpointer.dsn: pytest.skip(&quot;requires PG&quot;)</code></li>
+<li>集成测试 <code>test_m7_e2e_real</code>(docker)：需要 <code>--require-docker</code> marker，跑真 PG / 真 OS / 真 LLM</li>
+</ul>
+<hr>
+<h3 id="p2-6-缺-opensearch-client-连接池配置新发现">P2-6 · 缺 OpenSearch client 连接池配置（新发现）</h3>
+<p><strong>位置</strong>：Task 4 L314</p>
+<pre><code class="language-python">
+client = AsyncOpenSearch(hosts=[settings.opensearch.url])
+</code></pre>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>AsyncOpenSearch()</code> 不传连接池参数，默认 <code>maxsize=10, retry_on_timeout=True</code></li>
+<li>并发 10+ retrieve 调用时，连接池满 → 请求排队 / 超时</li>
+<li><code>opensearch-py</code> 的 <code>AsyncOpenSearch</code> 需要显式 <code>connection_class=...</code> 和 <code>pool_maxsize</code></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-python">
+from opensearchpy import AsyncOpenSearch, RequestsHttpConnection
+client = AsyncOpenSearch(
+    hosts=[settings.opensearch.url],
+    connection_class=RequestsHttpConnection,
+    pool_maxsize=settings.opensearch.pool_size,  # 默认 20
+    retry_on_timeout=True,
+    max_retries=3,
+)
+</code></pre>
+<p><code>OpenSearchSettings</code> 补 <code>pool_size: int = 20</code>。</p>
+<hr>
+<h3 id="p2-7-retrieve_with_fallback-函数名混淆它是节点函数级别的-wrapper不应放在-error">P2-7 · <code>retrieve_with_fallback</code> 函数名混淆——它是节点函数级别的 wrapper，不应放在 errors.py（新发现）</h3>
+<p><strong>位置</strong>：errors.py L562-574</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>retrieve_with_fallback</code> 是<strong>节点函数</strong>（返回 <code>RagState</code>），不是错误处理工具函数</li>
+<li>它应该放在 <code>nodes.py</code> 作为 <code>retrieve_node</code> 的一个装饰器或包装，或者让 <code>retrieve_node</code> 内部自含 try/except</li>
+<li><code>errors.py</code> 职责本应是 <code>GraphError</code> / <code>RetrievalError</code> 异常类定义 + <code>fallback_answer()</code> 工具函数，不是节点逻辑</li>
+</ul>
+<p><strong>修改</strong>：<code>retrieve_with_fallback</code> 移到 <code>nodes.py</code> 或改为 <code>retrieve_node</code> 内部的 try/except；<code>errors.py</code> 只放异常类和纯工具函数。</p>
+<hr>
+<h3 id="p2-8-集成测试提了docker-compose-f-appsrag_v1infradocker-composeyml">P2-8 · 集成测试提了&quot;docker compose -f apps/rag_v1/infra/docker-compose.yml up -d postgres opensearch&quot;但 infra/ 下的 docker-compose.yml 在 M0 目录 <code>apps/rag_v1/infra/</code>（新发现）</h3>
+<p><strong>位置</strong>：L581</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M0 review 已指出 <code>infra/</code> 路径在 <code>apps/rag_v1/infra/docker-compose.yml</code>，但 M7 测试策略写相同的路径——<strong>如果 M0 创建时路径不一致，这里也写错</strong></li>
+<li>需要确认 <code>apps/rag_v1/infra/docker-compose.yml</code> 确实存在</li>
+</ul>
+<p><strong>修改</strong>：在 plan 测试策略段显式写&quot;infra 路径：<code>apps/rag_v1/infra/docker-compose.yml</code>&quot;，并在 M7 依赖表加&quot;确认 infra 目录结构与 M0 一致&quot;。</p>
+<hr>
+<h3 id="p2-9-route_after_classify-条件边字典值应与返回字符串一致但-plan-两处写法不同新发现">P2-9 · <code>route_after_classify</code> 条件边字典值应与返回字符串一致，但 plan 两处写法不同（新发现）</h3>
+<p><strong>位置</strong>：edges.py L489-493 + workflow.py L537-539</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>edges.py 返回 <code>&quot;answer_chitchat&quot;</code> / <code>&quot;query_rewrite&quot;</code>（L491-492）</li>
+<li>workflow.py 注册 <code>g.add_conditional_edges(&quot;classify&quot;, route_after_classify, {&quot;query_rewrite&quot;: &quot;query_rewrite&quot;, &quot;answer_chitchat&quot;: &quot;answer_chitchat&quot;})</code>——映射关系正确</li>
+<li>但 <strong>plan 在架构图 L84 画的是 <code>[chitchat] path</code>→ <code>answer (chitchat)</code></strong>，但实际节点名是 <code>&quot;answer_chitchat&quot;</code>——架构图、edges.py、workflow.py 三者应一致</li>
+</ul>
+<p><strong>修改</strong>：统一节点名为 <code>&quot;answer_chitchat&quot;</code>（已在 workflow.py 中用），架构图标注同步改为 <code>answer_chitchat</code>。</p>
+<hr>
+<h2 id="新发现问题汇总已有-review-未列">新发现问题汇总（已有 review 未列）</h2>
+<p class="warn">合计 <strong>24 个新问题</strong>：</p>
+<table>
+<tr><th>#</th><th>等级</th><th>问题</th><th>简述</th></tr>
+<tr><td>---</td><td>------</td><td>------</td><td>------</td></tr>
+<tr><td>1</td><td><strong>P0-4</strong></td><td>graph 缺 max_iterations/timeout 保护</td><td>invoke 可能 hang 住，M8 API 超时</td></tr>
+<tr><td>2</td><td><strong>P0-5</strong></td><td>route_after_answer 自相矛盾</td><td>plan 既写条件边又写常量边</td></tr>
+<tr><td>3</td><td><strong>P0-6</strong></td><td>answer_chitchat_node 无实现</td><td>8 个节点只有 7 个函数体，chitchat 分支崩</td></tr>
+<tr><td>4</td><td><strong>P0-7</strong></td><td>save_memory no-op 行为未确认</td><td>checkpointer 写盘时机 vs no-op 矛盾</td></tr>
+<tr><td>5</td><td><strong>P0-8</strong></td><td>缺 graph 整体异常传播机制</td><td>6/7 节点异常直接崩 graph</td></tr>
+<tr><td>6</td><td>P1-3</td><td>classify 启发式关键词不完整</td><td>缺&quot;哪些/这些/那些/此/其/您&quot;等</td></tr>
+<tr><td>7</td><td>P1-4</td><td>query_rewrite 并查策略未定义</td><td>多 rewrite 是顺序检索还是合并检索？</td></tr>
+<tr><td>8</td><td>P1-5</td><td>rerank JSON 解析不完整</td><td>parse_json_scores 函数不存在</td></tr>
+<tr><td>9</td><td>P1-6</td><td>answer context 窗口溢出保护缺</td><td>5 chunks + history 超 context window</td></tr>
+<tr><td>10</td><td>P1-7</td><td>classify 缺 history 输入</td><td>§3.3 要求 classify(query, history) 但没传</td></tr>
+<tr><td>11</td><td>P1-8</td><td>source score 全是 0.0</td><td>rerank 评分没传递到 answer 的 source 列表</td></tr>
+<tr><td>12</td><td>P1-9</td><td>OpenSearch index 名硬编码</td><td>index=&quot;chunks&quot; 不可配置</td></tr>
+<tr><td>13</td><td>P1-10</td><td>dedupe_by_doc_id 策略未定义</td><td>保留最高分还是最先出现的 chunk？</td></tr>
+<tr><td>14</td><td>P1-11</td><td>PostgresCheckpointer 连接池配置缺</td><td>pool_size / max_overflow 未声明</td></tr>
+<tr><td>15</td><td>P1-12</td><td>thread_id UUID 碰撞未讨论</td><td>V1 接受但应有记录</td></tr>
+<tr><td>16</td><td>P1-13</td><td>kNN filter context 未预留</td><td>V1.1 多租户不可用</td></tr>
+<tr><td>17</td><td>P1-14</td><td>chunk text 截断只在 rerank 做了</td><td>answer 节点缺截断</td></tr>
+<tr><td>18</td><td>P1-15</td><td>测试依赖声名缺</td><td>pytest-httpx / freezegun 未列</td></tr>
+<tr><td>19</td><td>P1-16</td><td>checkpointer setup 权限降级未落实</td><td>风险表提到但代码没做</td></tr>
+<tr><td>20</td><td>P2-1</td><td>graph 版本兼容性未考虑</td><td>改 state 后历史 checkpoint 不可用</td></tr>
+<tr><td>21</td><td>P2-2</td><td>graph 并发安全性未考虑</td><td>多 worker 同 thread_id 写冲突</td></tr>
+<tr><td>22</td><td>P2-3</td><td>classify LLM 兜底 substring match 脆弱</td><td>格式漂移后分类错</td></tr>
+<tr><td>23</td><td>P2-5</td><td>集成测试 mock vs real 矛盾</td><td>&quot;mock 真实&quot;定义不清</td></tr>
+<tr><td>24</td><td>P2-7</td><td>retrieve_with_fallback 不应该在 errors.py</td><td>是节点逻辑放错文件</td></tr>
+</table>
+<hr>
+<h2 id="与已有-review-交叉验证汇总">与已有 review 交叉验证汇总</h2>
+<table>
+<tr><th>ID</th><th>已有项</th><th>M7 现状</th><th>本报告</th><th>严重度变更</th></tr>
+<tr><td>-----</td><td>--------</td><td>---------</td><td>--------</td><td>------------</td></tr>
+<tr><td>P0-10</td><td>checkpointer 双重定义</td><td>❌ 未改</td><td><strong>P0-1</strong></td><td>维持 P0</td></tr>
+<tr><td>P1-15</td><td>route_after_answer 缺测试</td><td>❌ 未改 + 自相矛盾</td><td><strong>P0-5</strong></td><td>P1 → <strong>P0</strong></td></tr>
+<tr><td>P1-16</td><td>store vs retriever 边界不清</td><td>❌ 未改</td><td>P1-1</td><td>维持 P1</td></tr>
+<tr><td>P1-17</td><td>fallback 文案 hardcode</td><td>❌ 未改</td><td>P1-2</td><td>维持 P1</td></tr>
+<tr><td>P2-4</td><td>load_memory aget API 不对</td><td>❌ 未改</td><td><strong>P0-2</strong></td><td>P2 → <strong>P0</strong></td></tr>
+<tr><td>P2-5</td><td>make_checkpointer contextmanager 形态</td><td>❌ 未改</td><td><strong>P0-3</strong></td><td>P2 → <strong>P0</strong></td></tr>
+<tr><td>M2 review</td><td>is_revoked 字段缺失</td><td>不直接影响 M7</td><td>风险表备注</td><td>—</td></tr>
+<tr><td>M3 review P1-5</td><td>make_llm(&quot;judge&quot;) 缺</td><td>M7 缺 answer_chitchat</td><td>依赖阻塞备注</td><td>—</td></tr>
+<tr><td>M3 review P0-2</td><td>make_llm callback 注入方式</td><td>M7 被动依赖</td><td>依赖阻塞备注</td><td>—</td></tr>
+</table>
+<p><strong>验证结论</strong>：</p>
+<ul>
+<li>已有 review 的 6 项 M7 问题：<strong>全部 ❌ 未改</strong></li>
+<li>其中 3 项升级到 P0（P2-4→P0-2, P2-5→P0-3, P1-15→P0-5）</li>
+<li>跨 M 2 项不直接影响当前版本但应记录风险</li>
+</ul>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<p>按 P0 → P1 → P2 优先级：</p>
+<h3 id="第一波本轮必改8-项-p0">第一波（本轮必改，8 项 P0）</h3>
+<ol>
+<li><strong>P0-1</strong> checkpointer 双重定义 → 方案 A 或 B（推荐 A），更新 spec §2</li>
+<li><strong>P0-2</strong> load_memory_node 改 <code>aget_tuple</code> API + 正确解析 CheckpointTuple</li>
+<li><strong>P0-3</strong> make_checkpointer 去 <code>@asynccontextmanager</code> 改为普通工厂</li>
+<li><strong>P0-4</strong> graph 调用方补 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code> + 风险表记录</li>
+<li><strong>P0-5</strong> 删 <code>route_after_answer</code>（用常量边）或改统一</li>
+<li><strong>P0-6</strong> 补 <code>answer_chitchat_node</code> 实现 + 对应的 prompt yaml + M3 注册</li>
+<li><strong>P0-7</strong> save_memory 节点明确行为 + 注释&quot;checkpointer 在 graph 完成后自动 persist&quot;</li>
+<li><strong>P0-8</strong> 补 <code>safe_node</code> 装饰器 + 所有节点包装</li>
+</ol>
+<h3 id="第二波重要14-项-p1">第二波（重要，14 项 P1）</h3>
+<ol>
+<li><strong>P1-1</strong> store.py / retriever.py 边界 + Files 表注释更新</li>
+<li><strong>P1-2</strong> fallback 文案移入 settings</li>
+<li><strong>P1-3</strong> 扩充 CHITCHAT_KEYWORDS + 分类（强/中强度）</li>
+<li><strong>P1-4</strong> retrieve_node 补多 rewrite 并查 + dedupe 策略</li>
+<li><strong>P1-5</strong> 实现 <code>parse_json_scores</code> 完整函数</li>
+<li><strong>P1-6</strong> answer 补 <code>MAX_CHUNK_CHARS</code> 截断 + settings 配置</li>
+<li><strong>P1-7</strong> classify_node 传 history messages</li>
+<li><strong>P1-8</strong> rerank 评分传递到 answer source 列表</li>
+<li><strong>P1-9</strong> OpenSearch index 名 settings 化</li>
+<li><strong>P1-10</strong> dedupe_by_doc 策略明确（保留最高 score）</li>
+<li><strong>P1-11</strong> checkpointer 连接池配置 + 风险表记录</li>
+<li><strong>P1-12</strong> thread_id UUID 碰撞风险表记录</li>
+<li><strong>P1-13</strong> kNN filter context 注释预留</li>
+<li><strong>P1-14</strong> answer 补 chunk text 截断</li>
+</ol>
+<h3 id="第三波优化9-项-p2">第三波（优化，9 项 P2）</h3>
+<ol>
+<li><strong>P2-1</strong> load_memory_node 补旧 checkpoint 兼容</li>
+<li><strong>P2-2</strong> 风险表补 graph 并发写冲突</li>
+<li><strong>P2-3</strong> classify LLM 兜底改 regex 解析</li>
+<li><strong>P2-4</strong> workflow.py 补类型注解</li>
+<li><strong>P2-5</strong> 集成测试 mock vs real 区分</li>
+<li><strong>P2-6</strong> OpenSearch 连接池配置 + settings</li>
+<li><strong>P2-7</strong> retrieve_with_fallback 移入 nodes.py</li>
+<li><strong>P2-8</strong> 确认 infra docker-compose 路径</li>
+<li><strong>P2-9</strong> 统一节点名（架构图/edges/workflow）</li>
+</ol>
+<h3 id="跨-m-协调m7-改完后通知">跨 M 协调（M7 改完后通知）</h3>
+<ul>
+<li>通知 <strong>M3</strong>：注册 <code>answer_chitchat</code> 节点到 <code>KNOWN_NODES</code></li>
+<li>通知 <strong>M3</strong>：如果 M3 <code>make_llm</code> 仍用 <code>model.callbacks</code>，M7 节点函数要自建 callback 注入（替代方案：M7 等 M3 修完再动手）</li>
+<li>通知 <strong>M1</strong>：<code>chat_sessions</code> 表的完整性和 <code>last_message_at</code> 字段（M1 review P1-6）</li>
+<li>通知 <strong>M8</strong>：graph.invoke 要包 <code>asyncio.wait_for</code> 超时 + 读 <code>state.error</code> 定 HTTP 状态码</li>
+<li>通知 <strong>M10</strong>：save_memory no-op 无 intercept，M10 若需节点级 trace 用 <code>NodeInterrupt</code> 而非改 save_memory</li>
+</ul>
+<h3 id="m7-风险表补充建议">M7 风险表补充建议</h3>
+<p>当前风险表覆盖 6 项（API drift / PG 降级 / setup 权限 / retrieve 崩溃 / prompt 漂移 / kNN 性能），建议追加以下 5 项：</p>
+<table>
+<tr><th>风险</th><th>缓解</th></tr>
+<tr><td>------</td><td>------</td></tr>
+<tr><td>graph invoke 无超时，LLM 慢拖垮 M8</td><td>M8 调用方 <code>asyncio.wait_for(graph.ainvoke(...), timeout=30)</code></td></tr>
+<tr><td>6/7 节点缺异常处理，异常直接崩 graph</td><td><code>safe_node</code> 装饰器 + <code>state.error</code></td></tr>
+<tr><td>query_rewrite 多 rewrite 并查策略未定</td><td>默认逐条检索 + doc_id 去重，V1.1 再优化</td></tr>
+<tr><td>graph 版本兼容，改 state 后读旧 checkpoint 缺字段</td><td>load_memory 用 <code>state.get(&quot;field&quot;, default)</code>，加 <code>state_version</code></td></tr>
+<tr><td>answer_chitchat 节点无实现</td><td>当前 P0-6 必须补，补后方可合并</td></tr>
+</table>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>不可动手</strong>：P0-1 ~ P0-8 共 8 项必改。其中 3 项（P0-2 aget API / P0-3 contextmanager / P0-5 route 矛盾）直接导致代码无法编译/运行，P0-6/P0-8 导致 graph 崩溃</li>
+<li><strong>建议本轮改</strong>：P1-1 ~ P1-14 共 14 项</li>
+<li><strong>可下轮改</strong>：P2-1 ~ P2-9 共 9 项</li>
+<li><strong>新问题合计</strong>：24 个（已有 review 未列），其中 5 个升级到 P0</li>
+<li><strong>已有 review 验证</strong>：6 项 M7 范围问题，<strong>全部 ❌ 未改</strong>，其中 3 项升级到 P0</li>
+<li><strong>跨 M 阻塞</strong>：M3 未注册 <code>answer_chitchat</code> 节点 + M3 callback 注入方式未修 → M7 实际编码时卡住</li>
+<li><strong>总体评估</strong>：M7 plan <strong>7 节点数据流正确、TDD 节奏好</strong>，是当前 RAG V1 路线核心骨架；但 <strong>30 项问题（8 P0 + 14 P1 + 8 P2）</strong> + 6 项已有 review 全未改 + 2 项跨 M 阻塞 = <strong>修完 P0 + 等 M3 修复后方可动手</strong></li>
+</ul>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

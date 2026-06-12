@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M0 Plan Review · 基础设施层</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #1c2128;
+  --fg: #c9d1d9;
+  --fg-2: #8b949e;
+  --accent: #58a6ff;
+  --accent-2: #79c0ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 22px;
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--accent-2);
+}
+header .meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--fg-2);
+}
+header .meta span {
+  background: var(--bg-3);
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+header .meta .badge-r1 { color: var(--warn); border-color: var(--warn); }
+header .meta .badge-r2 { color: var(--accent); border-color: var(--accent); }
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+aside {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  height: calc(100vh - 90px);
+  position: sticky; top: 90px;
+  overflow-y: auto;
+}
+aside h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+aside ul { list-style: none; padding: 0; margin: 0; }
+aside li { margin: 4px 0; }
+aside a {
+  color: var(--fg-2);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+aside a:hover { background: var(--bg-3); color: var(--fg); }
+aside a.active { color: var(--accent-2); border-left-color: var(--accent); background: var(--bg-3); }
+main { padding: 30px 50px; max-width: 980px; }
+h2 {
+  font-size: 22px; color: var(--accent-2);
+  margin: 38px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+h2:first-of-type { margin-top: 0; }
+h3 { font-size: 17px; color: var(--fg); margin: 26px 0 12px; }
+h4 { font-size: 15px; color: var(--fg); margin: 18px 0 8px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code {
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-2);
+}
+pre {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+pre code { background: none; padding: 0; color: var(--fg); }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-2); color: var(--accent-2); font-weight: 600; }
+tr:nth-child(even) { background: var(--bg-2); }
+tr:hover { background: var(--bg-3); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-2);
+  margin: 14px 0;
+  padding: 8px 18px;
+  color: var(--fg-2);
+}
+ul, ol { margin: 8px 0; padding-left: 24px; }
+li { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 30px 0; }
+.task-card {
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  border-radius: 0 4px 4px 0;
+}
+.task-card h4 { color: var(--accent-2); margin-top: 0; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+.ok { color: var(--ok); }
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 20px; }
+}
+@media (max-width: 640px) {
+  header { padding: 18px 16px; }
+  header h1 { font-size: 20px; }
+  main { padding: 16px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>M0 Plan Review · 基础设施层</h1>
+  <div class="meta">
+    <span>660 行</span>
+<span>44 P0</span>
+<span>35 P1</span>
+<span>27 P2</span>
+    <span>2026-06-11-rag-m0-infra-review.md</span>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <h3>📋 目录</h3>
+    <ul><li><a href="#总评">总评</a></li>
+<li><a href="#p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</a></li>
+<li><a href="#p0-1-docker-composeyml-缺-healthcheck-块4-服务全无">P0-1 · docker-compose.yml 缺 healthcheck 块（4 服务全无）</a></li>
+<li><a href="#p0-2-tei-端口-8080-本机冲突风险plan-自警未解决">P0-2 · TEI 端口 8080 本机冲突风险（plan 自警未解决）</a></li>
+<li><a href="#p0-3-langfuse-缺-depends_on-postgres-condition-service_health">P0-3 · Langfuse 缺 depends_on: postgres condition: service_healthy</a></li>
+<li><a href="#p0-4-initsql-漏挂载到-docker-entrypoint-initdbd">P0-4 · init.sql 漏挂载到 /docker-entrypoint-initdb.d/</a></li>
+<li><a href="#p0-5-readme-启动步骤缺-vmmax_map_count-前置">P0-5 · README 启动步骤缺 vm.max_map_count 前置</a></li>
+<li><a href="#p0-6-缺-gitignore">P0-6 · 缺 .gitignore</a></li>
+<li><a href="#p0-7-缺-dockerignore新发现">P0-7 · 缺 .dockerignore（新发现）</a></li>
+<li><a href="#p0-8-pyprojecttoml-内容完全未给出">P0-8 · pyproject.toml 内容完全未给出</a></li>
+<li><a href="#p0-9-tei-容器缺-hf_home-transformers_cache-挂载路径新发现">P0-9 · TEI 容器缺 HF_HOME / TRANSFORMERS_CACHE 挂载路径（新发现）</a></li>
+<li><a href="#p1-重要">P1 · 重要</a></li>
+<li><a href="#p1-1-缺-docker-compose-资源限制mem_limit-cpus">P1-1 · 缺 docker-compose 资源限制（mem_limit / cpus）</a></li>
+<li><a href="#p1-2-initsql-密码明文">P1-2 · init.sql 密码明文</a></li>
+<li><a href="#p1-3-langfuse-缺-nextauth_url-和-nextauth_secret新发现">P1-3 · Langfuse 缺 NEXTAUTH_URL 和 NEXTAUTH_SECRET（新发现）</a></li>
+<li><a href="#p1-4-opensearch-缺-opensearch_java_opts-等关键-env新发现">P1-4 · OpenSearch 缺 OPENSEARCH_JAVA_OPTS 等关键 env（新发现）</a></li>
+<li><a href="#p1-5-postgres-缺-postgres_initdb_args-显式声明新发现">P1-5 · Postgres 缺 POSTGRES_INITDB_ARGS 显式声明（新发现）</a></li>
+<li><a href="#p1-6-缺日志策略structlog-log-level-默认新发现">P1-6 · 缺日志策略（structlog / log level 默认）（新发现）</a></li>
+<li><a href="#p1-7-infracheck_healthsh-测试策略提到但-files-表未列新发现">P1-7 · infra/check_health.sh 测试策略提到但 Files 表未列（新发现）</a></li>
+<li><a href="#p1-8-缺-makefile-收录常用命令新发现">P1-8 · 缺 Makefile 收录常用命令（新发现）</a></li>
+<li><a href="#p1-9-缺-appconfigpy-全局单例约定x-3-决议待落地">P1-9 · 缺 app/config.py 全局单例约定（X-3 决议待落地）</a></li>
+<li><a href="#p2-优化">P2 · 优化</a></li>
+<li><a href="#p2-1-version-38-在-compose-v2-已弃用新发现">P2-1 · version: &amp;quot;3.8&amp;quot; 在 Compose v2+ 已弃用（新发现）</a></li>
+<li><a href="#p2-2-缺范本目的段与-m3-范本不齐">P2-2 · 缺范本目的段（与 M3 范本不齐）</a></li>
+<li><a href="#p2-3-appconfigpy-单文件-vs-子目录决策点x-1-决议待落地">P2-3 · app/config.py 单文件 vs 子目录决策点（X-1 决议待落地）</a></li>
+<li><a href="#p2-4-task-4-red-测试缺类型校验覆盖">P2-4 · Task 4 RED 测试缺&amp;quot;类型校验&amp;quot;覆盖</a></li>
+<li><a href="#p2-5-envexample-缺-langfuse_database_url-注释密码来源">P2-5 · .env.example 缺 LANGFUSE_DATABASE_URL 注释密码来源</a></li>
+<li><a href="#p2-6-task-1-估时-5-分钟实测-20-30-分钟新发现">P2-6 · Task 1 估时 5 分钟，实测 20-30 分钟（新发现）</a></li>
+<li><a href="#p2-7-dod-3-分钟起全部服务对冷启动不现实新发现">P2-7 · DoD &amp;quot;3 分钟起全部服务&amp;quot;对冷启动不现实（新发现）</a></li>
+<li><a href="#p2-8-m0-风险表-6-行全是抽象缓解缺量化指标">P2-8 · M0 风险表 6 行全是抽象缓解，缺量化指标</a></li>
+<li><a href="#与已有-review-报告交叉验证">与已有 review 报告交叉验证</a></li>
+<li><a href="#你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</a></li>
+<li><a href="#落地建议">落地建议</a></li>
+<li><a href="#第一波本轮必改9-项-p0">第一波（本轮必改，9 项 P0）</a></li>
+<li><a href="#第二波重要9-项-p1">第二波（重要，9 项 P1）</a></li>
+<li><a href="#第三波优化8-项-p2">第三波（优化，8 项 P2）</a></li>
+<li><a href="#跨-m-协调m0-改完后通知">跨 M 协调（M0 改完后通知）</a></li>
+<li><a href="#估时修正">估时修正</a></li>
+<li><a href="#等待决策">等待决策</a></li>
+<li><a href="#状态">状态</a></li></ul>
+  </aside>
+  <main>
+<h1 id="m0-plan-review-基础设施层">M0 Plan Review · 基础设施层</h1>
+<blockquote>评审对象：M0 (2026-06-10-rag-m0-infra.md, 313 行)</blockquote>
+<blockquote>评审基线：V1 Scope v0.4 spec（决策表 / §1 / §5 / §7 / §8）+ 已有 review 报告 + M3 范本（11 段模板）</blockquote>
+<blockquote>评审时间：2026-06-11</blockquote>
+<blockquote>评审者：Hermes subagent（独立审查）</blockquote>
+<h2 id="总评">总评</h2>
+<p>M0 plan 按 M3 范本 11 段走齐（Goal / 不包含 / Architecture / Tech Stack / Files / Tasks / 测试 / DoD / 依赖 / 风险 / 修订记录），但<strong>缺&quot;范本目的&quot;段</strong>、<strong>多处就绪度不足</strong>——单 docker-compose.yml 一段就要补 healthcheck × 4 + depends_on + resource limits + 完整 env，不止 5 分钟。</p>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>---</td><td>---</td><td>---</td><td>---</td></tr>
+<tr><td>结构完整性</td><td>⭐⭐⭐⭐</td><td>11 段都齐，唯缺&quot;范本目的&quot;段</td></tr>
+<tr><td>一致性</td><td>⭐⭐⭐</td><td>端口、env、service name 与 spec §8 对齐；但 LANGFUSE_NEXTAUTH_* / TEI cache path 漏</td></tr>
+<tr><td>实施就绪度</td><td>⭐⭐</td><td>Tasks 粒度看似 2-5 分钟，实测会爆（Task 1 完整 compose ≥ 20 分钟）；DoD 部分项弱</td></tr>
+<tr><td>错误处理</td><td>⭐⭐⭐</td><td>spec §5 错误矩阵在 M0 范围有 3 条触及（OS/PG/TEI 启动失败），plan 只在风险表一笔带过</td></tr>
+<tr><td>TDD 标注</td><td>⭐⭐⭐⭐⭐</td><td>基础设施 GREEN / 业务 RED-GREEN 区分清晰</td></tr>
+<tr><td>跨 M 契约</td><td>⭐⭐⭐</td><td>契约表清晰，但 config.py 单例、X-1 拆分未决留下隐患</td></tr>
+</table>
+<p><strong>一句话</strong>：plan 框架对、内容薄；启动前需补至少 8 个 P0。<strong>已可读、可派工，但不可直接动手。</strong></p>
+<hr>
+<h2 id="p0-阻塞级动手前必改">P0 · 阻塞级（动手前必改）</h2>
+<h3 id="p0-1-docker-composeyml-缺-healthcheck-块4-服务全无">P0-1 · docker-compose.yml 缺 healthcheck 块（4 服务全无）</h3>
+<p><strong>位置</strong>：M0 Task 1 GREEN 段（仅写 image/ports/env/network/volumes，无 healthcheck）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>4 个容器全无 <code>healthcheck</code> 块 → Langfuse <code>depends_on: condition: service_healthy</code> 没法工作</li>
+<li>M3 smoke test 启动后立即调 TEI/Langfuse，TEI 冷启动 30-60s 模型加载，没 healthcheck 会 race condition</li>
+<li>已有 review P0-3 已建议，本次 verify <strong>仍未改</strong></li>
+</ul>
+<p><strong>修改</strong>（追加到 4 个 service 各自下）：</p>
+<pre><code class="language-yaml">
+  postgres:
+    healthcheck: { test: [&quot;CMD-SHELL&quot;, &quot;pg_isready -U rag_app -d rag&quot;], interval: 5s, timeout: 3s, retries: 10 }
+  opensearch:
+    healthcheck: { test: [&quot;CMD-SHELL&quot;, &quot;curl -fs http://localhost:9200/_cluster/health?wait_for_status=yellow&amp;timeout=2s || exit 1&quot;], interval: 10s, timeout: 5s, retries: 12, start_period: 30s }
+  tei:
+    healthcheck: { test: [&quot;CMD-SHELL&quot;, &quot;curl -fs http://localhost:80/health || exit 1&quot;], interval: 10s, timeout: 5s, retries: 12, start_period: 60s }
+  langfuse:
+    healthcheck: { test: [&quot;CMD-SHELL&quot;, &quot;curl -fs http://localhost:3000/api/public/health || exit 1&quot;], interval: 10s, timeout: 5s, retries: 12, start_period: 30s }
+</code></pre>
+<hr>
+<h3 id="p0-2-tei-端口-8080-本机冲突风险plan-自警未解决">P0-2 · TEI 端口 8080 本机冲突风险（plan 自警未解决）</h3>
+<p><strong>位置</strong>：M0 Task 1（<code>ports: &quot;8080:80&quot;</code>）+ 风险 L302</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>plan 自己写&quot;8080 本机已有&quot;作已知风险，但没给默认避雷方案</li>
+<li>8080 = python http.server / Node dev / Spring 常见端口，冲突概率高</li>
+<li>已有 review P0-1 已建议改 <code>18080:80</code>，本次 verify <strong>未改</strong></li>
+</ul>
+<p><strong>修改</strong>：</p>
+<ul>
+<li>默认改 <code>ports: &quot;18080:80&quot;</code></li>
+<li><code>.env.example</code> 的 <code>TEI_URL=http://tei:8080</code> 不变（容器内端口），但 README 注 host 走 <code>localhost:18080</code></li>
+<li>README 注明&quot;如 18080 也占用，改 <code>18090:80</code> 并同步 .env&quot;</li>
+</ul>
+<hr>
+<h3 id="p0-3-langfuse-缺-depends_on-postgres-condition-service_health">P0-3 · Langfuse 缺 <code>depends_on: postgres condition: service_healthy</code></h3>
+<p><strong>位置</strong>：M0 Task 1（langfuse service 定义段）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>风险 L303 写&quot;设 <code>depends_on: postgres: condition: service_healthy</code>&quot;——Task 1 实际<strong>没加</strong></li>
+<li>Langfuse v2 启动自带 DB migration，会立刻试连 PG；PG 未 init 完成则 Langfuse 反复重连刷日志，health 失败</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-yaml">
+  langfuse:
+    depends_on:
+      postgres: { condition: service_healthy }
+      opensearch: { condition: service_started }
+</code></pre>
+<hr>
+<h3 id="p0-4-initsql-漏挂载到-docker-entrypoint-initdbd">P0-4 · init.sql 漏挂载到 <code>/docker-entrypoint-initdb.d/</code></h3>
+<p><strong>位置</strong>：M0 Task 1（postgres volumes 段）+ Task 2（init.sql 内容）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Postgres 官方约定：<code>/docker-entrypoint-initdb.d/*.sql</code> 才会自动执行</li>
+<li>Task 1 volumes 段只说 <code>pg_data</code> 持久化，<strong>完全没说</strong> init.sql 挂载</li>
+<li>不挂载 → <code>CREATE DATABASE rag</code> 不执行 → M1/M2/M7 全连不上 <code>rag</code> DB</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-yaml">
+  postgres:
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+</code></pre>
+<hr>
+<h3 id="p0-5-readme-启动步骤缺-vmmax_map_count-前置">P0-5 · README 启动步骤缺 <code>vm.max_map_count</code> 前置</h3>
+<p><strong>位置</strong>：M0 Task 6 README</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>风险 L300 写&quot;需 <code>vm.max_map_count=262144</code>，README 显式写 sysctl 前置&quot;——Task 6 实际<strong>没写</strong></li>
+<li>OpenSearch 容器启动时 host 没设这个值会立刻报 <code>max virtual memory areas vm.max_map_count [65530] is too low</code> 然后 exit</li>
+<li>新人 100% 卡这里，浪费 30 分钟 google</li>
+</ul>
+<p><strong>修改</strong>（README 启动步骤前置）：</p>
+<pre><code class="language-bash">
+sudo sysctl -w vm.max_map_count=262144
+echo &#x27;vm.max_map_count=262144&#x27; | sudo tee -a /etc/sysctl.conf
+</code></pre>
+<p>（已有 review P1-1 已提，本次 verify 未改）</p>
+<hr>
+<h3 id="p0-6-缺-gitignore">P0-6 · 缺 <code>.gitignore</code></h3>
+<p><strong>位置</strong>：M0 plan 整篇未提及</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>.env</code>（含密码）/ <code>__pycache__</code> / <code>.venv</code> / <code>*.db</code> / <code>artifacts/</code> / <code>infra/pg_data/</code> 这些<strong>必须</strong> ignore</li>
+<li>不写 → 新人 <code>git add .</code> 后 push → 密码泄漏 / 大文件污染 repo</li>
+<li>已有 review P0-9 已建议，本次 verify <strong>仍未改</strong></li>
+</ul>
+<p><strong>修改</strong>（新增 Task 7）：</p>
+<pre><code class="language-gitignore">
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+# venv
+.venv/ venv/ env/
+# db
+*.db *.sqlite *.sqlite3
+# artifacts
+artifacts/ uploads/
+# os/editor
+.DS_Store .idea/ .vscode/
+# coverage
+.coverage htmlcov/
+</code></pre>
+<hr>
+<h3 id="p0-7-缺-dockerignore新发现">P0-7 · 缺 <code>.dockerignore</code>（新发现）</h3>
+<p><strong>位置</strong>：M0 plan 未提及</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>M3 之后可能加自定义 app 镜像，不写 <code>.dockerignore</code> 会把 <code>.venv</code>（几百 MB）/ <code>__pycache__</code> / <code>.git</code> 打进 build context</li>
+<li>当前虽然 M0 没自定义 build，但 TEI 启动会拉取镜像 + M3 起的 smoke test 会 build context，预留总是对的</li>
+</ul>
+<p><strong>修改</strong>（新增 Task 8）：</p>
+<pre><code class="language-dockerignore">
+.git .gitignore
+.env .env.* !.env.example
+__pycache__ *.py[cod]
+.pytest_cache .mypy_cache .ruff_cache
+.venv venv env
+*.egg-info
+.coverage htmlcov
+artifacts uploads
+docs *.md !README.md
+</code></pre>
+<p><strong>注</strong>：这是 review 报告<strong>新发现的</strong>，不在已有 review 列表里。</p>
+<hr>
+<h3 id="p0-8-pyprojecttoml-内容完全未给出">P0-8 · pyproject.toml 内容完全未给出</h3>
+<p><strong>位置</strong>：M0 Task 4 GREEN 段</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Task 4 写&quot;pyproject.toml 依赖 base 栈（fastapi + uvicorn + pydantic + sqlalchemy）&quot;——但 GREEN 段<strong>没列文件内容</strong></li>
+<li>已有 review P0-8 指出 M0 根本不用 fastapi/uvicorn/sqlalchemy，纯属过度装包</li>
+<li>已有 review P2-2 指出 <code>[project]</code> 块全 plan 缺</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段给完整 pyproject.toml）：</p>
+<pre><code class="language-toml">
+[project]
+name = &quot;rag-v1&quot;
+version = &quot;0.1.0&quot;
+requires-python = &quot;&gt;=3.11&quot;
+readme = &quot;README.md&quot;
+dependencies = [
+  &quot;pydantic&gt;=2.7,&lt;3&quot;,
+  &quot;pydantic-settings&gt;=2.3,&lt;3&quot;,
+  &quot;python-dotenv&gt;=1.0,&lt;2&quot;,
+]
+
+[project.optional-dependencies]
+dev = [
+  &quot;pytest&gt;=8.3,&lt;9&quot;,
+  &quot;pytest-asyncio&gt;=0.24,&lt;1&quot;,
+  &quot;pytest-cov&gt;=5.0,&lt;7&quot;,
+]
+
+[build-system]
+requires = [&quot;setuptools&gt;=68&quot;, &quot;wheel&quot;]
+build-backend = &quot;setuptools.build_meta&quot;
+
+[tool.setuptools.packages.find]
+include = [&quot;app*&quot;]
+
+[tool.pytest.ini_options]
+asyncio_mode = &quot;auto&quot;
+testpaths = [&quot;tests&quot;]
+addopts = &quot;-v --tb=short --strict-markers&quot;
+</code></pre>
+<p>M0 阶段只装 pydantic/pydantic-settings/python-dotenv；fastapi/uvicorn/sqlalchemy 留给 M1/M2/M8 按需加。</p>
+<hr>
+<h3 id="p0-9-tei-容器缺-hf_home-transformers_cache-挂载路径新发现">P0-9 · TEI 容器缺 HF_HOME / TRANSFORMERS_CACHE 挂载路径（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1（TEI service）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>TEI 首次启动要下载 bge-m3（~2.3GB），风险 L301 说&quot;CI 缓存 tei_cache volume&quot;——但 Task 1 volumes 段写的 <code>tei_cache</code> <strong>没指定挂载路径</strong></li>
+<li>TEI 默认模型缓存路径在容器内 <code>/data</code>，不是 host volume</li>
+<li>volume 名字建了但没 mount → 模型每次启动重下，CI 没法用</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-yaml">
+  tei:
+    volumes:
+      - tei_cache:/data
+    environment:
+      HF_HUB_DISABLE_TELEMETRY: &quot;1&quot;
+      HF_HOME: /data
+      TRANSFORMERS_CACHE: /data
+</code></pre>
+<p><strong>注</strong>：这是 review 报告<strong>新发现</strong>的。</p>
+<hr>
+<h2 id="p1-重要">P1 · 重要</h2>
+<h3 id="p1-1-缺-docker-compose-资源限制mem_limit-cpus">P1-1 · 缺 docker-compose 资源限制（mem_limit / cpus）</h3>
+<p><strong>位置</strong>：M0 Task 1</p>
+<p><strong>修改</strong>（4 个 service 各加 <code>mem_limit</code> / <code>cpus</code>）：</p>
+<pre><code class="language-yaml">
+  postgres:    { mem_limit: 512m, cpus: &quot;1.0&quot; }
+  opensearch:  { mem_limit: 2g,   cpus: &quot;2.0&quot; }
+  tei:         { mem_limit: 4g,   cpus: &quot;2.0&quot; }
+  langfuse:    { mem_limit: 1g,   cpus: &quot;1.0&quot; }
+</code></pre>
+<p>TEI 加载 bge-m3 峰值 4-5 GB，OS JVM 1-2 GB，不限资源本机易 OOM。（已有 review P1-2 已提，本次 verify 未改）</p>
+<hr>
+<h3 id="p1-2-initsql-密码明文">P1-2 · init.sql 密码明文</h3>
+<p><strong>位置</strong>：M0 Task 2</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>CREATE ROLE rag_app WITH LOGIN PASSWORD &#x27;rag_app_password&#x27;;</code> —— 明文</li>
+<li>v0.4 整体强调 argon2id / token SHA-256 调性下不一致</li>
+</ul>
+<p><strong>修改</strong>（dev-only 标注 + 防重复执行）：</p>
+<pre><code class="language-sql">
+-- dev only，prod 走 secret manager
+CREATE DATABASE rag;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname=&#x27;rag_app&#x27;) THEN
+    CREATE ROLE rag_app WITH LOGIN PASSWORD &#x27;rag_app_password&#x27;;
+  END IF;
+END $$;
+GRANT ALL PRIVILEGES ON DATABASE rag TO rag_app;
+</code></pre>
+<p>（已有 review P1-3 已提）</p>
+<hr>
+<h3 id="p1-3-langfuse-缺-nextauth_url-和-nextauth_secret新发现">P1-3 · Langfuse 缺 <code>NEXTAUTH_URL</code> 和 <code>NEXTAUTH_SECRET</code>（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1（langfuse env）+ Task 3（<code>.env.example</code>）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>Langfuse v2 <strong>必需</strong> <code>NEXTAUTH_SECRET</code>（≥32 字符）+ <code>NEXTAUTH_URL</code> 才能完成 NextAuth 初始化</li>
+<li>Task 1 步骤只写 <code>DATABASE_URL</code> / <code>NEXTAUTH_SECRET</code> / <code>SALT</code>——<strong>漏 NEXTAUTH_URL</strong></li>
+<li><code>.env.example</code> L202-206 同样缺这两个 key</li>
+</ul>
+<p><strong>修改</strong>（<code>.env.example</code> Langfuse 段补）：</p>
+<pre><code class="language-">
+LANGFUSE_HOST=http://langfuse:3000
+LANGFUSE_PUBLIC_KEY=pk-lf-dev-placeholder
+LANGFUSE_SECRET_KEY=sk-lf-dev-placeholder-min-32-chars-required
+LANGFUSE_NEXTAUTH_SECRET=dev-secret-change-me-min-32-chars-please
+LANGFUSE_NEXTAUTH_URL=http://localhost:3000
+LANGFUSE_DATABASE_URL=postgresql://rag_app:rag_app_password@postgres:5432/rag
+</code></pre>
+<p>compose env 同步补 <code>NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL}</code>。</p>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-4-opensearch-缺-opensearch_java_opts-等关键-env新发现">P1-4 · OpenSearch 缺 <code>OPENSEARCH_JAVA_OPTS</code> 等关键 env（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1（opensearch service env）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>OS 2.19 默认 JVM heap 是 50% 容器内存——但 M0 还没设 mem_limit 时，OS 按 host 内存 50% 算，<strong>易 OOM kill</strong></li>
+<li>缺 <code>cluster.name</code> / <code>discovery.type=single-node</code> 显式声明</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-yaml">
+  opensearch:
+    environment:
+      cluster.name: docker-rag-cluster
+      node.name: rag-os-node-1
+      discovery.type: single-node
+      bootstrap.memory_lock: &quot;true&quot;
+      DISABLE_SECURITY_PLUGIN: &quot;true&quot;
+      DISABLE_INSTALL_DEMO_CONFIG: &quot;true&quot;
+      OPENSEARCH_JAVA_OPTS: &quot;-Xms512m -Xmx512m&quot;
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile:  { soft: 65536, hard: 65536 }
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-5-postgres-缺-postgres_initdb_args-显式声明新发现">P1-5 · Postgres 缺 <code>POSTGRES_INITDB_ARGS</code> 显式声明（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1（postgres env）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>缺 <code>POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C</code> 显式声明</li>
+<li>默认 UTF-8 + en_US，但下游 M1 migration 可能用到 citext/trgm 等 locale-sensitive 操作</li>
+<li>容器跨 host（dev/CI/prod）locale 不一致会导致全文检索 / 排序行为不同</li>
+</ul>
+<p><strong>修改</strong>：</p>
+<pre><code class="language-yaml">
+  postgres:
+    environment:
+      POSTGRES_USER: rag_app
+      POSTGRES_PASSWORD: rag_app_password
+      POSTGRES_DB: rag
+      POSTGRES_INITDB_ARGS: &quot;--encoding=UTF-8 --locale=C&quot;
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-6-缺日志策略structlog-log-level-默认新发现">P1-6 · 缺日志策略（structlog / log level 默认）（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 4（config.py）</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li><code>.env.example</code> L209 写了 <code>LOG_LEVEL=INFO</code>，但 plan 没说怎么消费它</li>
+<li>v0.4 spec §8.8 把 <code>structlog&gt;=24.1,&lt;26</code> 列为正式依赖</li>
+<li>M0 不实现 logging setup → M3/M7/M10 各自加一遍，重复且不一致</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段补 logging 设置 + pyproject 加 structlog）：</p>
+<pre><code class="language-python">
+# app/logging_setup.py（M0 新增）
+import logging, sys
+from app.config import settings
+
+def configure_logging() -&gt; None:
+    level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    logging.basicConfig(level=level, format=&quot;%(asctime)s %(levelname)s %(name)s: %(message)s&quot;, stream=sys.stderr)
+
+# app/config.py 追加
+class LoggingSettings(BaseSettings):
+    level: str = &quot;INFO&quot;
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-7-infracheck_healthsh-测试策略提到但-files-表未列新发现">P1-7 · <code>infra/check_health.sh</code> 测试策略提到但 Files 表未列（新发现）</h3>
+<p><strong>位置</strong>：M0 测试策略 L262 + Files 表</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>测试策略写&quot;<code>./infra/check_health.sh</code>（shell 脚本，手动/CI 可用）&quot;</li>
+<li>Files 表<strong>没列</strong>这文件，也没说谁来写</li>
+</ul>
+<p><strong>修改</strong>（Files 表补 + Task 6 旁新增 Task 7 写脚本）：</p>
+<pre><code class="language-bash">
+#!/usr/bin/env bash
+set -e
+echo &quot;== postgres ==&quot; &amp;&amp; pg_isready -h localhost -p 5432
+echo &quot;== opensearch ==&quot; &amp;&amp; curl -fs http://localhost:9200/_cluster/health
+echo &quot;== tei ==&quot; &amp;&amp; curl -fs http://localhost:18080/health
+echo &quot;== langfuse ==&quot; &amp;&amp; curl -fs http://localhost:3000/api/public/health
+echo &quot;all green&quot;
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong> plan 内部不一致。</p>
+<hr>
+<h3 id="p1-8-缺-makefile-收录常用命令新发现">P1-8 · 缺 Makefile 收录常用命令（新发现）</h3>
+<p><strong>位置</strong>：M0 plan 整篇</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>README 写&quot;启动 / 停止 / 测试 / health / logs&quot; 5+ 命令散落</li>
+<li>M3 smoke test 也要 <code>docker compose -f infra/docker-compose.yml up -d tei langfuse postgres</code>，统一入口更好</li>
+</ul>
+<p><strong>修改</strong>（Files 表补 <code>Makefile</code>）：</p>
+<pre><code class="language-makefile">
+.PHONY: up down logs health test-unit test-integration clean
+
+up:        ; docker compose -f infra/docker-compose.yml up -d
+down:      ; docker compose -f infra/docker-compose.yml down
+logs:      ; docker compose -f infra/docker-compose.yml logs -f
+health:    ; ./infra/check_health.sh
+test-unit:        ; cd apps/rag_v1 &amp;&amp; pytest tests/unit
+test-integration: ; cd apps/rag_v1 &amp;&amp; pytest tests/integration --require-docker
+clean:     ; docker compose -f infra/docker-compose.yml down -v
+</code></pre>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p1-9-缺-appconfigpy-全局单例约定x-3-决议待落地">P1-9 · 缺 <code>app/config.py</code> 全局单例约定（X-3 决议待落地）</h3>
+<p><strong>位置</strong>：M0 Task 4 GREEN 段</p>
+<p><strong>问题</strong>：</p>
+<ul>
+<li>已有 review X-3 决议&quot;在 <code>app/config.py</code> 末尾 <code>settings = Settings()</code> 暴露全局单例&quot;——本次 M0 plan <strong>未落实</strong></li>
+<li>M2/M3/M7/M10 预期 <code>from app.config import settings</code> 语法，没单例只能 <code>Settings()</code> 每次重建</li>
+</ul>
+<p><strong>修改</strong>（Task 4 GREEN 段末尾补）：</p>
+<pre><code class="language-python">
+# 文件末尾
+settings = Settings()  # 全局单例，所有 M 共用
+</code></pre>
+<p><strong>注</strong>：跨 M 一致性 X-3。</p>
+<hr>
+<h2 id="p2-优化">P2 · 优化</h2>
+<h3 id="p2-1-version-38-在-compose-v2-已弃用新发现">P2-1 · <code>version: &quot;3.8&quot;</code> 在 Compose v2+ 已弃用（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1（compose 文件头）</p>
+<p><strong>修改</strong>：删 <code>version: &quot;3.8&quot;</code>，改 <code>name: rag_v1</code>（Compose v2+ 推荐）。</p>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-2-缺范本目的段与-m3-范本不齐">P2-2 · 缺范本目的段（与 M3 范本不齐）</h3>
+<p><strong>位置</strong>：M0 plan 开头（与 M3 L8 对齐）</p>
+<p><strong>修改</strong>：在文件头部加 <code>&gt; 范本目的：M0 是 RAG V1 路线起点 plan，给后续 M 提供&quot;基础设施层&quot;前置定义</code>。</p>
+<hr>
+<h3 id="p2-3-appconfigpy-单文件-vs-子目录决策点x-1-决议待落地">P2-3 · <code>app/config.py</code> 单文件 vs 子目录决策点（X-1 决议待落地）</h3>
+<p><strong>位置</strong>：M0 Task 4 REFACTOR L230</p>
+<p><strong>修改</strong>：M0 直接拆 <code>app/configs/</code> 子目录（postgres.py / opensearch.py / tei.py / langfuse.py / base.py），保留 <code>app/config.py</code> 做 backward-compat re-export。</p>
+<p><strong>注</strong>：跨 M 一致性 X-1。</p>
+<hr>
+<h3 id="p2-4-task-4-red-测试缺类型校验覆盖">P2-4 · Task 4 RED 测试缺&quot;类型校验&quot;覆盖</h3>
+<p><strong>位置</strong>：M0 Task 4</p>
+<p><strong>修改</strong>（Task 4 RED 段补）：</p>
+<pre><code class="language-python">
+def test_settings_type_validation() -&gt; None:
+    os.environ[&quot;POSTGRES_PORT&quot;] = &quot;not-a-port&quot;
+    with pytest.raises(ValidationError):
+        Settings()
+</code></pre>
+<hr>
+<h3 id="p2-5-envexample-缺-langfuse_database_url-注释密码来源">P2-5 · <code>.env.example</code> 缺 <code>LANGFUSE_DATABASE_URL</code> 注释密码来源</h3>
+<p><strong>位置</strong>：M0 Task 3 <code>.env.example</code> L206</p>
+<p><strong>修改</strong>：把 <code>***</code> 占位改成 <code>rag_app_password</code>（与 POSTGRES_PASSWORD 对齐），加注释&quot;用户/密码必须与 postgres service 的 POSTGRES_USER/POSTGRES_PASSWORD 一致&quot;。</p>
+<hr>
+<h3 id="p2-6-task-1-估时-5-分钟实测-20-30-分钟新发现">P2-6 · Task 1 估时 5 分钟，实测 20-30 分钟（新发现）</h3>
+<p><strong>位置</strong>：M0 Task 1 GREEN 段</p>
+<p><strong>问题</strong>：Task 1 要写完 4 服务 + network + 4 volume + healthcheck × 4 + depends_on + env vars，实测 20-30 分钟。估时跟实际差 4-6 倍 → M0 整体 2d 估时会爆到 3-4d。</p>
+<p><strong>修改</strong>：Task 1 拆成 Task 1a（postgres）/ 1b（opensearch）/ 1c（tei）/ 1d（langfuse）/ 1e（network+volumes），或诚实标&quot;Task 1 ~25 分钟&quot;。</p>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-7-dod-3-分钟起全部服务对冷启动不现实新发现">P2-7 · DoD &quot;3 分钟起全部服务&quot;对冷启动不现实（新发现）</h3>
+<p><strong>位置</strong>：M0 DoD L278</p>
+<p><strong>问题</strong>：TEI 首次启动下载 bge-m3 45s+，OS 启动 20s+，Langfuse migration 30s+，串行总 100s+，不算 docker pull。&quot;3 分钟起&quot;只对镜像+模型已 cached 场景成立。</p>
+<p><strong>修改</strong>：DoD 拆两档——</p>
+<ul>
+<li>[ ] 镜像已缓存 + 模型已缓存：3 分钟内 4 服务全部 healthy</li>
+<li>[ ] 首次启动（无缓存）：docker pull + 模型下载允许 10 分钟</li>
+</ul>
+<p><strong>注</strong>：review 报告<strong>新发现</strong>。</p>
+<hr>
+<h3 id="p2-8-m0-风险表-6-行全是抽象缓解缺量化指标">P2-8 · M0 风险表 6 行全是抽象缓解，缺量化指标</h3>
+<p><strong>位置</strong>：M0 风险表 L300-305</p>
+<p><strong>修改</strong>：风险表每行加数字（如 &quot;Langfuse migration 失败：自动重试 3 次（间隔 10s），仍失败则 <code>docker compose logs langfuse</code> 提示手工&quot;）。</p>
+<hr>
+<h2 id="与已有-review-报告交叉验证">与已有 review 报告交叉验证</h2>
+<table>
+<tr><th>ID</th><th>已有 review 项</th><th>M0 现状</th><th>本报告</th></tr>
+<tr><td>----</td><td>--------------</td><td>--------</td><td>-------</td></tr>
+<tr><td>P0-1</td><td>TEI 端口 8080 → 18080</td><td>❌ 未改</td><td>P0-2</td></tr>
+<tr><td>P0-2</td><td><code>.env.example</code> LANGFUSE_DATABASE_URL <code>***</code> 占位</td><td>❌ 未改</td><td>P2-5</td></tr>
+<tr><td>P0-3</td><td>4 服务缺 healthcheck</td><td>❌ 未改</td><td>P0-1</td></tr>
+<tr><td>P0-4 / 5 / 6 / 7 / 10</td><td>M1 / M7 范围</td><td>N/A</td><td>—</td></tr>
+<tr><td>P0-8</td><td>M0 pyproject 过度装包</td><td>❌ 未改</td><td>P0-8 给完整模板</td></tr>
+<tr><td>P0-9</td><td>缺 .gitignore</td><td>❌ 未改</td><td>P0-6</td></tr>
+<tr><td>P1-1</td><td>README 缺 vm.max_map_count</td><td>❌ 未改</td><td>P0-5</td></tr>
+<tr><td>P1-2</td><td>缺 mem_limit</td><td>❌ 未改</td><td>P1-1</td></tr>
+<tr><td>P1-3</td><td>init.sql 密码明文</td><td>❌ 未改</td><td>P1-2</td></tr>
+<tr><td>P2-1</td><td>缺 pytest.ini / [tool.pytest.ini_options]</td><td>❌ 未改</td><td>P0-8 整合</td></tr>
+<tr><td>P2-2</td><td>缺 [project] 块</td><td>❌ 未改</td><td>P0-8 整合</td></tr>
+<tr><td>X-1</td><td>app/config.py 拆分</td><td>❌ 未改</td><td>P2-3</td></tr>
+<tr><td>X-2</td><td>CI 路径假设 / pytest.ini</td><td>❌ 未改</td><td>P0-8 整合</td></tr>
+<tr><td>X-3</td><td>settings 全局单例</td><td>❌ 未改</td><td>P1-9</td></tr>
+<tr><td>X-4</td><td>dev/prod 分离</td><td>N/A（M12）</td><td>—</td></tr>
+</table>
+<p><strong>结论</strong>：已有 review 列出的 10 个 P0 中，<strong>4 个在 M0 范围内</strong>（P0-1 / P0-3 / P0-8 / P0-9），全部 ❌ 未改；M0 范围内 P1 共 3 项，全部 ❌ 未改；P2 共 2 项，全部 ❌ 未改；跨 M 一致性 3 项（X-1 / X-2 / X-3），全部 ❌ 未改。</p>
+<hr>
+<h2 id="你发现的新问题已有-review-未列">你发现的新问题（已有 review 未列）</h2>
+<p class="warn">合计 <strong>9 个新问题</strong>：</p>
+<ol>
+<li><strong>P0-7</strong> · 缺 <code>.dockerignore</code>（防 build context 巨大）</li>
+<li><strong>P0-9</strong> · TEI 缺 HF_HOME / TRANSFORMERS_CACHE 挂载路径</li>
+<li><strong>P1-3</strong> · Langfuse 缺 NEXTAUTH_URL 和 NEXTAUTH_SECRET</li>
+<li><strong>P1-4</strong> · OpenSearch 缺 OPENSEARCH_JAVA_OPTS / cluster.name / ulimits</li>
+<li><strong>P1-5</strong> · Postgres 缺 POSTGRES_INITDB_ARGS 显式声明</li>
+<li><strong>P1-6</strong> · 缺全局 logging 策略（spec §8.8 声明了 structlog 但 M0 没装）</li>
+<li><strong>P1-7</strong> · <code>infra/check_health.sh</code> 测试策略提到但 Files 表未列（plan 内部不一致）</li>
+<li><strong>P1-8</strong> · 缺 Makefile（up/down/logs/health/test-unit/test-integration/clean 常用命令无统一入口）</li>
+<li><strong>P2-1</strong> · docker-compose <code>version: &quot;3.8&quot;</code> 在 Compose v2+ 已弃用</li>
+</ol>
+<p>外加 review 过程的额外发现：</p>
+<ol>
+<li><strong>P2-6</strong> · Task 1 估时 5 分钟与实测 20-30 分钟差 4-6 倍</li>
+<li><strong>P2-7</strong> · DoD &quot;3 分钟起全部服务&quot;对冷启动场景不现实</li>
+</ol>
+<hr>
+<h2 id="落地建议">落地建议</h2>
+<p>按 P0 → P1 → P2 优先级：</p>
+<h3 id="第一波本轮必改9-项-p0">第一波（本轮必改，9 项 P0）</h3>
+<ol>
+<li>P0-1 补 4 服务 healthcheck 块</li>
+<li>P0-2 TEI host 端口改 18080</li>
+<li>P0-3 Langfuse 加 <code>depends_on: postgres condition: service_healthy</code></li>
+<li>P0-4 postgres volumes 段补 init.sql 挂载点</li>
+<li>P0-5 README 启动步骤前置 sysctl vm.max_map_count</li>
+<li>P0-6 新增 Task 写 <code>.gitignore</code></li>
+<li>P0-7 新增 Task 写 <code>.dockerignore</code></li>
+<li>P0-8 Task 4 给完整 <code>pyproject.toml</code>（只装 pydantic/pydantic-settings/python-dotenv）</li>
+<li>P0-9 TEI volumes 挂到 <code>/data</code> + HF_HOME env</li>
+</ol>
+<h3 id="第二波重要9-项-p1">第二波（重要，9 项 P1）</h3>
+<ol>
+<li>P1-1 4 服务 mem_limit / cpus limits</li>
+<li>P1-2 init.sql 密码明文注释 + dev-only 标注</li>
+<li>P1-3 Langfuse env 补 NEXTAUTH_URL + NEXTAUTH_SECRET</li>
+<li>P1-4 opensearch env 补 OPENSEARCH_JAVA_OPTS / cluster.name / ulimits</li>
+<li>P1-5 postgres env 补 POSTGRES_INITDB_ARGS</li>
+<li>P1-6 新增 logging_setup.py + pyproject 加 structlog</li>
+<li>P1-7 Files 表补 check_health.sh + Task 内容</li>
+<li>P1-8 新增 Makefile</li>
+<li>P1-9 config.py 末尾 <code>settings = Settings()</code> 全局单例</li>
+</ol>
+<h3 id="第三波优化8-项-p2">第三波（优化，8 项 P2）</h3>
+<ol>
+<li>P2-1 docker-compose 删 version: &quot;3.8&quot;，改 name: rag_v1</li>
+<li>P2-2 M0 plan 头部补&quot;范本目的&quot;段</li>
+<li>P2-3 M0 直接拆 <code>app/configs/</code> 子目录（X-1 落地）</li>
+<li>P2-4 Task 4 RED 测试补类型校验</li>
+<li>P2-5 <code>.env.example</code> LANGFUSE_DATABASE_URL 改合法占位</li>
+<li>P2-6 Task 1 拆 5 子任务 或 诚实标 25 分钟</li>
+<li>P2-7 DoD 拆 warm-cache (3min) / cold-start (10min) 两档</li>
+<li>P2-8 风险表每行加量化指标</li>
+</ol>
+<h3 id="跨-m-协调m0-改完后通知">跨 M 协调（M0 改完后通知）</h3>
+<ul>
+<li>通知 M3 / M7 / M10：<code>TEI_URL=http://tei:8080</code>（容器内端口不变），<code>TEI_HOST_PORT=18080</code>（host 端口）</li>
+<li>通知 M1：<code>app/config.py</code> 末尾有 <code>settings = Settings()</code> 单例，alembic env.py 引用 <code>settings.db.database_url</code></li>
+<li>通知 M2：<code>app/config.py</code> 加 <code>AuthSettings</code> 时遵守单文件 vs 子目录决议（推荐子目录）</li>
+</ul>
+<h3 id="估时修正">估时修正</h3>
+<ul>
+<li>M0 整体估时从 <strong>2d → 3d</strong>（含 P0 修补 + cold-start 镜像下载预留 1d）</li>
+</ul>
+<h3 id="等待决策">等待决策</h3>
+<ul>
+<li>X-1 <code>app/config.py</code> 是否在 M0 直接拆 <code>configs/</code> 子目录（已有 review 决议&quot;是&quot;，本报告 P2-3 重复）</li>
+<li>X-4 dev/prod 分离放 M12 还是 M0 提早定调（推荐 M0 README 至少写一段&quot;prod 部署走 M12 hardening&quot;）</li>
+</ul>
+<hr>
+<h2 id="状态">状态</h2>
+<ul>
+<li><strong>不可动手</strong>：P0-1 ~ P0-9 共 9 项必改</li>
+<li><strong>建议本轮改</strong>：P1-1 ~ P1-9 共 9 项</li>
+<li><strong>可下轮改</strong>：P2-1 ~ P2-8 共 8 项</li>
+<li><strong>新问题合计</strong>：9 个（已有 review 未列），外加 2 个附加发现</li>
+<li><strong>已有 review 验证</strong>：M0 范围内 12 项（含 4 个 P0 + 3 个 P1 + 2 个 P2 + 3 个跨 M），全部 ❌ 未改</li>
+</ul>
+<p>M0 plan <strong>结构对、内容薄、估时低、漏启动前关键 env 与挂载点</strong>。修完 P0 即可开 git 仓库初始化 + 实际写代码。</p>
+  </main>
+</div>
+<script>
+// IntersectionObserver scroll-spy
+(function() {
+  const links = document.querySelectorAll('aside a[href^="#"]');
+  if (!links.length) return;
+  const targets = Array.from(links).map(l => {
+    const id = l.getAttribute('href').slice(1);
+    return { link: l, el: document.getElementById(id) };
+  }).filter(t => t.el);
+
+  function update() {
+    const scrollTop = window.scrollY + 120;
+    let active = null;
+    for (const t of targets) {
+      if (t.el.offsetTop <= scrollTop) active = t;
+    }
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

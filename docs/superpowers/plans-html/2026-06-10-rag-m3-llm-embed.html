@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M3 Plan · LLM 工厂 + TEI Embedding 客户端 + Langfuse 观测</title>
+<style>
+:root {
+  --bg-0: #0d1117; --bg-1: #161b22; --bg-2: #1c2128; --bg-3: #22272e;
+  --border: #30363d; --border-soft: #21262d;
+  --text-0: #e6edf3; --text-1: #c9d1d9; --text-2: #7d8590; --text-3: #484f58;
+  --accent: #58a6ff; --accent-2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --orange: #f0883e;
+  --red-bg: rgba(248,81,73,.10); --green-bg: rgba(63,185,80,.10);
+  --yellow-bg: rgba(210,153,34,.10); --purple-bg: rgba(188,140,255,.10);
+  --blue-bg: rgba(88,166,255,.10);
+  --code-bg: #161b22; --code-text: #e1e4e8;
+  --inline-code-bg: rgba(110,118,129,0.4);
+  --radius: 6px;
+  --mono: "JetBrains Mono","Fira Code","SF Mono",Menlo,Consolas,"Courier New",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-1);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:260px 1fr;max-width:1440px;margin:0 auto;min-height:100vh}
+header.doc-header{grid-column:1/-1;border-bottom:1px solid var(--border);padding:32px 64px 24px;background:var(--bg-0)}
+header.doc-header h1.title{font-size:30px;margin:0 0 12px 0;color:var(--text-0);font-weight:700;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-2);margin-top:8px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--bg-1);border-right:1px solid var(--border);padding:28px 20px;font-size:14px}
+nav.toc h1{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin:0 0 16px 0;font-weight:700}
+nav.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+nav.toc ol li{counter-increment:toc;margin:3px 0}
+nav.toc ol li.h3-item{padding-left:16px}
+nav.toc ol li.h3-item a{font-size:13px;color:var(--text-2)}
+nav.toc a{display:block;color:var(--text-1);text-decoration:none;padding:5px 10px;border-radius:4px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--bg-2);color:var(--accent)}
+nav.toc a::before{content:counter(toc,decimal-leading-zero) " ";color:var(--text-3);font-family:var(--mono);font-size:11px;margin-right:6px}
+nav.toc a.active{background:var(--blue-bg);color:var(--accent);border-left-color:var(--accent)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg-2);color:var(--text-1);border:1px solid var(--border)}
+.badge.r0{color:var(--accent);border-color:var(--accent)}
+.badge.r1{color:var(--green);border-color:var(--green)}
+.badge.r2{color:var(--orange);border-color:var(--orange)}
+.badge.p0{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.badge.p1{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.badge.p2{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+main{padding:40px 64px 96px;max-width:1080px}
+h2{font-size:24px;color:var(--text-0);border-left:4px solid var(--accent);padding-left:14px;margin:48px 0 20px;font-weight:700}
+h3{font-size:20px;color:var(--text-0);border-left:3px solid var(--accent-2);padding-left:12px;margin:32px 0 14px;font-weight:600}
+h4{font-size:16px;color:var(--text-0);border-left:2px solid var(--text-2);padding-left:10px;margin:24px 0 10px;font-weight:600}
+p{margin:0 0 12px 0}
+ul,ol{margin:0 0 12px 0;padding-left:24px}
+li{margin:3px 0}
+code{font-family:var(--mono);background:var(--inline-code-bg);color:var(--text-0);padding:2px 6px;border-radius:3px;font-size:0.88em}
+pre{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;overflow-x:auto;border:1px solid var(--border);font-size:13px;line-height:1.55;margin:14px 0}
+pre code{background:0;padding:0;color:var(--code-text);font-size:13px}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:var(--bg-1);border-radius:6px;overflow:hidden}
+th{background:var(--bg-2);color:var(--accent);padding:10px 12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:top}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02)}
+.task-card{border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--bg-1)}
+.task-card .task-title{font-size:16px;font-weight:600;color:var(--text-0);margin-bottom:8px}
+.task-card .task-meta{display:flex;gap:8px;margin-bottom:8px}
+.ascii-arch{background:var(--code-bg);color:var(--code-text);padding:18px 20px;border-radius:6px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre;overflow-x:auto;margin:14px 0;border:1px solid var(--border)}
+.callout{border-left:4px solid var(--accent);background:var(--blue-bg);padding:12px 18px;border-radius:0 6px 6px 0;margin:14px 0}
+.callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+.callout.crit{border-color:var(--red);background:var(--red-bg)}
+.callout.ok{border-color:var(--green);background:var(--green-bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+@media (max-width:980px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:24px 32px 64px}}
+@media (max-width:640px){main{padding:16px 16px 48px}header.doc-header{padding:20px 16px}pre{font-size:12px;padding:14px 14px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<header class="doc-header">
+<h1 class="title">M3 Plan · LLM 工厂 + TEI Embedding 客户端 + Langfuse 观测</h1>
+<div class="meta"><span class="badge">M3 Plan · LLM 工厂 + TEI Embedding 客户端 + Langfuse 观测</span><span class="badge r1">⏱ 2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）（P2-4 修订）</span><span class="badge r1">r1 修复 33 处</span></div>
+</header>
+<nav class="toc">
+<h1>📑 目录</h1>
+<ol><li><a href="#goal">Goal</a></li><li><a href="#architecture">Architecture</a></li><li class="h3-item"><a href="#仓库布局appsrag-v1">仓库布局（apps/rag_v1/）</a></li><li class="h3-item"><a href="#m3-与其他-m-的契约边界">M3 与其他 M 的契约边界</a></li></ol><ol><li><a href="#tech-stack">Tech Stack</a></li><li><a href="#files">Files</a></li><li><a href="#4-4-节点-prompt-yaml-草稿p0-1-修订">§4 · 4 节点 prompt YAML 草稿（P0-1 修订）</a></li><li><a href="#tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</a></li><li class="h3-item"><a href="#task-1pydantic-配置块m0-配置层追加">Task 1：Pydantic 配置块（M0 配置层追加）</a></li><li class="h3-item"><a href="#task-2tei-客户端实现p0-3-修订">Task 2：TEI 客户端实现（P0-3 修订）</a></li><li class="h3-item"><a href="#task-3langfuse-callback-工厂p1-2-修订双备-import-路径">Task 3：Langfuse callback 工厂（P1-2 修订：双备 import 路径）</a></li><li class="h3-item"><a href="#task-4llm-工厂实现p0-2-p0-4-p1-1-p1-4-p1-5-修订注册表-with-config-deterministic">Task 4：LLM 工厂实现（P0-2 / P0-4 / P1-1 / P1-4 / P1-5 修订：注册表 + with_config + deterministic）</a></li><li class="h3-item"><a href="#task-5端到端-smoke-测试p2-6-修订4-节点-parametrize">Task 5：端到端 smoke 测试（P2-6 修订：4 节点 parametrize）</a></li><li class="h3-item"><a href="#task-6yaml-守门测试p2-2-新增">Task 6：yaml 守门测试（P2-2 新增）</a></li></ol><ol><li><a href="#测试策略">测试策略</a></li><li><a href="#验证definition-of-done">验证（Definition of Done）</a></li><li><a href="#与其他-m-的依赖">与其他 M 的依赖</a></li><li><a href="#风险">风险</a></li><li><a href="#修订记录">修订记录</a></li></ol>
+</nav>
+<main>
+<h1 id="m3-plan-llm-工厂-tei-embedding-客户端-langfuse-观测">M3 Plan · LLM 工厂 + TEI Embedding 客户端 + Langfuse 观测</h1>
+
+<div class="callout">所属：RAG V1 M0–M12 实施路线 · 第 3 步</div>
+<div class="callout">代码根目录：<code>apps/rag_v1/</code></div>
+<div class="callout">基线 spec：<a href="../specs/2026-06-10-rag-v1-scope.md#8-依赖版本清单">V1 Scope §8 核心 LLM 编排栈</a> · <a href="../specs/2026-06-10-rag-v1-scope.md#0-决策总表">决策总表 #8/#9/#10</a></div>
+<div class="callout">脑暴基线：<code>session 20260608_145040_7202e5</code> msg 195 §1（保留 langchain 决策）+ msg 195 §6（决策 #8/#9/#10 落点）</div>
+<div class="callout">估时：2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）（P2-4 修订）</div>
+<div class="callout">范本目的：给 M0/M1/M2/M4–M12 提供&quot;单里程碑&quot;计划的结构样板</div>
+
+<p><strong>r2-2026-06-11 范本影响通知</strong>（r2 review 验证下游传导已生效）：</p>
+<li>M7 graph：使用 <code>make_llm(&quot;classify&quot;)</code> / <code>&quot;rewrite&quot;</code> / <code>&quot;rerank&quot;</code> / <code>&quot;answer&quot;</code> / <code>&quot;answer_chitchat&quot;</code> + 7 节点 KNOWN_NODES 注册</li>
+<li>M10 obs-langfuse：使用 <code>make_llm(&quot;judge&quot;)</code> 节点 + <code>get_callback_handler(sample_rate=...)</code> 工厂</li>
+<li>M11 eval-ragas：使用 <code>make_llm(&quot;judge&quot;)</code> 节点 + <code>LangchainLLMWrapper(judge_llm)</code> 包装</li>
+
+<p>---</p>
+
+<h2 id="goal">Goal</h2>
+
+<p>把 v1-scope 决策 #8/#9/#10 落成可执行代码契约：</p>
+<li>一个 <code>make_llm(node: str)</code> 工厂，<strong>注册表</strong>机制管理 7 节点（classify / rewrite / rerank / answer / judge / summarize / answer_chitchat）——P1-5 修订，共用 <code>ChatAnthropic</code> 抽象 + Langfuse callback 注入</li>
+<li>一个 <code>TEIEmbedder</code> 异步客户端，封装 httpx 调自部署 <code>text-embeddings-inference</code> 容器（bge-m3, dim=1024, batch=32），<strong>含 dim 硬断言</strong>——P0-3 修订</li>
+<li>端到端 smoke：<code>embed(&quot;hello&quot;) → vector[1024]</code> 跑通；<code>llm.invoke(&quot;hi&quot;)</code> 跑通；Langfuse 看板能看到 trace</li>
+
+<p><strong>不包含</strong>（其他 M 负责）：M7 graph 编排节点函数、M4–M6 ingest pipeline 用 embed、M10 Langfuse 业务级 trace</p>
+
+<p>---</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="仓库布局appsrag-v1">仓库布局（apps/rag_v1/）</h3>
+
+<pre><code >apps/
+└── rag_v1/                          # RAG V1 项目根
+    ├── infra/                       # 基础设施配置（M0 启动）
+    │   └── docker-compose.yml       # PG + OpenSearch + TEI + Langfuse
+    │
+    ├── app/                         # 应用代码（Python 包）
+    │   ├── __init__.py
+    │   ├── llm/                     # LLM 工厂 + 节点 prompt
+    │   │   ├── __init__.py
+    │   │   ├── factory.py           # make_llm(node) → ChatAnthropic + Langfuse callback
+    │   │   └── prompts.py           # 4 节点 prompt YAML 加载（mtime 热加载）
+    │   ├── prompts/                 # prompt 资源目录
+    │   │   ├── classify.yaml
+    │   │   ├── rewrite.yaml
+    │   │   ├── rerank.yaml
+    │   │   ├── answer.yaml
+    │   │   ├── judge.yaml           # M11 阶段实写，M3 占位（P1-5）
+    │   │   ├── summarize.yaml       # M3 占位（P1-5）
+    │   │   └── answer_chitchat.yaml # M3 占位（M7 闲聊分支，P1-5）
+    │   ├── embedding/               # Embedding 客户端
+    │   │   ├── __init__.py
+    │   │   └── client.py            # TEIEmbedder.embed(texts)，含 dim 断言
+    │   ├── observability/           # 观测
+    │   │   ├── __init__.py
+    │   │   ├── langfuse.py          # get_callback_handler() → CallbackHandler（双备 import）
+    │   │   └── tracing.py           # @trace 装饰器
+    │   ├── config.py                # Pydantic Settings 聚合（M0 已建）
+    │   └── ...
+    │
+    ├── tests/                       # 测试（镜像 app/ 结构）
+    │   ├── __init__.py
+    │   ├── unit/
+    │   │   ├── test_config.py
+    │   │   ├── test_llm_factory.py
+    │   │   ├── test_tei_embedder.py
+    │   │   ├── test_langfuse_callback.py
+    │   │   └── test_prompt_yaml_guard.py   # P2-2 新增：yaml ≥ 50 token 守门
+    │   └── integration/
+    │       └── test_m3_smoke.py     # 4 节点 parametrize 覆盖（P2-6）
+    │
+    ├── pyproject.toml               # 直接依赖清单（5 个新包 + 1 dev 工具）
+    ├── .env.example                 # ANTHROPIC_API_KEY / LANGFUSE_* / TEI_URL
+    └── README.md</code></pre>
+
+<p><strong>模块组织原则</strong>：</p>
+<li><code>app/</code>、<code>tests/</code> 互为镜像（<code>app/llm/factory.py</code> 对应 <code>tests/unit/test_llm_factory.py</code>）</li>
+<li><code>infra/</code> 与代码解耦（只放 docker-compose / env 模板 / 初始化 SQL）</li>
+<li><code>apps/rag_v1/</code> 是独立 Python 项目（有自己的 <code>pyproject.toml</code>、<code>venv</code>、<code>README</code>）</li>
+
+<h3 id="m3-与其他-m-的契约边界">M3 与其他 M 的契约边界</h3>
+
+<table>
+<thead><tr><th>调用方</th><th>用的接口</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>M7 graph 节点</td><td>`make_llm(&quot;classify&quot;\</td><td>&quot;rewrite&quot;\</td><td>&quot;rerank&quot;\</td><td>&quot;answer&quot;\</td><td>&quot;answer_chitchat&quot;)`</td><td>7 节点共用工厂，注册表化（P1-5）</td></tr>
+<tr><td>M4–M6 ingest pipeline</td><td><code>TEIEmbedder.embed(texts)</code></td><td>batch=32，含 dim 硬断言</td></tr>
+<tr><td>M10 Langfuse 集成</td><td><code>get_callback_handler()</code> 注入 invoke</td><td>M3 工厂已注（<code>with_config</code> 协议）</td></tr>
+<tr><td>M11 RAGAS eval</td><td><code>TEIEmbedder.embed</code>（golden set 离线 embed）+ <code>make_llm(&quot;judge&quot;)</code></td><td>judge 节点 M3 注册表已占位</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="tech-stack">Tech Stack</h2>
+
+<table>
+<thead><tr><th>层</th><th>选型</th><th>版本（精确）</th></tr></thead>
+<tbody>
+<tr><td>LLM 抽象</td><td><code>langchain</code></td><td><code>==1.0.8</code></td></tr>
+<tr><td>LLM 协议</td><td><code>langchain-core</code></td><td><code>&gt;=1.0.8,&lt;1.1</code></td></tr>
+<tr><td>LLM 实现</td><td><code>langchain-anthropic</code></td><td><code>&gt;=0.3,&lt;1.0</code></td></tr>
+<tr><td>观测</td><td><code>langfuse</code></td><td><code>&gt;=2.50,&lt;3</code></td></tr>
+<tr><td>Embedding HTTP</td><td><code>httpx</code></td><td><code>&gt;=0.27,&lt;1</code></td></tr>
+<tr><td>重试</td><td><code>tenacity</code></td><td><code>&gt;=8.3,&lt;10</code></td></tr>
+<tr><td>配置</td><td><code>pydantic-settings</code></td><td><code>&gt;=2.3,&lt;3</code></td></tr>
+<tr><td>YAML 解析</td><td><code>pyyaml</code></td><td><code>&gt;=6.0,&lt;7</code>（P2-3）</td></tr>
+<tr><td>LLM 模型</td><td>minimax-cn <code>MiniMax-M3</code></td><td>（非 Python 包，env 配）</td></tr>
+<tr><td>Embedding 容器</td><td><code>ghcr.io/huggingface/text-embeddings-inference:1.5</code></td><td>bge-m3, dim=1024, CPU</td></tr>
+<tr><td>Embedding 端口</td><td><code>18080:80</code>（host 18080 → 容器 80）</td><td><strong>r2 已补</strong>：M0 docker-compose 端口配置；避免与 8080/8081 冲突（host 端 <code>.env.example</code> 配 <code>TEI_URL=http://tei:80</code>，容器内端口 80）</td></tr>
+<tr><td>测试</td><td><code>pytest</code> / <code>pytest-asyncio</code> / <code>pytest-httpx</code> / <code>pytest-cov</code></td><td>见 §测试</td></tr>
+</tbody></table>
+
+<p><strong>关键导入路径</strong>（langchain 1.0.x / langfuse 2.50+，P1-2 双备）：<code>from langchain_anthropic import ChatAnthropic</code> / <code>from langchain_core.messages import HumanMessage, SystemMessage</code> / <code>from langfuse.langchain import CallbackHandler</code>（P1-2 加 fallback <code>from langfuse.callback.langchain</code>）/ <code>import httpx</code>（Embedding 自建）/ <code>import yaml</code>（P2-3 prompt 加载）。</p>
+
+<p><strong>Python 导入规则</strong>（从 <code>apps/rag_v1/</code> 内部）：</p>
+<li><code>app.llm.factory</code> —— <code>app</code> 是 <code>apps/rag_v1/app/</code></li>
+<li><code>tests.unit.test_llm_factory</code> —— 跑测试时 <code>cd apps/rag_v1 &amp;&amp; pytest</code></li>
+
+<p><strong>pyproject 依赖补完</strong>（P1-3 + P2-3）：<code>dependencies</code> 段追加 <code>pyyaml&gt;=6.0,&lt;7</code>；<code>[project.optional-dependencies] dev</code> 段追加 <code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>pytest-cov&gt;=5.0,&lt;7</code>。</p>
+
+<p>---</p>
+
+<h2 id="files">Files</h2>
+
+<p><strong>新增</strong>（9 个源文件 + 6 个测试文件）：</p>
+
+<table>
+<thead><tr><th>路径（相对 <code>apps/rag_v1/</code>）</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>app/__init__.py</code></td><td>包标识</td></tr>
+<tr><td><code>app/llm/__init__.py</code></td><td>暴露 <code>make_llm</code></td></tr>
+<tr><td><code>app/llm/factory.py</code></td><td>工厂实现 + <strong>注册表</strong> KNOWN_NODES（7 节点）+ 4 节点 prompt 加载</td></tr>
+<tr><td><code>app/llm/prompts.py</code></td><td>7 节点 system prompt（YAML 加载 + mtime 热加载）</td></tr>
+<tr><td><code>app/prompts/classify.yaml</code> / <code>rewrite.yaml</code> / <code>rerank.yaml</code> / <code>answer.yaml</code></td><td>4 节点 prompt（<strong>见 §4 草稿</strong>）</td></tr>
+<tr><td><code>app/prompts/judge.yaml</code> / <code>summarize.yaml</code> / <code>answer_chitchat.yaml</code></td><td>P1-5 占位：M11/M7 阶段实写</td></tr>
+<tr><td><code>app/embedding/__init__.py</code></td><td>暴露 <code>TEIEmbedder</code></td></tr>
+<tr><td><code>app/embedding/client.py</code></td><td>TEI 客户端（<strong>含 dim 硬断言</strong>）</td></tr>
+<tr><td><code>app/observability/__init__.py</code></td><td>暴露 <code>get_callback_handler</code></td></tr>
+<tr><td><code>app/observability/langfuse.py</code></td><td>Langfuse callback 工厂（<strong>双备 import</strong>）</td></tr>
+<tr><td><code>app/observability/tracing.py</code></td><td><code>@trace</code> 装饰器</td></tr>
+<tr><td><code>tests/__init__.py</code></td><td>测试包标识</td></tr>
+<tr><td><code>tests/unit/__init__.py</code></td><td>单元测试包</td></tr>
+<tr><td><code>tests/unit/test_config.py</code></td><td>配置块单测</td></tr>
+<tr><td><code>tests/unit/test_llm_factory.py</code></td><td>工厂单测（<strong>含 deterministic 强制</strong>）</td></tr>
+<tr><td><code>tests/unit/test_tei_embedder.py</code></td><td>嵌入单测（mock httpx，<strong>含 dim 断言</strong>）</td></tr>
+<tr><td><code>tests/unit/test_langfuse_callback.py</code></td><td>Langfuse 工厂单测（<strong>含双备路径</strong>）</td></tr>
+<tr><td><code>tests/unit/test_prompt_yaml_guard.py</code></td><td>yaml ≥ 50 token 守门单测（P2-2 新增）</td></tr>
+<tr><td><code>tests/integration/__init__.py</code></td><td>集成测试包</td></tr>
+<tr><td><code>tests/integration/test_m3_smoke.py</code></td><td>端到端：embed + llm + langfuse（<strong>4 节点 parametrize</strong>）</td></tr>
+<tr><td><code>.env.example</code></td><td>追加 <code>ANTHROPIC_API_KEY</code> / <code>LANGFUSE_*</code> / <code>TEI_URL</code></td></tr>
+</tbody></table>
+
+<p><strong>修改</strong>：</p>
+<li><code>pyproject.toml</code>：追加 4 个新直接依赖（<code>langchain-anthropic</code> / <code>langfuse</code> / <code>httpx</code> / <code>tenacity</code> / <code>pyyaml</code>），dev 段追加 <code>pytest-httpx</code> + <code>pytest-cov</code></li>
+<li><code>app/config.py</code>（M0 已有）：追加 LLM/Embedding/Langfuse 配置块（<strong>含 timeout / max_retries / sample_rate / flush / blocked_keys</strong>）</li>
+
+<p><strong>不修改</strong>：<code>infra/docker-compose.yml</code>（TEI 容器是 M0 启动时已配的 M3 验收前置）、M2 auth（鉴权不参与 M3 路径）</p>
+
+<p>---</p>
+
+<h2 id="4-4-节点-prompt-yaml-草稿p0-1-修订">§4 · 4 节点 prompt YAML 草稿（P0-1 修订）</h2>
+
+<div class="callout ok">DoD L283 强制&quot;4 个 prompt yaml 文件（classify/rewrite/rerank/answer）各 ≥ 50 token，含 1-shot 示例&quot;。</div>
+<div class="callout">下列草稿为 M3 阶段定稿，M11 / M7 引用时按需扩展；<code>judge.yaml</code> / <code>summarize.yaml</code> / <code>answer_chitchat.yaml</code> 占位文件见 Files 表 L165-167。</div>
+
+<pre><code data-lang="yaml"># app/prompts/classify.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.0           # classify 要 deterministic（P1-1 工厂层强制 0.0）
+max_tokens: 64
+system_prompt: |
+  你是 query 意图分类器。把用户 query 分到两类之一：
+    - &quot;retrieve&quot;：需要查知识库（事实 / 流程 / 代码 / 配置）
+    - &quot;chitchat&quot;：闲聊 / 寒暄 / 不需要事实回答
+  严格只输出 JSON：{&quot;intent&quot;: &quot;retrieve&quot; | &quot;chitchat&quot;, &quot;reason&quot;: &quot;&lt;1 句中文理由&gt;&quot;}
+  ---
+  1-shot 示例：
+    Q: &quot;你好&quot;
+    A: {&quot;intent&quot;: &quot;chitchat&quot;, &quot;reason&quot;: &quot;问候语无信息需求&quot;}
+    Q: &quot;V1 决策 #8 选型理由？&quot;
+    A: {&quot;intent&quot;: &quot;retrieve&quot;, &quot;reason&quot;: &quot;需查决策表&quot;}</code></pre>
+
+<pre><code data-lang="yaml"># app/prompts/rewrite.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.2
+max_tokens: 256
+system_prompt: |
+  你是 query 改写器。基于对话历史把当前 query 改写成 1-3 句、自包含的检索 query。
+  规则：
+    - 消解代词（&quot;它&quot; → &quot;V1 决策 #8 选型&quot;）
+    - 补全主语/对象
+    - 保留原 query 的意图
+    - 不引入对话外的信息
+  严格只输出改写后 query，不要解释，不要前缀。
+  ---
+  1-shot 示例：
+    History: 用户问&quot;V1 决策 #8 选什么&quot;
+    Q: &quot;为什么选这个？&quot;
+    A: &quot;V1 决策 #8 选择 langchain 1.0.x 的核心理由是什么&quot;</code></pre>
+
+<pre><code data-lang="yaml"># app/prompts/rerank.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.0           # rerank 要 deterministic（P1-1 工厂层强制 0.0）
+max_tokens: 1024
+system_prompt: |
+  你是相关性评分员。给每个 chunk 打 0-10 分（10=直接回答 query 核心问题，0=完全无关）。
+  输入格式：
+    QUERY: &lt;query&gt;
+    CHUNKS:
+      [1] &lt;chunk1&gt;
+      [2] &lt;chunk2&gt;
+      ...
+  严格只输出 JSON：{&quot;scores&quot;: [[1, 8], [2, 3], ...]}，顺序与输入 chunks 对齐，每条为 [chunk_id, score]。
+  不要解释，不要 markdown 包裹。
+  ---
+  1-shot 示例：
+    QUERY: &quot;TEIEmbedder dim 怎么断言&quot;
+    CHUNKS:
+      [1] &quot;TEI 容器返回向量，dim 由模型决定（bge-m3=1024）&quot;
+      [2] &quot;postgres 接 pgvector 存 768 维&quot;
+    A: {&quot;scores&quot;: [[1, 9], [2, 2]]}</code></pre>
+
+<pre><code data-lang="yaml"># app/prompts/answer.yaml
+model: minimax-cn/MiniMax-M3
+temperature: 0.3
+max_tokens: 1024
+system_prompt: |
+  你是 RAG 回答助手。基于 &lt;context&gt; 块回答 &lt;query&gt;。
+  规则：
+    - 必须用 [1][2][3] 引用编号标注信息来自哪个 chunk
+    - context 不足时直说&quot;未找到足够信息&quot;，不要编造
+    - 中文回答，markdown 格式
+    - 不要输出 context 原文整段
+  严格按格式：
+    ANSWER: &lt;markdown 回答&gt;
+    SOURCES: [1, 2, 3]
+  ---
+  1-shot 示例：
+    QUERY: &quot;M3 范本目的是什么&quot;
+    CONTEXT:
+      [1] &quot;M3 计划是 RAG V1 路线唯一被显式标注为&#x27;范本&#x27;的里程碑&quot;
+      [2] &quot;M3 给 M0/M1/M2/M4–M12 提供&#x27;单里程碑&#x27;计划的结构样板&quot;
+    A:
+      ANSWER: M3 是 RAG V1 路线**唯一**被显式标注为&quot;范本&quot;的里程碑，给 M0/M1/M2/M4–M12 提供单里程碑计划的结构样板 [1][2]。
+      SOURCES: [1, 2]</code></pre>
+
+<div class="callout ok">4 yaml 已含 ≥ 50 token + 1-shot 示例，满足 DoD 第 7 条（由 Task 6 守门测试强制）。</div>
+<div class="callout">Task 4 RED 段已含对应&quot;锚定 yaml 实际字符串&quot;断言（见 Task 4 <code>test_factory_binds_system_prompt</code> 强化）。</div>
+
+<p>---</p>
+
+<h2 id="tasks2-5-分钟step-粒度">Tasks（2-5 分钟/step 粒度）</h2>
+
+<h3 id="task-1pydantic-配置块m0-配置层追加">Task 1：Pydantic 配置块（M0 配置层追加）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_config.py::test_llm_config_loads</code></p>
+<li>写测试：mock env vars → 加载 <code>Settings().llm</code> → 断言 <code>model == &quot;minimax-cn/MiniMax-M3&quot;</code></li>
+<li>跑测试 → 失败（配置不存在）</li>
+<li>跑法：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_config.py::test_llm_config_loads</code></li>
+
+<p><strong>GREEN</strong> · 改 <code>app/config.py</code>（P0-4 + P1-4 修订：含工程化 5 件套 + yaml 优先）：</p>
+
+<pre><code data-lang="python"># 关键字段（plan 阶段定稿，测试按此断言；P1-4 修订 yaml model 唯一来源）
+class LLMSettings(BaseSettings):
+    temperature_default: float = 0.3   # P1-4 节点 yaml 缺省继承此值
+    max_tokens_default: int = 1024     # P1-4 同上
+    api_key: SecretStr
+    timeout: int = 60                  # P0-4 单次 invoke 超时
+    max_retries: int = 3               # P0-4 内部 retry
+    rate_limit_rpm: int = 60           # P0-4 token bucket 限速
+
+class EmbeddingSettings(BaseSettings):
+    base_url: HttpUrl
+    batch_size: int = 32               # P0-3 与 TEI 服务端 max_client_batch_size 协调
+    dim: int = 1024                    # P0-3 bge-m3 硬约束，client 端 dim 断言用
+    timeout_seconds: float = 60.0      # P0-3
+
+class LangfuseSettings(BaseSettings):
+    public_key: SecretStr | None = None
+    secret_key: SecretStr | None = None
+    host: HttpUrl = HttpUrl(&quot;http://localhost:3000&quot;)
+    sample_rate: float = 1.0           # P0-4 prod 改 0.1
+    flush_at: int = 2                  # P0-4 攒 N 条 flush
+    flush_interval: float = 5.0        # P0-4 每 N 秒 flush
+    blocked_keys: list[str] = []       # P0-4 PII 字段不入 trace
+
+class Settings(BaseSettings):
+    llm: LLMSettings
+    embedding: EmbeddingSettings
+    langfuse: LangfuseSettings
+
+settings = Settings()                  # X-3 全局单例</code></pre>
+
+<p><strong>REFACTOR</strong> · 把 <code>Settings</code> 拆成子配置加载（M0 review P2-3 提议的 <code>configs/</code> 子目录决议待跨 M 拍板）</p>
+
+<h3 id="task-2tei-客户端实现p0-3-修订">Task 2：TEI 客户端实现（P0-3 修订）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_tei_embedder.py::test_embed_single_text</code></p>
+<li>mock httpx <code>/embed</code> 响应：<code>{&quot;embeddings&quot;: [[0.1, 0.2, ...]]}</code>（dim=1024）</li>
+<li>测 <code>TEIEmbedder().embed([&quot;hello&quot;])</code> → 1 个 vector，len=1024</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/embedding/client.py</code>（P0-3 + P2-5 修订），关键约束：</p>
+
+<li>batch_size 由 <code>EmbeddingSettings.batch_size</code> 控制（默认 32，与 TEI 服务端协调）</li>
+<li>normalize=true（L2 normalize，可直接走 cosine）；truncate=true（bge-m3 8192 token 上限截断）</li>
+<li>4xx/5xx 分类：4xx 直接抛 <code>EmbeddingError</code>（不重试）；5xx 抛 <code>EmbeddingError</code> 触发 tenacity 3 次指数退避（1/2/4s）</li>
+<li><strong>dim 硬断言</strong>（P0-3）：返回 dim ≠ <code>self.cfg.dim</code>（默认 1024）抛 <code>EmbeddingDimMismatch</code></li>
+<li>协议：<code>__aenter__</code> / <code>__aexit__</code> / <code>aclose</code>（P2-5），调用方 <code>async with TEIEmbedder() as e: ...</code></li>
+<li>httpx timeout：<code>httpx.Timeout(self.cfg.timeout_seconds)</code>（默认 60s，P0-3）</li>
+
+<p>完整实现见 review P0-3 段代码块；M3 阶段以 review 内代码为准。</p>
+
+<p><strong>RED</strong> · <code>test_embed_batches_at_batch_size</code></p>
+<li>传 70 条 text，<code>batch_size=32</code> → 断言 httpx 调 3 次（32+32+6）</li>
+
+<p><strong>GREEN</strong> · <code>_chunked(texts, batch_size)</code> 工具函数（如上）</p>
+
+<p><strong>RED</strong> · <code>test_embed_retries_on_5xx</code></p>
+<li>mock 第 1 次 5xx、第 2 次 200 → 断言成功 + 调用 2 次</li>
+
+<p><strong>GREEN</strong> · 加 <code>@tenacity.retry</code> 装饰器（stop_after_attempt=3, wait_exponential）</p>
+
+<p><strong>RED</strong> · <code>test_embed_raises_on_dim_mismatch</code>（P0-3 新增）</p>
+<li>mock 返回 <code>{&quot;embeddings&quot;: [[0.1] * 768]}</code>（错的 dim）</li>
+<li>断言抛 <code>EmbeddingDimMismatch</code></li>
+
+<p><strong>RED</strong> · <code>test_embedder_context_manager</code>（P2-5 新增）</p>
+<li><code>async with TEIEmbedder() as e: ...</code> 验证 <code>aclose</code> 被调</li>
+
+<h3 id="task-3langfuse-callback-工厂p1-2-修订双备-import-路径">Task 3：Langfuse callback 工厂（P1-2 修订：双备 import 路径）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_langfuse_callback.py::test_returns_handler_when_keys_set</code></p>
+<li>mock env <code>LANGFUSE_PUBLIC_KEY=pk-test</code> / <code>LANGFUSE_SECRET_KEY=***</code> 调 <code>get_callback_handler()</code> → 断言返回 <code>CallbackHandler</code> 实例</li>
+<li>跑测试 → 失败</li>
+
+<p><strong>GREEN</strong> · 实现 <code>app/observability/langfuse.py</code>（P1-2 双备 import + P0-4 sample_rate/blocked_keys）：</p>
+
+<li>import 顺序：先 <code>from langfuse.langchain import CallbackHandler</code>（2.50+ 主），失败回退 <code>from langfuse.callback.langchain import CallbackHandler</code>（旧版），两条都失败置 <code>CallbackHandler = None</code>（DoD 第 3 条降级）</li>
+<li><code>get_callback_handler()</code>：env 缺 key 或 import 失败时返回 None；否则实例化 <code>CallbackHandler(public_key, secret_key, host, sample_rate=settings.langfuse.sample_rate, blocked_keys=settings.langfuse.blocked_keys)</code></li>
+
+<div class="callout crit"><strong>atexit flush</strong>（P0-4）：M12 Hardening 加 atexit 调 <code>langfuse.flush()</code>，M3 范围内 langfuse 自身 background flush 够用（默认 5s 一次）。</div>
+
+<p><strong>RED</strong> · <code>test_returns_none_when_keys_missing</code></p>
+<li>删 env → 断言返回 None</li>
+<li>跑测试 → 失败（当前会抛 KeyError）</li>
+
+<p><strong>GREEN</strong> · 加 None 兜底</p>
+
+<p><strong>RED</strong> · <code>test_callback_handler_import_paths_resolve</code>（P1-2 新增）</p>
+<li>至少一条 import 路径能解析到 <code>CallbackHandler</code>（避免 DoD 第 4 条被 ImportError 阻塞）</li>
+
+<h3 id="task-4llm-工厂实现p0-2-p0-4-p1-1-p1-4-p1-5-修订注册表-with-config-deterministic">Task 4：LLM 工厂实现（P0-2 / P0-4 / P1-1 / P1-4 / P1-5 修订：注册表 + with_config + deterministic）</h3>
+
+<div class="callout"><strong>Task 拆解</strong>（P1-6 修订）：原 Task 4 是 4-4c 合并体，约 20 分钟（5 + 10 + 5）。</div>
+<div class="callout">- Task 4a：<code>load_prompt_cfg</code> + mtime 热加载（5 分钟）</div>
+<div class="callout">- Task 4b：<code>make_llm</code> 注册表工厂 + 7 节点 + deterministic 强制（10 分钟）</div>
+<div class="callout crit">- Task 4c：callback 注入（5 分钟，受 P0-2 with_config 改写）</div>
+
+<p><strong>RED</strong> · <code>tests/unit/test_llm_factory.py::test_factory_creates_chat_anthropic</code></p>
+<li>mock <code>ChatAnthropic</code> 构造 → 断言 <code>make_llm(&quot;answer&quot;)</code> 返回实例且 <code>temperature</code> 来自 prompt config</li>
+
+<p><strong>GREEN</strong> · <code>app/llm/factory.py</code>（P0-2 / P0-4 / P1-1 / P1-4 / P1-5 / P2-1 全部落入）关键约束：</p>
+
+<li><strong>注册表</strong> <code>KNOWN_NODES = (&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;, &quot;judge&quot;, &quot;summarize&quot;, &quot;answer_chitchat&quot;)</code>（P1-5）；未知名抛 <code>ValueError</code></li>
+<li><strong>deterministic 节点集</strong> <code>_DETERMINISTIC_NODES = {&quot;classify&quot;, &quot;rerank&quot;, &quot;judge&quot;}</code>（P1-1）：强制 <code>temperature=0.0</code>，忽略 yaml 覆盖</li>
+<li><strong>yaml 优先</strong>（P1-4）：<code>cfg.model / cfg.temperature / cfg.max_tokens</code> 从 yaml 读，缺省回退 <code>settings.llm.temperature_default/max_tokens_default</code></li>
+<li><strong>超时+重试</strong>（P0-4）：<code>ChatAnthropic(timeout=settings.llm.timeout, max_retries=settings.llm.max_retries)</code></li>
+<li><strong>bind system_prompt</strong>：<code>model.bind(system_message=cfg.system_prompt)</code>（langchain 1.0 bind 协议）</li>
+<li><strong>callback 注入</strong>（P0-2 关键修复）：用 <code>bound.with_config({&quot;callbacks&quot;: [handler]})</code> 注入，<strong>不</strong>写进 <code>model.callbacks</code> 字段（langchain 1.0+ 已弃用）</li>
+<li><strong>mtime 热加载</strong>（P2-1）：<code>load_prompt_cfg(node)</code> 内部以 <code>(path, mtime)</code> 为 key 缓存 yaml，改文件自动失效</li>
+<li>工厂级 <code>@lru_cache(maxsize=8)</code> 复用 7 节点实例；<code>_BOUND_CACHE</code> 给 RED 测试断言用</li>
+
+<p>完整实现骨架见 review P0-2 段代码块。</p>
+
+<p><strong>RED</strong> · <code>test_factory_binds_system_prompt</code>（P0-1 强化：锚定 yaml 实际字符串）</p>
+<li>mock yaml → 断言 <code>make_llm(&quot;classify&quot;)</code> 后 invoke 时 system message 已绑定</li>
+<li><strong>强化断言</strong>（避免假绿）：<code>_BOUND_CACHE[&quot;classify&quot;].steps</code> 字符串里应含 <code>&quot;query 意图分类器&quot;</code>（锚定 §4 yaml 实际字符串）</li>
+
+<p><strong>RED</strong> · <code>test_callback_uses_with_config_not_callbacks_field</code>（P0-2 新增）</p>
+<li>关键断言：<code>llm.callbacks</code> 为空（langchain 1.0+ 字段），callback 应在 <code>with_config</code> 注入的 config 里</li>
+<li>mock <code>get_callback_handler</code> → 返 <code>FakeHandler</code> → 调 <code>make_llm(&quot;answer&quot;)</code> → 验证 callback 走的是 <code>with_config</code> 协议路径</li>
+
+<p><strong>RED</strong> · <code>test_classify_and_rerank_are_deterministic</code>（P1-1 新增）</p>
+<li>循环 <code>(&quot;classify&quot;, &quot;rerank&quot;)</code> 断言 <code>llm.temperature == 0.0</code></li>
+<li>反向循环 <code>(&quot;rewrite&quot;, &quot;answer&quot;)</code> 断言 <code>llm.temperature &gt; 0.0</code></li>
+
+<p><strong>RED</strong> · <code>test_make_llm_rejects_unknown_node</code>（P1-5 新增）</p>
+<li><code>make_llm(&quot;totally_made_up_node&quot;)</code> 抛 <code>ValueError</code> 且 message 含 <code>&quot;unknown llm node&quot;</code></li>
+
+<h3 id="task-5端到端-smoke-测试p2-6-修订4-节点-parametrize">Task 5：端到端 smoke 测试（P2-6 修订：4 节点 parametrize）</h3>
+
+<p><strong>RED</strong> · <code>tests/integration/test_m3_smoke.py::test_embed_then_llm_pipeline</code></p>
+<li>起 docker-compose（M0 已配，在 <code>apps/rag_v1/infra/</code>）→ 拿到 TEI URL + LLM env</li>
+<li><code>TEIEmbedder().embed([&quot;smoke test&quot;])</code> → 拿 vector</li>
+<li><code>make_llm(&quot;answer&quot;).invoke([HumanMessage(&quot;reply ok&quot;)])</code> → 拿 string</li>
+<li>断言 vector len=1024、reply 非空、Langfuse trace 出现在 <code>LANGFUSE_HOST/api/traces</code>（GET poll 一次）</li>
+
+<p><strong>GREEN</strong> · 修任何失败的 assert（通常在配置 / 端口）</p>
+
+<p><strong>RED</strong> · <code>test_make_llm_smoke_for_all_nodes</code>（P2-6 新增，parametrize 4 节点）</p>
+<li><code>@pytest.mark.parametrize(&quot;node&quot;, [&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;])</code></li>
+<li>每节点：<code>make_llm(node)</code> 非空 → <code>llm.invoke([HumanMessage(&quot;ping&quot;)])</code> 非空 content</li>
+
+<h3 id="task-6yaml-守门测试p2-2-新增">Task 6：yaml 守门测试（P2-2 新增）</h3>
+
+<p><strong>RED</strong> · <code>tests/unit/test_prompt_yaml_guard.py::test_all_prompt_yamls_meet_minimum</code></p>
+<li>循环 <code>(&quot;classify&quot;, &quot;rewrite&quot;, &quot;rerank&quot;, &quot;answer&quot;)</code> 4 yaml</li>
+<li>断言 1：<code>len(prompt.split()) &gt;= 50</code>（DoD 第 7 条 token 数）</li>
+<li>断言 2：<code>&quot;1-shot&quot; in prompt or &quot;示例&quot; in prompt or &quot;Q:&quot; in prompt</code>（1-shot 关键词守门）</li>
+
+<p>---</p>
+
+<h2 id="测试策略">测试策略</h2>
+
+<li><strong>M3 单元</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/unit/test_tei_embedder.py tests/unit/test_llm_factory.py tests/unit/test_langfuse_callback.py tests/unit/test_prompt_yaml_guard.py</code> —— 全 mock，CI 内 0.5s</li>
+<li><strong>M3 集成</strong>：<code>cd apps/rag_v1 &amp;&amp; pytest tests/integration/test_m3_smoke.py --require-docker</code> —— 需 <code>docker compose -f infra/docker-compose.yml up -d tei langfuse postgres</code>，含 4 节点 parametrize</li>
+<li><strong>覆盖率门禁</strong>：<code>pytest --cov=app/llm --cov=app/embedding --cov=app/observability --cov-fail-under=85</code></li>
+<li><strong>TDD 红绿</strong>：每个 task 强制 RED（commit 标 [RED]）→ GREEN（commit 标 [GREEN]）→ REFACTOR（commit 标 [RF]）</li>
+
+<p>---</p>
+
+<h2 id="验证definition-of-done">验证（Definition of Done）</h2>
+
+<li>[ ] <code>make_llm</code> 在 4 个节点下都能创建实例</li>
+<li>[ ] <code>TEIEmbedder.embed</code> 单条 / batch / 5xx 重试 / dim 断言 / context manager 五路径全测过</li>
+<li>[ ] Langfuse callback 在 env 缺 key 时返回 None（不抛）</li>
+<li>[ ] Langfuse callback 在 env 完整时注入 LLM invoke 并能在看板看到 trace（用 <code>with_config</code> 协议）</li>
+<li>[ ] <code>tests/integration/test_m3_smoke.py</code> 在 <code>infra/docker-compose.yml up</code> 后 30s 内通过（4 节点 parametrize 全过）</li>
+<li>[ ] 单元覆盖率 ≥ 85%</li>
+<li>[ ] 4 个 prompt yaml 文件（classify/rewrite/rerank/answer）各 ≥ 50 token，含 1-shot 示例（<strong>由 <code>test_prompt_yaml_guard.py</code> 强制</strong>，P2-2）</li>
+<li>[ ] <code>.env.example</code> 含全部新增 env vars</li>
+<li>[ ] <code>apps/rag_v1/</code> 仓库布局落地（infra/app/tests 三子目录）</li>
+
+<p>---</p>
+
+<h2 id="与其他-m-的依赖">与其他 M 的依赖</h2>
+
+<table>
+<thead><tr><th>上游（必须 M3 前完成）</th><th>下游（依赖 M3）</th></tr></thead>
+<tbody>
+<tr><td>M0 <code>infra/docker-compose.yml</code>（TEI + Langfuse + Postgres 容器）</td><td>M7 graph 节点（用 <code>make_llm</code>，含 <code>answer_chitchat</code>）</td></tr>
+<tr><td>M1 alembic 基础（settings 加载有依赖）</td><td>M4–M6 ingest（用 <code>TEIEmbedder</code>）</td></tr>
+<tr><td></td><td>M10 obs 集成（基于 M3 callback 工厂）</td></tr>
+<tr><td></td><td>M11 RAGAS（用 <code>make_llm(&quot;judge&quot;)</code> + <code>TEIEmbedder</code>）</td></tr>
+</tbody></table>
+
+<p><strong>下游联动表</strong>（M3 范本影响，P1-5 修订后对齐）：</p>
+<li><strong>M7 graph</strong>：M3 工厂已注册 <code>answer_chitchat</code> 节点（classify intent=chitchat 分支用），M7 节点代码直接 <code>make_llm(&quot;answer_chitchat&quot;)</code> 即可</li>
+<li><strong>M10 obs-langfuse</strong>：M3 工厂 callback 注入已用 <code>with_config</code> 正确写法，P0-2 修订后 M10 节点层 trace 不必再补 callback</li>
+<li><strong>M11 eval-ragas</strong>：<code>make_llm(&quot;judge&quot;)</code> 已注册，<code>app/prompts/judge.yaml</code> 占位文件已建，M11 直接实写 yaml 内容即可</li>
+
+<p>---</p>
+
+<h2 id="风险">风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>缓解</th><th>曾被否决的替代方案</th></tr></thead>
+<tbody>
+<tr><td><code>langchain-anthropic</code> 0.3+ 与 1.0.x 协议不兼容</td><td>M0 已锁定 <code>==1.0.8</code>；CI 跑 4 节点 mock invoke 验过</td><td>v0.3 提议&quot;砍 langchain，LLM 直调 anthropic SDK&quot; — 20260608_145040_7202e5 msg 193 §1.1，<strong>已否决</strong>（v0.3-pre msg 195 §1 收回）</td></tr>
+<tr><td>Langfuse v2 callback path 变化</td><td>P1-2 已加双备 import 路径（<code>langfuse.langchain</code> 主 + <code>langfuse.callback.langchain</code> 旧）；单测覆盖</td><td>—</td></tr>
+<tr><td><code>model.callbacks</code> 注入 callback 不生效（langchain 1.0+ 弃用）</td><td>P0-2 已改用 <code>with_config({&quot;callbacks&quot;: [handler]})</code> 协议</td><td>—</td></tr>
+<tr><td>TEI 容器冷启动 30s+</td><td>smoke test 设 <code>httpx.Timeout(60.0)</code></td><td>—</td></tr>
+<tr><td>TEI 返回 dim 不匹配（768/1024 混）污染 OpenSearch kNN</td><td>P0-3 已加 <code>EmbeddingDimMismatch</code> 硬断言 + 4xx/5xx 分类</td><td>—</td></tr>
+<tr><td>minimax-cn API 不稳定</td><td>P0-4 已加 <code>timeout=60</code> + <code>max_retries=3</code> + <code>rate_limit_rpm=60</code>；M3 不要求 SLA 100%</td><td>—</td></tr>
+<tr><td>Langfuse prod 1.0 sample rate 成本爆炸</td><td>P0-4 已加 <code>sample_rate=0.1</code> (prod) + <code>flush_at/flush_interval</code> 控制 IO</td><td>—</td></tr>
+<tr><td>Langfuse 进程退出丢 trace</td><td>P0-4 风险表标记：M12 atexit 调 <code>langfuse.flush()</code>；M3 范围内 langfuse 自身 background flush 够用</td><td>—</td></tr>
+<tr><td>LLM 节点 temperature 漂移（classify/rerank 应 deterministic）</td><td>P1-1 工厂层强制 <code>classify/rerank/judge</code> temperature=0.0，忽略 yaml</td><td>—</td></tr>
+<tr><td>4 节点 prompt 漂移</td><td>YAML 集中管理 + P2-1 mtime 热加载；PR review 必看 prompt diff</td><td>—</td></tr>
+<tr><td>4 yaml 改 1 个字丢 1-shot</td><td>P2-2 <code>test_prompt_yaml_guard.py</code> 守门 ≥ 50 token + 1-shot 关键词</td><td>—</td></tr>
+<tr><td>M11/M7 引用未注册节点 <code>make_llm(&quot;judge&quot;/&quot;answer_chitchat&quot;)</code></td><td>P1-5 注册表化：<code>KNOWN_NODES</code> 显式列 7 节点，未知节点抛 ValueError</td><td>—</td></tr>
+<tr><td><code>LLMSettings.model</code> 全局 vs yaml 节点级冲突</td><td>P1-4 修订：<code>model</code> 由 yaml 唯一来源，全局只保留 <code>temperature_default/max_tokens_default</code> 兜底</td><td>—</td></tr>
+<tr><td><code>apps/rag_v1/</code> 仓库布局与 CI 路径假设冲突</td><td>M0 plan 同步更新 README 启动步骤；CD 配 <code>apps/rag_v1</code> 为工作目录</td><td>—</td></tr>
+<tr><td>Task 4 估时不准（5 分钟实际 20 分钟）</td><td>P1-6 拆 4a/4b/4c 标注；下游 M 估时 +1d（M11 估时影响）</td><td>—</td></tr>
+<tr><td>P0-1 已修：新增 §4 草稿段，4 yaml 各 ≥ 50 token + 1-shot 示例</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P0-2 已修：<code>make_llm</code> 改用 <code>with_config({&quot;callbacks&quot;:[handler]})</code> 协议</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P0-3 已修：TEIEmbedder 加 <code>EmbeddingDimMismatch</code> 硬断言 + 4xx/5xx 分类 + <code>httpx.Timeout(60s)</code> + batch_size 协调</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P0-4 已修：LLMSettings 补 <code>timeout/max_retries/rate_limit_rpm</code>；LangfuseSettings 补 <code>sample_rate/flush_at/flush_interval/blocked_keys</code></td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-1 已修：工厂层强制 <code>classify/rerank/judge</code> temperature=0.0，忽略 yaml 覆盖</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-2 已修：langfuse import 加双备路径（<code>langfuse.langchain</code> + <code>langfuse.callback.langchain</code>）</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-3 已修：pyproject dev 依赖补 <code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>pytest-cov&gt;=5.0,&lt;7</code></td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-4 已修：<code>LLMSettings.model</code> 改 <code>temperature_default/max_tokens_default</code> 兜底；yaml <code>model</code> 字段为唯一来源</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-5 已修：工厂改注册表 <code>KNOWN_NODES = (classify, rewrite, rerank, answer, judge, summarize, answer_chitchat)</code>；Files 表加 judge/summarize/answer_chitchat.yaml 占位</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P1-6 已修：Task 4 拆 4a/4b/4c（约 20 分钟），下游 M 估时 +1d 通知</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-1 已修：<code>load_prompt_cfg</code> 加 mtime cache key 热加载</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-2 已修：新增 <code>tests/unit/test_prompt_yaml_guard.py</code> 守门 ≥ 50 token + 1-shot</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-3 已修：pyproject 补 <code>pyyaml&gt;=6.0,&lt;7</code> 直接依赖</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-4 已修：估时改&quot;2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）&quot;</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-5 已修：<code>TEIEmbedder</code> 加 <code>__aenter__/__aexit__/aclose</code> 协议</td><td>r1-2026-06-11</td><td>—</td></tr>
+<tr><td>P2-6 已修：集成测试加 <code>test_make_llm_smoke_for_all_nodes</code> 4 节点 parametrize</td><td>r1-2026-06-11</td><td>—</td></tr>
+</tbody></table>
+
+<p>---</p>
+
+<h2 id="修订记录">修订记录</h2>
+
+<table>
+<thead><tr><th>版本</th><th>日期</th><th>改动</th></tr></thead>
+<tbody>
+<tr><td>M3-plan-r0</td><td>2026-06-10</td><td>初稿（基线 V1 Scope §8 决策 #8/#9/#10）</td></tr>
+<tr><td>M3-plan-r1</td><td>2026-06-10</td><td>仓库布局调整为 <code>apps/rag_v1/{infra,app,tests}/</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-1 已修 · 新增 §4 草稿段（classify/rewrite/rerank/answer 4 yaml ≥ 50 token + 1-shot）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-2 已修 · <code>make_llm</code> 改用 <code>with_config({&quot;callbacks&quot;:[handler]})</code> 协议，避开 langchain 1.0+ 弃用 <code>model.callbacks</code> 字段</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-3 已修 · TEIEmbedder 加 <code>EmbeddingDimMismatch</code> 硬断言 + 4xx/5xx 分类 + <code>httpx.Timeout(60s)</code> + <code>batch_size=32</code> 协调 + normalize/truncate 语义明确</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P0-4 已修 · LLMSettings 补 <code>timeout/max_retries/rate_limit_rpm</code>；LangfuseSettings 补 <code>sample_rate/flush_at/flush_interval/blocked_keys</code>；atexit flush 风险表标 M12</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-1 已修 · 工厂层强制 <code>classify/rerank/judge</code> temperature=0.0，忽略 yaml 覆盖</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-2 已修 · langfuse import 加双备路径（<code>langfuse.langchain</code> + <code>langfuse.callback.langchain</code>）</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-3 已修 · pyproject dev 依赖补 <code>pytest-httpx&gt;=0.30,&lt;1</code> + <code>pytest-cov&gt;=5.0,&lt;7</code></td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-4 已修 · <code>LLMSettings.model</code> 改 <code>temperature_default/max_tokens_default</code> 兜底；yaml <code>model</code> 字段为唯一来源</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-5 已修 · 工厂改注册表 <code>KNOWN_NODES = (classify, rewrite, rerank, answer, judge, summarize, answer_chitchat)</code>；Files 表加 <code>judge.yaml</code>/<code>summarize.yaml</code>/<code>answer_chitchat.yaml</code> 占位</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P1-6 已修 · Task 4 拆 4a/4b/4c（约 20 分钟），下游 M 估时 +1d 通知</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-1 已修 · <code>load_prompt_cfg</code> 加 mtime cache key 热加载</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-2 已修 · 新增 <code>tests/unit/test_prompt_yaml_guard.py</code> 守门 ≥ 50 token + 1-shot</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-3 已修 · pyproject 补 <code>pyyaml&gt;=6.0,&lt;7</code> 直接依赖</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-4 已修 · 估时改&quot;2 个工作日（Tasks ~6h + 调试 ~6h + 文档 ~4h）&quot;</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-5 已修 · <code>TEIEmbedder</code> 加 <code>__aenter__/__aexit__/aclose</code> 协议</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>P2-6 已修 · 集成测试加 <code>test_make_llm_smoke_for_all_nodes</code> 4 节点 parametrize</td></tr>
+<tr><td>r1-2026-06-11</td><td>2026-06-11</td><td>范本影响 · M7 已知 <code>make_llm(&quot;answer_chitchat&quot;)</code> 可用；M10 已知 callback 已 <code>with_config</code>；M11 已知 <code>make_llm(&quot;judge&quot;)</code> + <code>judge.yaml</code> 占位已就位</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M3 r2 修复</strong> · Tech Stack 加 <code>Embedding 端口 18080:80</code> 行（host→容器映射，避免 8080/8081 冲突）</td></tr>
+<tr><td>r2-2026-06-11</td><td>2026-06-11</td><td><strong>M3 r2 修复</strong> · 头部加「r2-2026-06-11 范本影响通知」段（明示 M7/M10/M11 已收 make_llm 7 节点 + judge 节点 + callback 工厂）</td></tr>
+</tbody></table>
+
+</main>
+</div>
+<script>
+(function(){
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var headings = tocLinks.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  if(!headings.length) return;
+  function setActive(id){
+    tocLinks.forEach(function(a){
+      if(a.getAttribute('href')==='#'+id){a.classList.add('active');}
+      else{a.classList.remove('active');}
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) setActive(e.target.id);
+    });
+  },{rootMargin:'-10% 0px -75% 0px',threshold:0});
+  headings.forEach(function(h){io.observe(h);});
+  // 平滑滚动
+  tocLinks.forEach(function(a){
+    a.addEventListener('click',function(ev){
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if(el){ev.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+    });
+  });
+})();
+</script>
+</body>
+</html>
