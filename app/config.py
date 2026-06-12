@@ -13,13 +13,13 @@ from app.configs.app import AppSettings
 from app.configs.auth import AuthSettings
 from app.configs.base import BaseAppSettings
 from app.configs.db import DBSettings
-from app.configs.postgres import PostgresSettings
-from app.configs.opensearch import OpenSearchSettings
-from app.configs.tei import TEISettings
 from app.configs.langfuse import LangfuseSettings
-from app.configs.minio import MinIOSettings
+from app.configs.llm import LLMSettings
 from app.configs.logging import LoggingSettings
-from app.configs.app import AppSettings
+from app.configs.minio import MinIOSettings
+from app.configs.opensearch import OpenSearchSettings
+from app.configs.postgres import PostgresSettings
+from app.configs.tei import TEISettings
 
 
 class Settings(BaseAppSettings):
@@ -30,6 +30,7 @@ class Settings(BaseAppSettings):
 
     app: AppSettings = Field(default_factory=AppSettings)
     db: DBSettings = Field(default_factory=DBSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
     postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     opensearch: OpenSearchSettings = Field(default_factory=OpenSearchSettings)
     tei: TEISettings = Field(default_factory=TEISettings)
@@ -56,8 +57,19 @@ def build_settings(env_file: str | None = ".env"):
     return _CustomSettings()
 
 
-# X-3 落地: 末尾全局单例（启动时构造一次，跨模块 import 直接用）
-settings = Settings()
+# X-3 落地: 末尾全局单例 (lazy 初始化, 避免 import 时构造失败)
+# r3 实施层修订: 改成函数式访问, 第一次访问时才构造
+_settings_instance: "Settings | None" = None
+
+
+def __getattr__(name: str) -> "Settings":
+    """PEP 562 module-level __getattr__ (Python 3.7+)."""
+    global _settings_instance
+    if name == "settings":
+        if _settings_instance is None:
+            _settings_instance = Settings()
+        return _settings_instance
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = ["Settings", "settings", "build_settings"]

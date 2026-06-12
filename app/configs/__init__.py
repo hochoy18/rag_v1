@@ -4,6 +4,7 @@ from app.configs.auth import AuthSettings
 from app.configs.base import BaseAppSettings
 from app.configs.db import DBSettings
 from app.configs.langfuse import LangfuseSettings
+from app.configs.llm import LLMSettings
 from app.configs.logging import LoggingSettings
 from app.configs.minio import MinIOSettings
 from app.configs.opensearch import OpenSearchSettings
@@ -15,6 +16,7 @@ __all__ = [
     "AuthSettings",
     "BaseAppSettings",
     "DBSettings",
+    "LLMSettings",
     "LangfuseSettings",
     "LoggingSettings",
     "MinIOSettings",
