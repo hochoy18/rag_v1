@@ -12,6 +12,10 @@ dependencies = [
     "pydantic-settings>=2.3",
     "python-dotenv>=1.0",
     "structlog>=24.1",
+    # M1 schema 追加
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]

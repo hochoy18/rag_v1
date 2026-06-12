@@ -9,7 +9,9 @@ r2 修订: 每子模型自管 env_prefix（POSTGRES_/OPENSEARCH_/TEI_/LANGFUSE_/
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
+from app.configs.app import AppSettings
 from app.configs.base import BaseAppSettings
+from app.configs.db import DBSettings
 from app.configs.postgres import PostgresSettings
 from app.configs.opensearch import OpenSearchSettings
 from app.configs.tei import TEISettings
@@ -26,6 +28,7 @@ class Settings(BaseAppSettings):
     """
 
     app: AppSettings = Field(default_factory=AppSettings)
+    db: DBSettings = Field(default_factory=DBSettings)
     postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     opensearch: OpenSearchSettings = Field(default_factory=OpenSearchSettings)
     tei: TEISettings = Field(default_factory=TEISettings)
