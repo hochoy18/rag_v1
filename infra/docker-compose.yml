@@ -35,7 +35,7 @@ services:
     cpus: "1.0"
 
   opensearch:
-    image: opensearchproject/opensearch:2.19
+    image: opensearchproject/opensearch:2.19.0
     container_name: rag_v1_opensearch
     restart: unless-stopped
     ports:
@@ -94,7 +94,7 @@ services:
     cpus: "2.0"
 
   langfuse:
-    image: langfuse/langfuse:2
+    image: langfuse/langfuse:2.95
     container_name: rag_v1_langfuse
     restart: unless-stopped
     ports:
